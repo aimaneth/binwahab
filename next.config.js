@@ -11,10 +11,6 @@ const nextConfig = {
       },
     ],
   },
-  // Enable App Router
-  experimental: {
-    appDir: true,
-  },
 };
 
 module.exports = nextConfig; 
