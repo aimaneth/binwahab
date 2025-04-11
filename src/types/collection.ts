@@ -1,19 +1,21 @@
 import { Prisma } from "@prisma/client";
 
+export type CollectionType = "MANUAL" | "AUTOMATED";
+
 export interface Collection {
   id: string;
   name: string;
   slug: string;
-  description?: string | null;
-  image?: string | null;
-  image2?: string | null;
-  type: string;
-  conditions?: any | null;
+  description: string | null;
+  image: string | null;
+  image2: string | null;
+  type: CollectionType;
+  conditions: any | null;
   isActive: boolean;
   order: number;
-  seoTitle?: string | null;
-  seoDescription?: string | null;
-  seoKeywords?: string | null;
+  seoTitle: string | null;
+  seoDescription: string | null;
+  seoKeywords: string | null;
   showOnHomePage: boolean;
   displaySection: "FEATURED" | "COMPLETE" | "NONE";
   createdAt: Date;
@@ -26,7 +28,7 @@ export interface CollectionCreateInput {
   description?: string | null;
   image?: string | null;
   image2?: string | null;
-  type?: string;
+  type?: CollectionType;
   conditions?: any | null;
   isActive?: boolean;
   order?: number;
@@ -35,6 +37,4 @@ export interface CollectionCreateInput {
   seoKeywords?: string | null;
   showOnHomePage?: boolean;
   displaySection?: "FEATURED" | "COMPLETE" | "NONE";
-}
-
-export type CollectionType = "MANUAL" | "AUTOMATED"; 
+} 

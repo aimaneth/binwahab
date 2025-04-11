@@ -44,12 +44,13 @@ export async function POST(
     const { options } = variantOptionsSchema.parse(body);
 
     // Get the base product
+    const productId = parseInt(params.productId);
     const product = await prisma.product.findUnique({
-      where: { id: params.productId },
+      where: { id: productId },
       select: { 
         id: true,
-        price: true,
-        sku: true 
+        name: true,
+        price: true
       },
     });
 
@@ -67,7 +68,7 @@ export async function POST(
           .map(([key, value]) => `${key}-${value}`)
           .join("-")
           .toLowerCase();
-        const sku = `${product.sku || product.id}-${optionString}`;
+        const sku = `${product.id}-${optionString}`;
         const existing = await prisma.productVariant.findUnique({
           where: { sku },
         });
@@ -94,16 +95,28 @@ export async function POST(
           .join("-")
           .toLowerCase();
 
-        const sku = `${product.sku || product.id}-${optionString}`;
+        const sku = `${product.id}-${optionString}`;
+        const name = `${product.name} - ${Object.values(combination).join(" / ")}`;
 
         return prisma.productVariant.create({
           data: {
-            productId: params.productId,
+            productId,
+            name,
             sku,
             price: product.price,
             stock: 0,
             options: combination,
             isActive: true,
+            compareAtPrice: null,
+            weight: null,
+            weightUnit: "kg",
+            dimensions: Prisma.JsonNull,
+            attributes: Prisma.JsonNull,
+            barcode: null,
+            images: [],
+            inventoryTracking: true,
+            lowStockThreshold: 5,
+            reservedStock: 0,
           },
         });
       })
@@ -155,7 +168,7 @@ export async function GET(
 
     const variants = await prisma.productVariant.findMany({
       where: {
-        productId: params.productId,
+        productId: parseInt(params.productId),
       },
       orderBy: {
         id: "desc",

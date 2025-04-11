@@ -45,7 +45,7 @@ export async function POST(req: Request) {
     }
 
     const body = await req.json();
-    const { type, fileUrl } = body;
+    const { type, data } = body;
 
     if (!type) {
       return new NextResponse("Operation type is required", { status: 400 });
@@ -55,7 +55,8 @@ export async function POST(req: Request) {
       data: {
         type: type as BulkOperationType,
         status: BulkOperationStatus.PENDING,
-        fileUrl: fileUrl || null,
+        data: data || null,
+        createdBy: session.user.id,
       },
     });
 
@@ -74,7 +75,7 @@ export async function PATCH(req: Request) {
     }
 
     const body = await req.json();
-    const { id, status, results } = body;
+    const { id, status, result } = body;
 
     if (!id) {
       return new NextResponse("Operation ID is required", { status: 400 });
@@ -86,7 +87,8 @@ export async function PATCH(req: Request) {
       },
       data: {
         status: status as BulkOperationStatus,
-        results: results || null,
+        result: result || null,
+        completedAt: status === BulkOperationStatus.COMPLETED ? new Date() : null,
       },
     });
 

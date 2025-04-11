@@ -8,17 +8,15 @@ import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { Product, Category, ProductCollection } from "@prisma/client";
 
-type ProductWithDetails = Product & {
-  category: Category;
-};
-
-type CollectionProduct = {
+interface CollectionProduct {
   id: string;
   name: string;
   price: number;
   image: string | null;
-  category: Category;
-};
+  category: {
+    name: string;
+  };
+}
 
 type CollectionWithProducts = {
   id: string;
@@ -26,10 +24,6 @@ type CollectionWithProducts = {
   description: string | null;
   image: string | null;
   products: CollectionProduct[];
-};
-
-type ProductCollectionWithProduct = ProductCollection & {
-  product: ProductWithDetails;
 };
 
 async function getCollection(collectionId: string): Promise<CollectionWithProducts | null> {
@@ -52,18 +46,25 @@ async function getCollection(collectionId: string): Promise<CollectionWithProduc
     return null;
   }
 
+  // Filter out products with null categories and convert to CollectionProduct type
+  const validProducts = collection.products
+    .filter(pc => pc.product.category !== null)
+    .map(pc => ({
+      id: pc.product.id.toString(),
+      name: pc.product.name,
+      price: Number(pc.product.price),
+      image: pc.product.image,
+      category: {
+        name: pc.product.category!.name
+      }
+    }));
+
   return {
     id: collection.id,
     name: collection.name,
     description: collection.description,
     image: collection.image,
-    products: collection.products.map((pc: ProductCollectionWithProduct) => ({
-      id: pc.product.id,
-      name: pc.product.name,
-      price: pc.product.price,
-      image: pc.product.image,
-      category: pc.product.category,
-    }))
+    products: validProducts
   };
 }
 

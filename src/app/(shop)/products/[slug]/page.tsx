@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { ProductGallery } from "@/components/shop/product-gallery";
 import { ProductInfo } from "@/components/shop/product-info";
 import { RelatedProducts } from "@/components/shop/related-products";
+import { Product, Category } from "@/types/product";
 
 interface ProductPageProps {
   params: {
@@ -37,33 +38,157 @@ export default async function ProductPage({ params }: ProductPageProps) {
     where: {
       slug: params.slug,
     },
-    include: {
-      category: true,
+    select: {
+      id: true,
+      name: true,
+      description: true,
+      image: true,
+      price: true,
+      stock: true,
+      reservedStock: true,
+      slug: true,
+      isActive: true,
+      status: true,
+      categoryId: true,
+      createdAt: true,
+      updatedAt: true,
+      sku: true,
+      inventoryTracking: true,
+      lowStockThreshold: true,
+      category: {
+        select: {
+          id: true,
+          name: true,
+          slug: true,
+          description: true,
+          image: true,
+          isActive: true,
+          parentId: true,
+          seoTitle: true,
+          seoDescription: true,
+          seoKeywords: true,
+          createdAt: true,
+          updatedAt: true,
+          order: true,
+        },
+      },
+      images: {
+        select: {
+          id: true,
+          url: true,
+          order: true,
+          productId: true,
+          createdAt: true,
+          updatedAt: true,
+        },
+        orderBy: {
+          order: "asc",
+        },
+      },
     },
   });
 
-  if (!product) {
+  if (!product || !product.category) {
     notFound();
   }
 
   const relatedProducts = await prisma.product.findMany({
     where: {
       categoryId: product.categoryId,
-      id: {
-        not: product.id,
+      status: "ACTIVE",
+      NOT: {
+        id: product.id,
       },
     },
     take: 4,
+    select: {
+      id: true,
+      name: true,
+      description: true,
+      image: true,
+      price: true,
+      stock: true,
+      reservedStock: true,
+      slug: true,
+      isActive: true,
+      status: true,
+      categoryId: true,
+      createdAt: true,
+      updatedAt: true,
+      sku: true,
+      inventoryTracking: true,
+      lowStockThreshold: true,
+      category: {
+        select: {
+          id: true,
+          name: true,
+          slug: true,
+          description: true,
+          image: true,
+          isActive: true,
+          parentId: true,
+          seoTitle: true,
+          seoDescription: true,
+          seoKeywords: true,
+          createdAt: true,
+          updatedAt: true,
+          order: true,
+        },
+      },
+      images: {
+        select: {
+          id: true,
+          url: true,
+          order: true,
+          productId: true,
+          createdAt: true,
+          updatedAt: true,
+        },
+        orderBy: {
+          order: "asc",
+        },
+      },
+    },
   });
+
+  // Filter out products with null categories
+  const productsWithCategories = relatedProducts.filter(p => p.category !== null);
+
+  // Convert Prisma model to our Product type
+  const typedProduct: Product = {
+    ...product,
+    category: product.category as Category,
+    images: product.images.map(img => ({
+      ...img,
+      id: Number(img.id),
+      productId: Number(img.productId),
+    })),
+    sku: product.sku || null,
+    inventoryTracking: product.inventoryTracking || false,
+    lowStockThreshold: product.lowStockThreshold || 5,
+  };
+
+  const typedRelatedProducts: Product[] = productsWithCategories.map(p => ({
+    ...p,
+    category: p.category as Category,
+    images: p.images.map(img => ({
+      ...img,
+      id: Number(img.id),
+      productId: Number(img.productId),
+    })),
+    sku: p.sku || null,
+    inventoryTracking: p.inventoryTracking || false,
+    lowStockThreshold: p.lowStockThreshold || 5,
+  }));
 
   return (
     <div className="bg-white">
       <div className="mx-auto max-w-2xl px-4 py-16 sm:px-6 sm:py-24 lg:max-w-7xl lg:px-8">
         <div className="lg:grid lg:grid-cols-2 lg:items-start lg:gap-x-8">
-          <ProductGallery images={product.images} name={product.name} />
-          <ProductInfo product={product} />
+          <ProductGallery images={typedProduct.images.map(img => img.url)} name={typedProduct.name} />
+          <ProductInfo product={typedProduct} />
         </div>
-        <RelatedProducts products={relatedProducts} />
+        <RelatedProducts products={typedRelatedProducts} />
       </div>
     </div>
   );

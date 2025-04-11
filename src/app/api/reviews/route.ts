@@ -2,17 +2,18 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { ReviewStatus } from "@prisma/client";
 
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
-    const productId = searchParams.get("productId");
+    const productId = parseInt(searchParams.get("productId") || "");
     const page = parseInt(searchParams.get("page") || "1");
     const limit = parseInt(searchParams.get("limit") || "10");
     const skip = (page - 1) * limit;
 
-    if (!productId) {
-      return new NextResponse("Product ID is required", { status: 400 });
+    if (!productId || isNaN(productId)) {
+      return new NextResponse("Valid Product ID is required", { status: 400 });
     }
 
     // Get reviews for a product
@@ -20,7 +21,7 @@ export async function GET(request: Request) {
       prisma.review.findMany({
         where: {
           productId,
-          isApproved: true,
+          status: ReviewStatus.APPROVED,
         },
         include: {
           user: {
@@ -40,7 +41,7 @@ export async function GET(request: Request) {
       prisma.review.count({
         where: {
           productId,
-          isApproved: true,
+          status: ReviewStatus.APPROVED,
         },
       }),
     ]);
@@ -49,7 +50,7 @@ export async function GET(request: Request) {
     const averageRating = await prisma.review.aggregate({
       where: {
         productId,
-        isApproved: true,
+        status: ReviewStatus.APPROVED,
       },
       _avg: {
         rating: true,
@@ -61,7 +62,7 @@ export async function GET(request: Request) {
       by: ["rating"],
       where: {
         productId,
-        isApproved: true,
+        status: ReviewStatus.APPROVED,
       },
       _count: true,
     });
@@ -72,7 +73,7 @@ export async function GET(request: Request) {
       page,
       limit,
       totalPages: Math.ceil(total / limit),
-      averageRating: averageRating._avg.rating || 0,
+      averageRating: averageRating._avg?.rating || 0,
       ratingDistribution,
     });
   } catch (error) {
@@ -89,9 +90,10 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json();
-    const { productId, rating, title, content } = body;
+    const { productId: rawProductId, rating, title, content } = body;
+    const productId = parseInt(rawProductId);
 
-    if (!productId || !rating || !content) {
+    if (!productId || isNaN(productId) || !rating || !content) {
       return new NextResponse("Missing required fields", { status: 400 });
     }
 
@@ -130,8 +132,7 @@ export async function POST(request: Request) {
         rating,
         title,
         content,
-        isVerified: !!hasPurchased,
-        isApproved: false, // Admin approval required
+        status: ReviewStatus.PENDING,
       },
     });
 
@@ -150,9 +151,10 @@ export async function PUT(request: Request) {
     }
 
     const body = await request.json();
-    const { id, rating, title, content } = body;
+    const { id: rawId, rating, title, content } = body;
+    const id = parseInt(rawId);
 
-    if (!id || !rating || !content) {
+    if (!id || isNaN(id) || !rating || !content) {
       return new NextResponse("Missing required fields", { status: 400 });
     }
 
@@ -180,7 +182,7 @@ export async function PUT(request: Request) {
         rating,
         title,
         content,
-        isApproved: session.user.role === "ADMIN" ? existingReview.isApproved : false,
+        status: session.user.role === "ADMIN" ? existingReview.status : ReviewStatus.PENDING,
       },
     });
 
@@ -199,9 +201,10 @@ export async function DELETE(request: Request) {
     }
 
     const { searchParams } = new URL(request.url);
-    const id = searchParams.get("id");
+    const rawId = searchParams.get("id");
+    const id = parseInt(rawId || "");
 
-    if (!id) {
+    if (!id || isNaN(id)) {
       return new NextResponse("Review ID is required", { status: 400 });
     }
 
@@ -223,7 +226,7 @@ export async function DELETE(request: Request) {
       where: { id },
     });
 
-    return NextResponse.json({ success: true });
+    return new NextResponse(null, { status: 204 });
   } catch (error) {
     console.error("[REVIEWS_DELETE]", error);
     return new NextResponse("Internal error", { status: 500 });

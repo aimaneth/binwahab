@@ -5,6 +5,7 @@ import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { CheckoutForm } from "@/components/shop/checkout-form";
 import { OrderSummary } from "@/components/shop/order-summary";
+import { CartItem, Product } from "@prisma/client";
 
 export const metadata: Metadata = {
   title: "Checkout - BINWAHAB",
@@ -44,6 +45,10 @@ export default async function CheckoutPage() {
   // Get the first address or default to Selangor
   const shippingState = addresses.length > 0 ? addresses[0].state : "Selangor";
 
+  // Filter out items with null products and assert the type
+  const validItems = cart.items
+    .filter((item): item is CartItem & { product: Product } => item.product !== null);
+
   return (
     <div className="bg-gray-50">
       <div className="mx-auto max-w-2xl px-4 pb-24 pt-16 sm:px-6 lg:max-w-7xl lg:px-8">
@@ -58,7 +63,7 @@ export default async function CheckoutPage() {
 
           <div className="mt-16 lg:col-span-5 lg:mt-0">
             <OrderSummary 
-              items={cart.items} 
+              items={validItems} 
               shippingState={shippingState}
             />
           </div>

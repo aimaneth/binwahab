@@ -6,6 +6,7 @@ import { ProductFilters } from "@/components/shop/product-filters";
 import { SearchBar } from "@/components/shop/search-bar";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
+import { Product, Category } from "@prisma/client";
 
 // Fashion categories
 const categories = [
@@ -248,43 +249,48 @@ const products = {
 
 export async function generateMetadata({ params }: { params: { categoryId: string } }): Promise<Metadata> {
   const category = await prisma.category.findUnique({
-    where: { slug: params.categoryId },
+    where: {
+      id: params.categoryId,
+    },
   });
-  
+
   if (!category) {
     return {
-      title: "Collection Not Found | BinWahab",
-      description: "The requested collection could not be found",
+      title: "Category Not Found - BINWAHAB",
     };
   }
-  
+
   return {
-    title: `${category.name} | BinWahab`,
-    description: category.description || `Browse our ${category.name} collection`,
+    title: `${category.name} - BINWAHAB`,
+    description: category.description || undefined,
   };
 }
 
 export default async function CategoryPage({ params }: { params: { categoryId: string } }) {
   const category = await prisma.category.findUnique({
-    where: { slug: params.categoryId },
+    where: {
+      id: params.categoryId,
+    },
     include: {
       products: {
-        where: { isActive: true },
-        orderBy: { createdAt: 'desc' },
+        where: {
+          status: "ACTIVE",
+        },
         include: {
-          category: {
-            select: {
-              name: true,
-            },
-          },
+          category: true,
         },
       },
     },
   });
-  
+
   if (!category) {
     notFound();
   }
+
+  // Filter out products with null categories and ensure correct typing
+  const productsWithCategories = category.products.filter((product): product is Product & { category: Category } => 
+    product.category !== null
+  );
 
   return (
     <div className="min-h-screen flex flex-col bg-white">
@@ -322,7 +328,7 @@ export default async function CategoryPage({ params }: { params: { categoryId: s
               {/* Product Grid */}
               <div className="flex-1">
                 <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
-                  {category.products.map((product) => (
+                  {productsWithCategories.map((product) => (
                     <ProductCard key={product.id} product={product} />
                   ))}
                 </div>

@@ -41,24 +41,31 @@ export async function POST(
         status: originalProduct.status || ProductStatus.DRAFT,
         // Duplicate variants
         variants: {
-          create: originalProduct.variants.map((variant) => ({
-            name: variant.name,
-            price: variant.price,
-            stock: variant.stock,
-            sku: `${variant.sku}-copy`,
-            compareAtPrice: variant.compareAtPrice,
-            isActive: variant.isActive,
-            options: variant.options,
-            lowStockThreshold: variant.lowStockThreshold,
-            reservedStock: variant.reservedStock,
-            images: variant.images,
-            inventoryTracking: variant.inventoryTracking,
-            weight: variant.weight,
-            weightUnit: variant.weightUnit,
-            dimensions: variant.dimensions,
-            attributes: variant.attributes,
-            barcode: variant.barcode,
-          })),
+          create: originalProduct.variants.map((variant) => {
+            // Handle dimensions separately to ensure correct type
+            const dimensions = variant.dimensions === null ? Prisma.JsonNull : variant.dimensions;
+            const options = variant.options === null ? Prisma.JsonNull : variant.options;
+            const attributes = variant.attributes === null ? Prisma.JsonNull : variant.attributes;
+            
+            return {
+              name: variant.name,
+              price: variant.price,
+              stock: variant.stock,
+              sku: `${variant.sku}-copy`,
+              compareAtPrice: variant.compareAtPrice,
+              isActive: variant.isActive,
+              options: options,
+              lowStockThreshold: variant.lowStockThreshold,
+              reservedStock: variant.reservedStock,
+              images: variant.images,
+              inventoryTracking: variant.inventoryTracking,
+              weight: variant.weight,
+              weightUnit: variant.weightUnit,
+              dimensions: dimensions,
+              attributes: attributes,
+              barcode: variant.barcode,
+            };
+          }),
         },
         // Duplicate collection relationships
         collections: {

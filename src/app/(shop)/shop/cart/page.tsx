@@ -5,6 +5,7 @@ import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { CartItems } from "@/components/shop/cart-items";
 import { CartSummary } from "@/components/shop/cart-summary";
+import { CartItem, Product } from "@prisma/client";
 
 export const metadata: Metadata = {
   title: "Shopping Cart - BINWAHAB",
@@ -31,18 +32,24 @@ export default async function CartPage() {
     },
   });
 
-  const isEmpty = !cart?.items || cart.items.length === 0;
+  // Filter out items with null products
+  const validItems = cart?.items?.filter(item => item.product !== null) || [];
+  const typedItems = validItems.map(item => ({
+    ...item,
+    product: item.product!
+  })) as (CartItem & { product: Product })[];
+  const isEmpty = typedItems.length === 0;
 
   return (
     <main className="container mx-auto px-4 py-8">
       <h1 className="text-3xl font-bold mb-8">Shopping Cart</h1>
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         <div className={isEmpty ? "col-span-3" : "lg:col-span-2"}>
-          <CartItems items={cart?.items || []} />
+          <CartItems items={typedItems} />
         </div>
         {!isEmpty && (
           <div className="lg:col-span-1">
-            <CartSummary items={cart?.items || []} />
+            <CartSummary items={typedItems} />
           </div>
         )}
       </div>

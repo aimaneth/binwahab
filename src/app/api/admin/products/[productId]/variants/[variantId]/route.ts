@@ -32,8 +32,8 @@ export async function PUT(
 
     const variant = await prisma.productVariant.update({
       where: {
-        id: params.variantId,
-        productId: params.productId,
+        id: parseInt(params.variantId),
+        productId: parseInt(params.productId),
       },
       data,
     });
@@ -61,8 +61,8 @@ export async function DELETE(
 
     await prisma.productVariant.delete({
       where: {
-        id: params.variantId,
-        productId: params.productId,
+        id: parseInt(params.variantId),
+        productId: parseInt(params.productId),
       },
     });
 

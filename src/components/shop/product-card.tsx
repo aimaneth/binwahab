@@ -7,7 +7,7 @@ import { formatPrice } from "@/lib/utils";
 
 interface ProductCardProps {
   product: Product & {
-    category: Category;
+    category: Category | null;
   };
 }
 
@@ -28,8 +28,10 @@ export function ProductCard({ product }: ProductCardProps) {
         <Link href={`/shop/products/${product.id}`}>
           <h3 className="font-semibold hover:underline">{product.name}</h3>
         </Link>
-        <p className="text-sm text-muted-foreground">{product.category.name}</p>
-        <p className="mt-2 font-semibold">{formatPrice(product.price)}</p>
+        {product.category && (
+          <p className="text-sm text-muted-foreground">{product.category.name}</p>
+        )}
+        <p className="mt-2 font-semibold">{formatPrice(Number(product.price))}</p>
       </CardContent>
       <CardFooter className="p-4 pt-0">
         <Button className="w-full">Add to Cart</Button>

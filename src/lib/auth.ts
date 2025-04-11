@@ -1,4 +1,4 @@
-import { PrismaAdapter } from "@auth/prisma-adapter";
+import { PrismaAdapter } from "@next-auth/prisma-adapter";
 import { NextAuthOptions } from "next-auth";
 import { prisma } from "./prisma";
 import CredentialsProvider from "next-auth/providers/credentials";
@@ -64,6 +64,13 @@ export const authOptions: NextAuthOptions = {
       return session;
     },
     async jwt({ token, user }) {
+      if (!token.email) {
+        if (user) {
+          token.id = user?.id;
+        }
+        return token;
+      }
+
       const dbUser = await prisma.user.findFirst({
         where: {
           email: token.email,

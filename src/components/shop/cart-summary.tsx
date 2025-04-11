@@ -25,11 +25,7 @@ export function CartSummary({ items, shippingState = "Selangor" }: CartSummaryPr
       setIsLoading(true);
       try {
         const total = items.reduce(
-          (sum, item) => sum + item.product.price * item.quantity,
-          0
-        );
-        const weight = items.reduce(
-          (sum, item) => sum + (item.product.weight || 0) * item.quantity,
+          (sum, item) => sum + Number(item.product.price) * item.quantity,
           0
         );
         
@@ -44,7 +40,7 @@ export function CartSummary({ items, shippingState = "Selangor" }: CartSummaryPr
         const shippingCost = await calculateShippingCost({
           zoneId: zone.id,
           orderValue: total,
-          orderWeight: weight
+          orderWeight: 0 // Default to 0 since weight is not available on Product
         });
         
         setShipping(shippingCost);
@@ -64,7 +60,7 @@ export function CartSummary({ items, shippingState = "Selangor" }: CartSummaryPr
   }
 
   const subtotal = items.reduce(
-    (sum, item) => sum + item.product.price * item.quantity,
+    (sum, item) => sum + Number(item.product.price) * item.quantity,
     0
   );
   const tax = subtotal * 0.06; // 6% tax

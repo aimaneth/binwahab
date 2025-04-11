@@ -2,13 +2,13 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { User, Order, UserRole } from "@prisma/client";
+import { User, Order, Role } from "@prisma/client";
 
 interface CustomerWithOrders {
   id: string;
   name: string | null;
   email: string;
-  role: UserRole;
+  role: Role;
   createdAt: Date;
   orders: Pick<Order, "id" | "total">[];
 }

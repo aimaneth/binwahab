@@ -144,7 +144,7 @@ export function ProductVariantForm({ productId, variants }: ProductVariantFormPr
                   </div>
                   <div>
                     <Label>Price</Label>
-                    <div>${variant.price}</div>
+                    <div>${Number(variant.price).toFixed(2)}</div>
                   </div>
                   <div>
                     <Label>Stock</Label>

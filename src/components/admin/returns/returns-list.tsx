@@ -116,7 +116,7 @@ export function ReturnsList() {
                       {return_.status}
                     </span>
                   </TableCell>
-                  <TableCell>{return_.items.length} items</TableCell>
+                  <TableCell>{return_.returnItems.length} items</TableCell>
                   <TableCell>{formatDate(return_.createdAt)}</TableCell>
                   <TableCell>
                     <ReturnActions return_={return_} />

@@ -22,10 +22,8 @@ export async function GET(
         id: true,
         name: true,
         email: true,
-        phone: true,
         role: true,
         createdAt: true,
-        lastLogin: true,
         addresses: {
           select: {
             id: true,
@@ -70,23 +68,11 @@ export async function GET(
     // Transform the data to match the expected format
     const transformedCustomer = {
       ...customer,
-      orders: customer.orders.map((order: { 
-        items: { 
-          id: string;
-          product: { name: string };
-          quantity: number;
-          price: number;
-        }[];
-      }) => ({
+      orders: customer.orders.map((order) => ({
         ...order,
-        items: order.items.map((item: {
-          id: string;
-          product: { name: string };
-          quantity: number;
-          price: number;
-        }) => ({
+        items: order.items.map((item) => ({
           id: item.id,
-          productName: item.product.name,
+          productName: item.product?.name || 'Unknown Product',
           quantity: item.quantity,
           price: item.price,
         })),

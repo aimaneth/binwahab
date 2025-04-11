@@ -41,4 +41,13 @@ export interface Address {
   updatedAt: Date;
 }
 
-export type PaymentMethod = "CREDIT_CARD" | "BANK_TRANSFER" | "E_WALLET"; 
+export type PaymentMethod = "CREDIT_CARD" | "BANK_TRANSFER" | "E_WALLET";
+
+export enum AttributeType {
+  TEXT = "TEXT",
+  NUMBER = "NUMBER",
+  SELECT = "SELECT",
+  MULTISELECT = "MULTISELECT",
+  BOOLEAN = "BOOLEAN",
+  DATE = "DATE",
+} 

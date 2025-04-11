@@ -22,11 +22,7 @@ export function OrderSummary({ items, shippingState = "Selangor" }: OrderSummary
       setIsLoading(true);
       try {
         const subtotal = items.reduce(
-          (total, item) => total + item.product.price * item.quantity,
-          0
-        );
-        const weight = items.reduce(
-          (total, item) => total + (item.product.weight || 0) * item.quantity,
+          (total, item) => total + Number(item.product.price) * item.quantity,
           0
         );
         
@@ -41,7 +37,7 @@ export function OrderSummary({ items, shippingState = "Selangor" }: OrderSummary
         const shippingCost = await calculateShippingCost({
           zoneId: zone.id,
           orderValue: subtotal,
-          orderWeight: weight
+          orderWeight: 0 // Default to 0 since weight is not available on Product
         });
         
         setShipping(shippingCost);
@@ -57,7 +53,7 @@ export function OrderSummary({ items, shippingState = "Selangor" }: OrderSummary
   }, [items, shippingState]);
 
   const subtotal = items.reduce(
-    (total, item) => total + item.product.price * item.quantity,
+    (total, item) => total + Number(item.product.price) * item.quantity,
     0
   );
   const tax = subtotal * 0.06; // 6% tax
@@ -110,7 +106,7 @@ export function OrderSummary({ items, shippingState = "Selangor" }: OrderSummary
                 </p>
               </div>
               <div className="text-sm font-medium">
-                {formatPrice(item.product.price * item.quantity)}
+                {formatPrice(Number(item.product.price) * item.quantity)}
               </div>
             </div>
           ))}

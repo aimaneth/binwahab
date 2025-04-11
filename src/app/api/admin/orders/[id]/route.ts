@@ -3,7 +3,7 @@ import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
 import { sendOrderStatusEmail } from "@/lib/mail"
-import { OrderStatus, Role } from "@prisma/client"
+import { OrderStatus } from "@prisma/client"
 
 export async function GET(
   req: Request,
@@ -110,7 +110,7 @@ export async function PATCH(
               }
             }
           });
-        } else {
+        } else if (item.productId) {
           // Update product stock if no variant
           await prisma.product.update({
             where: { id: item.productId },
@@ -145,7 +145,7 @@ export async function PATCH(
               }
             }
           });
-        } else {
+        } else if (item.productId) {
           // Check product stock
           const product = await prisma.product.findUnique({
             where: { id: item.productId }
@@ -202,12 +202,8 @@ export async function PATCH(
       await sendOrderStatusEmail({
         orderId: order.id,
         status: status as OrderStatus,
-        items: order.items.map((item: {
-          product: { name: string };
-          quantity: number;
-          price: number;
-        }) => ({
-          productName: item.product.name,
+        items: order.items.map((item) => ({
+          productName: item.product?.name || "Unknown Product",
           quantity: item.quantity,
           price: item.price,
         })),

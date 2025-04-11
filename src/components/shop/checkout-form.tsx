@@ -114,8 +114,7 @@ export function CheckoutForm({ addresses }: CheckoutFormProps) {
                   <option value="">Select an address</option>
                   {addresses.map((address) => (
                     <option key={address.id} value={address.id}>
-                      {address.fullName} - {address.addressLine1},{" "}
-                      {address.city}, {address.state} {address.postalCode}
+                      {address.street}, {address.city}, {address.state} {address.zipCode}
                     </option>
                   ))}
                 </select>
@@ -247,10 +246,10 @@ export function CheckoutForm({ addresses }: CheckoutFormProps) {
               </div>
               <div className="flex items-center space-x-3">
                 <RadioGroupItem
-                  value={PaymentMethod.DEBIT_CARD}
-                  id="debit-card"
+                  value={PaymentMethod.PAYPAL}
+                  id="paypal"
                 />
-                <Label htmlFor="debit-card">Debit card</Label>
+                <Label htmlFor="paypal">PayPal</Label>
               </div>
               <div className="flex items-center space-x-3">
                 <RadioGroupItem
@@ -258,10 +257,6 @@ export function CheckoutForm({ addresses }: CheckoutFormProps) {
                   id="bank-transfer"
                 />
                 <Label htmlFor="bank-transfer">Bank transfer</Label>
-              </div>
-              <div className="flex items-center space-x-3">
-                <RadioGroupItem value={PaymentMethod.E_WALLET} id="e-wallet" />
-                <Label htmlFor="e-wallet">E-wallet</Label>
               </div>
             </div>
           </RadioGroup>

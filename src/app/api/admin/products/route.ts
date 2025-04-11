@@ -3,7 +3,23 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { z } from "zod";
-import { Prisma } from "@prisma/client";
+import { Prisma, Product, ProductVariant, ProductCollection } from "@prisma/client";
+
+type ProductWithRelations = Product & {
+  category: { id: string; name: string } | null;
+  collections: (ProductCollection & {
+    collection: { id: string; name: string };
+  })[];
+  variants: ProductVariant[];
+  images: {
+    id: number;
+    url: string;
+    order: number;
+    productId: number;
+    createdAt: Date;
+    updatedAt: Date;
+  }[];
+};
 
 // Schema for product validation
 const productSchema = z.object({
@@ -46,28 +62,33 @@ export async function GET() {
       return new NextResponse("Unauthorized", { status: 401 });
     }
 
-    // Use the correct field names based on the schema
-    const products = await prisma.product.findMany({
-      include: {
-        category: true,
-        collections: {
-          include: {
-            collection: true,
-          },
-        },
-        variants: true,
-        images: true,
-      },
-    });
+    const products = await prisma.$queryRaw`
+      SELECT 
+        p.*,
+        c.id as "categoryId",
+        c.name as "categoryName",
+        pc."collectionId",
+        col.name as "collectionName",
+        pi.id as "imageId",
+        pi.url as "imageUrl",
+        pi.order as "imageOrder",
+        pv.id as "variantId",
+        pv.name as "variantName",
+        pv.price as "variantPrice",
+        pv.sku as "variantSku"
+      FROM "Product" p
+      LEFT JOIN "Category" c ON p."categoryId" = c.id
+      LEFT JOIN "ProductCollection" pc ON p.id = pc."productId"
+      LEFT JOIN "Collection" col ON pc."collectionId" = col.id
+      LEFT JOIN "ProductImage" pi ON p.id = pi."productId"
+      LEFT JOIN "ProductVariant" pv ON p.id = pv."productId"
+      ORDER BY p."createdAt" DESC
+    `;
 
     return NextResponse.json(products);
   } catch (error) {
     console.error("[PRODUCTS_GET] Detailed error:", error);
     
-    // Log the full error object
-    console.error("Full error object:", JSON.stringify(error, Object.getOwnPropertyNames(error)));
-    
-    // Return more detailed error information
     return new NextResponse(
       JSON.stringify({
         message: "Internal server error",
@@ -105,11 +126,6 @@ export async function POST(req: Request) {
       productData.status = "DRAFT";
     }
     
-    // Ensure dimensions is properly formatted as JSON
-    if (productData.dimensions) {
-      productData.dimensions = productData.dimensions as any;
-    }
-    
     // Log the data being sent to Prisma
     const prismaData = {
       ...productData,
@@ -144,31 +160,7 @@ export async function POST(req: Request) {
 
     // Create the product first
     const product = await prisma.product.create({
-      data: {
-        ...productData,
-        isActive: true,
-        status: "ACTIVE" as const,
-        image: images && images.length > 0 ? images[0] : null,
-        category: {
-          connect: { id: categoryId }
-        },
-        collections: collectionIds ? {
-          create: collectionIds.map(collectionId => ({
-            collection: {
-              connect: { id: collectionId }
-            }
-          }))
-        } : undefined,
-        // Create product images if they exist
-        ...(images && images.length > 0 ? {
-          images: {
-            create: images.map((url, index) => ({
-              url,
-              order: index
-            }))
-          }
-        } : {})
-      },
+      data: prismaData,
       include: {
         category: true,
         collections: {
@@ -198,13 +190,22 @@ export async function POST(req: Request) {
       return new NextResponse(JSON.stringify({
         message: "Database error",
         code: error.code,
-        meta: error.meta
       }), { status: 400 });
     }
-    return new NextResponse(JSON.stringify({
-      message: "Internal server error",
-      error: error instanceof Error ? error.message : "Unknown error"
-    }), { status: 500 });
+    
+    return new NextResponse(
+      JSON.stringify({
+        message: "Internal server error",
+        error: error instanceof Error ? error.message : "Unknown error",
+        stack: error instanceof Error ? error.stack : undefined,
+      }),
+      { 
+        status: 500,
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      }
+    );
   }
 }
 

@@ -4,15 +4,13 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { toast } from "react-hot-toast";
-import { Product, Category } from "@prisma/client";
+import { Product } from "@/types/product";
 import { formatPrice } from "@/utils/format";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
 interface ProductInfoProps {
-  product: Product & {
-    category: Category;
-  };
+  product: Product;
 }
 
 export function ProductInfo({ product }: ProductInfoProps) {
@@ -78,7 +76,7 @@ export function ProductInfo({ product }: ProductInfoProps) {
         <div className="flex items-center">
           <h3 className="text-sm text-muted-foreground">Category</h3>
           <p className="ml-2 text-sm font-medium text-foreground">
-            {product.category.name}
+            {product.category?.name}
           </p>
         </div>
       </div>

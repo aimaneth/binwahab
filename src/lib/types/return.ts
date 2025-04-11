@@ -2,6 +2,8 @@ import { Order, User, PaymentStatus } from '@prisma/client';
 
 export type ReturnStatus = "PENDING" | "APPROVED" | "REJECTED" | "COMPLETED";
 
+export type RefundMethod = "CREDIT_CARD" | "PAYPAL" | "STORE_CREDIT";
+
 export interface ReturnItemData {
   orderItemId: string;
   quantity: number;

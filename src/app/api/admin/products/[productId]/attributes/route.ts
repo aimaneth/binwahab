@@ -13,13 +13,27 @@ export async function GET(
       return new NextResponse("Unauthorized", { status: 401 });
     }
 
-    const attributes = await prisma.productAttributeValue.findMany({
+    // Get product variants which contain the attributes
+    const variants = await prisma.productVariant.findMany({
       where: {
-        productId: params.productId,
+        productId: parseInt(params.productId),
       },
-      include: {
-        attribute: true,
+      select: {
+        id: true,
+        attributes: true,
+        options: true,
       },
+    });
+
+    // Extract attributes from variants
+    const attributes = variants.flatMap(variant => {
+      const attrs = variant.attributes as Record<string, any> || {};
+      return Object.entries(attrs).map(([key, value]) => ({
+        id: `${variant.id}-${key}`,
+        name: key,
+        value: value,
+        variantId: variant.id,
+      }));
     });
 
     return NextResponse.json(attributes);
@@ -40,24 +54,42 @@ export async function POST(
     }
 
     const body = await req.json();
-    const { attributeId, value } = body;
+    const { variantId, name, value } = body;
 
-    if (!attributeId || !value) {
-      return new NextResponse("Attribute ID and value are required", { status: 400 });
+    if (!variantId || !name || value === undefined) {
+      return new NextResponse("Variant ID, name, and value are required", { status: 400 });
     }
 
-    const attribute = await prisma.productAttributeValue.create({
+    // Get the current variant
+    const variant = await prisma.productVariant.findUnique({
+      where: { id: variantId },
+    });
+
+    if (!variant) {
+      return new NextResponse("Variant not found", { status: 404 });
+    }
+
+    // Update the attributes
+    const currentAttributes = variant.attributes as Record<string, any> || {};
+    const updatedAttributes = {
+      ...currentAttributes,
+      [name]: value,
+    };
+
+    // Update the variant with the new attributes
+    const updatedVariant = await prisma.productVariant.update({
+      where: { id: variantId },
       data: {
-        productId: params.productId,
-        attributeId,
-        value,
-      },
-      include: {
-        attribute: true,
+        attributes: updatedAttributes,
       },
     });
 
-    return NextResponse.json(attribute);
+    return NextResponse.json({
+      id: `${variantId}-${name}`,
+      name,
+      value,
+      variantId,
+    });
   } catch (error) {
     console.error("[PRODUCT_ATTRIBUTES_POST]", error);
     return new NextResponse("Internal error", { status: 500 });
@@ -75,26 +107,42 @@ export async function PATCH(
     }
 
     const body = await req.json();
-    const { id, value } = body;
+    const { variantId, name, value } = body;
 
-    if (!id || !value) {
-      return new NextResponse("Attribute ID and value are required", { status: 400 });
+    if (!variantId || !name || value === undefined) {
+      return new NextResponse("Variant ID, name, and value are required", { status: 400 });
     }
 
-    const attribute = await prisma.productAttributeValue.update({
-      where: {
-        id,
-        productId: params.productId,
-      },
+    // Get the current variant
+    const variant = await prisma.productVariant.findUnique({
+      where: { id: variantId },
+    });
+
+    if (!variant) {
+      return new NextResponse("Variant not found", { status: 404 });
+    }
+
+    // Update the attributes
+    const currentAttributes = variant.attributes as Record<string, any> || {};
+    const updatedAttributes = {
+      ...currentAttributes,
+      [name]: value,
+    };
+
+    // Update the variant with the new attributes
+    const updatedVariant = await prisma.productVariant.update({
+      where: { id: variantId },
       data: {
-        value,
-      },
-      include: {
-        attribute: true,
+        attributes: updatedAttributes,
       },
     });
 
-    return NextResponse.json(attribute);
+    return NextResponse.json({
+      id: `${variantId}-${name}`,
+      name,
+      value,
+      variantId,
+    });
   } catch (error) {
     console.error("[PRODUCT_ATTRIBUTES_PATCH]", error);
     return new NextResponse("Internal error", { status: 500 });
@@ -112,16 +160,31 @@ export async function DELETE(
     }
 
     const { searchParams } = new URL(req.url);
-    const id = searchParams.get("id");
+    const variantId = searchParams.get("variantId");
+    const name = searchParams.get("name");
 
-    if (!id) {
-      return new NextResponse("Attribute ID is required", { status: 400 });
+    if (!variantId || !name) {
+      return new NextResponse("Variant ID and attribute name are required", { status: 400 });
     }
 
-    await prisma.productAttributeValue.delete({
-      where: {
-        id,
-        productId: params.productId,
+    // Get the current variant
+    const variant = await prisma.productVariant.findUnique({
+      where: { id: parseInt(variantId) },
+    });
+
+    if (!variant) {
+      return new NextResponse("Variant not found", { status: 404 });
+    }
+
+    // Remove the attribute
+    const currentAttributes = variant.attributes as Record<string, any> || {};
+    const { [name]: removed, ...remainingAttributes } = currentAttributes;
+
+    // Update the variant with the remaining attributes
+    await prisma.productVariant.update({
+      where: { id: parseInt(variantId) },
+      data: {
+        attributes: remainingAttributes,
       },
     });
 

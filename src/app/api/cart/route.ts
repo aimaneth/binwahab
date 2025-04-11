@@ -5,7 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { z } from "zod";
 
 const cartItemSchema = z.object({
-  productId: z.string(),
+  productId: z.string().transform((val) => parseInt(val)),
   quantity: z.number().min(1),
 });
 
@@ -84,8 +84,21 @@ export async function POST(req: Request) {
       // Add new item
       await prisma.cartItem.create({
         data: {
-          cartId: cart.id,
-          productId,
+          cart: {
+            connect: {
+              id: cart.id
+            }
+          },
+          product: {
+            connect: {
+              id: productId
+            }
+          },
+          user: {
+            connect: {
+              id: session.user.id
+            }
+          },
           quantity,
         },
       });
@@ -168,7 +181,7 @@ export async function PATCH(req: Request) {
 
     const cartItem = await prisma.cartItem.findUnique({
       where: {
-        id: itemId,
+        id: parseInt(itemId),
       },
       include: {
         cart: true,
@@ -193,11 +206,11 @@ export async function PATCH(req: Request) {
     if (quantity === 0) {
       await prisma.cartItem.delete({
         where: {
-          id: itemId,
+          id: parseInt(itemId),
         },
       });
     } else {
-      if (cartItem.product.stock < quantity) {
+      if (cartItem.product && cartItem.product.stock < quantity) {
         return NextResponse.json(
           { message: "Not enough stock" },
           { status: 400 }
@@ -206,7 +219,7 @@ export async function PATCH(req: Request) {
 
       await prisma.cartItem.update({
         where: {
-          id: itemId,
+          id: parseInt(itemId),
         },
         data: {
           quantity,
@@ -256,7 +269,7 @@ export async function DELETE(req: Request) {
 
     const cartItem = await prisma.cartItem.findUnique({
       where: {
-        id: itemId,
+        id: parseInt(itemId),
       },
       include: {
         cart: true,
@@ -279,7 +292,7 @@ export async function DELETE(req: Request) {
 
     await prisma.cartItem.delete({
       where: {
-        id: itemId,
+        id: parseInt(itemId),
       },
     });
 

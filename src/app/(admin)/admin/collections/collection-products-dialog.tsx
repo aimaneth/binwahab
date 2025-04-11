@@ -11,7 +11,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
 import { Collection, Product } from "@prisma/client";
 import { Badge } from "@/components/ui/badge";
-import { formatPrice } from "@/utils/format";
+import { formatPrice } from "@/lib/utils";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Pagination } from "@/components/ui/pagination";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -281,9 +281,9 @@ export function CollectionProductsDialog({
       const data = await response.json();
       setProducts(data.products.map((product: Product) => ({
         ...product,
-        selected: data.selectedProductIds.includes(product.id),
+        selected: data.selectedProductIds.includes(product.id.toString()),
       })));
-      setSelectedProducts(data.selectedProductIds);
+      setSelectedProducts(data.selectedProductIds.map((id: number | string) => id.toString()));
       setTotalItems(data.pagination.total);
       setTotalPages(data.pagination.totalPages);
     } catch (error) {
@@ -332,16 +332,16 @@ export function CollectionProductsDialog({
   const handleBulkAction = (action: "selectAll" | "deselectAll" | "selectInStock" | "selectOutOfStock") => {
     switch (action) {
       case "selectAll":
-        setSelectedProducts(products.map(p => p.id));
+        setSelectedProducts(products.map(p => p.id.toString()));
         break;
       case "deselectAll":
         setSelectedProducts([]);
         break;
       case "selectInStock":
-        setSelectedProducts(products.filter(p => (p.stock ?? 0) > 0).map(p => p.id));
+        setSelectedProducts(products.filter(p => (p.stock ?? 0) > 0).map(p => p.id.toString()));
         break;
       case "selectOutOfStock":
-        setSelectedProducts(products.filter(p => (p.stock ?? 0) === 0).map(p => p.id));
+        setSelectedProducts(products.filter(p => (p.stock ?? 0) === 0).map(p => p.id.toString()));
         break;
     }
   };
@@ -558,7 +558,7 @@ export function CollectionProductsDialog({
                   columns={columns}
                   data={products}
                   onRowSelection={(selectedRows) => {
-                    setSelectedProducts(selectedRows.map((row) => row.id));
+                    setSelectedProducts(selectedRows.map((row) => row.id.toString()));
                   }}
                 />
               )}
@@ -587,12 +587,12 @@ export function CollectionProductsDialog({
                         </div>
                         <div className="absolute top-2 right-2">
                           <Checkbox
-                            checked={selectedProducts.includes(product.id)}
+                            checked={selectedProducts.includes(product.id.toString())}
                             onCheckedChange={(checked) => {
                               if (checked) {
-                                setSelectedProducts([...selectedProducts, product.id]);
+                                setSelectedProducts([...selectedProducts, product.id.toString()]);
                               } else {
-                                setSelectedProducts(selectedProducts.filter(id => id !== product.id));
+                                setSelectedProducts(selectedProducts.filter(id => id !== product.id.toString()));
                               }
                             }}
                             aria-label={`Select ${product.name}`}

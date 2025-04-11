@@ -43,9 +43,9 @@ export function CartItems({ items }: CartItemsProps) {
     );
   }
 
-  const updateQuantity = async (itemId: string, quantity: number) => {
+  const updateQuantity = async (itemId: number, quantity: number) => {
     if (quantity < 1) return;
-    setUpdating(itemId);
+    setUpdating(itemId.toString());
     try {
       const response = await fetch("/api/cart", {
         method: "PATCH",
@@ -62,8 +62,8 @@ export function CartItems({ items }: CartItemsProps) {
     }
   };
 
-  const removeItem = async (itemId: string) => {
-    setUpdating(itemId);
+  const removeItem = async (itemId: number) => {
+    setUpdating(itemId.toString());
     try {
       const response = await fetch("/api/cart", {
         method: "DELETE",
@@ -95,7 +95,7 @@ export function CartItems({ items }: CartItemsProps) {
             >
               <div className="flex items-center space-x-4">
                 <img
-                  src={item.product.images[0]}
+                  src={item.product.image || ''}
                   alt={item.product.name}
                   className="h-16 w-16 object-cover rounded"
                 />
@@ -114,7 +114,7 @@ export function CartItems({ items }: CartItemsProps) {
                     variant="outline"
                     size="icon"
                     onClick={() => updateQuantity(item.id, item.quantity - 1)}
-                    disabled={updating === item.id || item.quantity <= 1}
+                    disabled={updating === item.id.toString() || item.quantity <= 1}
                   >
                     -
                   </Button>
@@ -126,13 +126,13 @@ export function CartItems({ items }: CartItemsProps) {
                       updateQuantity(item.id, parseInt(e.target.value))
                     }
                     className="w-16 text-center"
-                    disabled={updating === item.id}
+                    disabled={updating === item.id.toString()}
                   />
                   <Button
                     variant="outline"
                     size="icon"
                     onClick={() => updateQuantity(item.id, item.quantity + 1)}
-                    disabled={updating === item.id}
+                    disabled={updating === item.id.toString()}
                   >
                     +
                   </Button>
@@ -141,7 +141,7 @@ export function CartItems({ items }: CartItemsProps) {
                   variant="ghost"
                   size="icon"
                   onClick={() => removeItem(item.id)}
-                  disabled={updating === item.id}
+                  disabled={updating === item.id.toString()}
                 >
                   <Trash2 className="h-4 w-4 text-red-500" />
                 </Button>

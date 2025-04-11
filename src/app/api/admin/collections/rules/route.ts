@@ -6,6 +6,7 @@ import { z } from "zod";
 
 // Schema for collection rule validation
 const collectionRuleSchema = z.object({
+  id: z.string().optional(),
   collectionId: z.string().min(1),
   field: z.string().min(1),
   operator: z.string().min(1),

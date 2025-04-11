@@ -84,7 +84,6 @@ export async function GET(req: Request) {
         OR: [
           { name: { contains: query, mode: Prisma.QueryMode.insensitive } },
           { email: { contains: query, mode: Prisma.QueryMode.insensitive } },
-          { phone: { contains: query, mode: Prisma.QueryMode.insensitive } },
         ],
         role: "USER",
       },
@@ -92,9 +91,7 @@ export async function GET(req: Request) {
         id: true,
         name: true,
         email: true,
-        phone: true,
         createdAt: true,
-        lastLogin: true,
         _count: {
           select: {
             orders: true,

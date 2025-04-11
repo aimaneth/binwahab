@@ -67,8 +67,10 @@ export async function GET(req: Request) {
     // Calculate sales by category
     const salesByCategory = orders.reduce((acc, order) => {
       order.items.forEach(item => {
-        const categoryName = item.product.category.name;
-        acc[categoryName] = (acc[categoryName] || 0) + (item.quantity * item.price);
+        if (item.product?.category?.name) {
+          const categoryName = item.product.category.name;
+          acc[categoryName] = (acc[categoryName] || 0) + (item.quantity * item.price);
+        }
       });
       return acc;
     }, {} as Record<string, number>);
@@ -93,6 +95,9 @@ export async function GET(req: Request) {
     const topProducts = await prisma.orderItem.groupBy({
       by: ["productId"],
       where: {
+        productId: {
+          not: null,
+        },
         order: {
           createdAt: {
             gte: start,
@@ -113,26 +118,32 @@ export async function GET(req: Request) {
     });
 
     const topProductsWithDetails = await Promise.all(
-      topProducts.map(async (item) => {
-        const product = await prisma.product.findUnique({
-          where: { id: item.productId },
-          select: {
-            name: true,
-            price: true,
-            image: true,
-            category: {
-              select: {
-                name: true,
+      topProducts
+        .filter(item => item.productId !== null)
+        .map(async (item) => {
+          const product = await prisma.product.findUnique({
+            where: { id: item.productId! },
+            select: {
+              name: true,
+              price: true,
+              image: true,
+              category: {
+                select: {
+                  name: true,
+                },
               },
             },
-          },
-        });
-        return {
-          ...product,
-          totalSold: item._sum.quantity,
-          revenue: item._sum.quantity && product ? item._sum.quantity * product.price : 0,
-        };
-      })
+          });
+
+          const quantity = item._sum.quantity || 0;
+          const price = product?.price ? Number(product.price) : 0;
+
+          return {
+            ...product,
+            totalSold: quantity,
+            revenue: quantity * price,
+          };
+        })
     );
 
     // Get collections with their analytics
@@ -198,43 +209,20 @@ export async function GET(req: Request) {
           totalClicks,
           totalConversions,
           averageClickThroughRate: totalViews > 0 ? (totalClicks / totalViews) * 100 : 0,
-          averageConversionRate: totalClicks > 0 ? (totalConversions / totalClicks) * 100 : 0,
+          conversionRate: totalClicks > 0 ? (totalConversions / totalClicks) * 100 : 0,
         };
       })
     );
 
-    // Format the analytics data
-    const analyticsData = {
-      period: {
-        start: start.toISOString().split('T')[0],
-        end: end.toISOString().split('T')[0],
-      },
-      salesByDay: salesByDay.map(day => ({
-        date: day.createdAt.toISOString().split('T')[0],
-        total: day._sum.total || 0,
-      })),
-      salesByCategory: Object.entries(salesByCategory).map(([category, total]) => ({
-        category,
-        total,
-        formattedTotal: formatPrice(total),
-      })),
-      customersByDay: customersByDay.map(day => ({
-        date: day.createdAt.toISOString().split('T')[0],
-        count: day._count,
-      })),
-      topProducts: topProductsWithDetails.map(product => ({
-        name: product.name,
-        category: product.category?.name || "Uncategorized",
-        totalSold: product.totalSold,
-        revenue: formatPrice(product.revenue),
-        image: product.image,
-      })),
+    return NextResponse.json({
+      salesByDay,
+      salesByCategory,
+      customersByDay,
+      topProducts: topProductsWithDetails,
       collections: collectionsWithAnalytics,
-    };
-
-    return NextResponse.json(analyticsData);
+    });
   } catch (error) {
-    console.error("[ANALYTICS_GET]", error);
-    return new NextResponse("Internal error", { status: 500 });
+    console.error("Error in analytics route:", error);
+    return new NextResponse("Internal Server Error", { status: 500 });
   }
 } 

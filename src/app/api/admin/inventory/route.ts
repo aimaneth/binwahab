@@ -2,7 +2,6 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { InventoryTransactionType } from "@prisma/client";
 
 export async function GET(request: Request) {
   try {
@@ -18,7 +17,7 @@ export async function GET(request: Request) {
     const skip = (page - 1) * limit;
 
     // Get inventory transactions
-    const where = productId ? { productId } : {};
+    const where = productId ? { productId: parseInt(productId) } : {};
     const [transactions, total] = await Promise.all([
       prisma.inventoryTransaction.findMany({
         where,
@@ -27,7 +26,6 @@ export async function GET(request: Request) {
             select: {
               id: true,
               name: true,
-              sku: true,
               stock: true,
               reservedStock: true,
             },
@@ -45,17 +43,14 @@ export async function GET(request: Request) {
     // Get low stock products
     const lowStockProducts = await prisma.product.findMany({
       where: {
-        inventoryTracking: true,
         stock: {
-          lte: prisma.product.fields.lowStockThreshold,
+          lte: 5, // Default low stock threshold
         },
       },
       select: {
         id: true,
         name: true,
-        sku: true,
         stock: true,
-        lowStockThreshold: true,
       },
     });
 
@@ -81,9 +76,9 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json();
-    const { productId, quantity, type, reason, reference } = body;
+    const { productId, quantity, type, notes, reference } = body;
 
-    if (!productId || !quantity || !type || !reason) {
+    if (!productId || !quantity || !type) {
       return new NextResponse("Missing required fields", { status: 400 });
     }
 
@@ -104,22 +99,22 @@ export async function POST(request: Request) {
       let newReservedStock = product.reservedStock || 0;
 
       switch (type) {
-        case InventoryTransactionType.PURCHASE:
+        case "PURCHASE":
           newStock += quantity;
           break;
-        case InventoryTransactionType.SALE:
+        case "SALE":
           newStock -= quantity;
           break;
-        case InventoryTransactionType.RETURN:
+        case "RETURN":
           newStock += quantity;
           break;
-        case InventoryTransactionType.ADJUSTMENT:
+        case "ADJUSTMENT":
           newStock = quantity;
           break;
-        case InventoryTransactionType.RESERVED:
+        case "RESERVED":
           newReservedStock += quantity;
           break;
-        case InventoryTransactionType.RELEASED:
+        case "RELEASED":
           newReservedStock -= quantity;
           break;
       }
@@ -139,7 +134,7 @@ export async function POST(request: Request) {
           productId,
           quantity,
           type,
-          reason,
+          notes,
           reference,
         },
       });

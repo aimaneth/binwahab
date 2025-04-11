@@ -94,7 +94,7 @@ export async function GET(req: Request) {
         customerEmail: order.user.email,
         total: order.total,
         items: order.items.map((item) => ({
-          productName: item.product.name,
+          productName: item.product?.name || "Unknown Product",
           quantity: item.quantity,
           price: item.price,
         })),

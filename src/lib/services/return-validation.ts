@@ -46,7 +46,7 @@ export class ReturnValidationService {
 
     // Find original order item
     const orderItem = await prisma.orderItem.findUnique({
-      where: { id: returnItem.orderItemId },
+      where: { id: parseInt(returnItem.orderItemId) },
       include: { product: true }
     });
 
@@ -61,8 +61,52 @@ export class ReturnValidationService {
     }
 
     // Check if product is returnable
-    if (RETURN_VALIDATION_RULES.RESTRICTED_ITEMS.some(tag => orderItem.product.tags.includes(tag))) {
-      errors.push(`Product ${orderItem.product.name} cannot be returned`);
+    if (!orderItem.product) {
+      errors.push(`Product not found for order item ${returnItem.orderItemId}`);
+      return errors;
+    }
+
+    if (!orderItem.product.isActive) {
+      errors.push(`Product ${orderItem.product.name} is not active`);
+    }
+
+    // Check if return is within time limit (e.g., 30 days)
+    const orderDate = new Date(order.createdAt);
+    const returnDate = new Date();
+    const daysSinceOrder = Math.floor((returnDate.getTime() - orderDate.getTime()) / (1000 * 60 * 60 * 24));
+
+    if (daysSinceOrder > 30) {
+      errors.push("Returns must be initiated within 30 days of order date");
+    }
+
+    // Check if item was already returned
+    const existingReturn = await prisma.returnItem.findFirst({
+      where: {
+        orderItemId: parseInt(returnItem.orderItemId),
+        return: {
+          status: {
+            in: ["PENDING", "APPROVED"]
+          }
+        }
+      }
+    });
+
+    if (existingReturn) {
+      errors.push(`Item ${returnItem.orderItemId} has already been returned or is in the process of being returned`);
+    }
+
+    // Check if quantity is valid
+    if (returnItem.quantity <= 0) {
+      errors.push("Return quantity must be greater than 0");
+    }
+
+    if (returnItem.quantity > parseInt(orderItem.quantity.toString())) {
+      errors.push(`Return quantity cannot exceed ordered quantity (${orderItem.quantity})`);
+    }
+
+    // Check if reason is provided
+    if (!returnItem.reason) {
+      errors.push("Return reason is required");
     }
 
     // Validate reason length
@@ -86,12 +130,12 @@ export class ReturnValidationService {
     // Calculate item refunds
     for (const item of returnItems) {
       const orderItem = await prisma.orderItem.findUnique({
-        where: { id: item.orderItemId }
+        where: { id: parseInt(item.orderItemId) }
       });
 
       if (!orderItem) continue;
 
-      const itemTotal = orderItem.price * item.quantity;
+      const itemTotal = Number(orderItem.price) * Number(item.quantity);
       const itemRestockingFee = this.calculateRestockingFee(item.condition, itemTotal);
       
       refundAmount += itemTotal;

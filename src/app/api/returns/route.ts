@@ -48,14 +48,12 @@ export async function GET(request: Request) {
                   id: true,
                   name: true,
                   image: true,
-                  sku: true,
                 },
               },
               variant: {
                 select: {
                   id: true,
                   options: true,
-                  sku: true,
                 },
               },
               orderItem: {
@@ -151,8 +149,6 @@ export async function POST(request: Request) {
         data: {
           orderId,
           userId: session.user.id,
-          reason,
-          notes,
           status: ReturnStatus.PENDING,
         },
       });
@@ -167,8 +163,7 @@ export async function POST(request: Request) {
               productId: item.productId,
               variantId: item.variantId,
               quantity: item.quantity,
-              reason: item.reason,
-              condition: item.condition,
+              reason: item.reason || reason,
             },
           })
         )
@@ -179,7 +174,6 @@ export async function POST(request: Request) {
         data: {
           returnId: returnRecord.id,
           amount: (await refundCalculation).total,
-          method: "PENDING_SELECTION", // Will be updated when return is approved
           status: PaymentStatus.PENDING,
         },
       });
@@ -242,7 +236,6 @@ export async function PUT(request: Request) {
               where: { returnId: id },
               data: {
                 amount: refundAmount,
-                method: refundMethod,
                 status: PaymentStatus.PENDING,
               },
             })
@@ -250,7 +243,6 @@ export async function PUT(request: Request) {
               data: {
                 returnId: id,
                 amount: refundAmount,
-                method: refundMethod,
                 status: PaymentStatus.PENDING,
               },
             });
@@ -271,8 +263,7 @@ export async function PUT(request: Request) {
               productId: item.productId,
               quantity: item.quantity,
               type: "RETURN",
-              reason: `Return approved for order ${returnRecord.orderId}`,
-              reference: id,
+              notes: `Return approved for order ${returnRecord.orderId}`,
             },
           });
         }

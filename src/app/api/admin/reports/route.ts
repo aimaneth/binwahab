@@ -46,6 +46,12 @@ export async function GET(request: Request) {
                 price: true,
               },
             },
+            variant: {
+              select: {
+                name: true,
+                price: true,
+              },
+            },
           },
         },
       },
@@ -68,7 +74,10 @@ export async function GET(request: Request) {
     // Count products sold
     const productsSold = orders.reduce((acc, order) => {
       order.items.forEach(item => {
-        acc[item.product.name] = (acc[item.product.name] || 0) + item.quantity;
+        const productName = item.product?.name || item.variant?.name;
+        if (productName) {
+          acc[productName] = (acc[productName] || 0) + item.quantity;
+        }
       });
       return acc;
     }, {} as Record<string, number>);
@@ -96,7 +105,7 @@ export async function GET(request: Request) {
         total: formatPrice(order.total),
         status: order.status,
         items: order.items.map(item => ({
-          product: item.product.name,
+          product: item.product?.name || item.variant?.name || 'Unknown Product',
           quantity: item.quantity,
           price: formatPrice(item.price),
           subtotal: formatPrice(item.quantity * item.price),

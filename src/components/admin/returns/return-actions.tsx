@@ -31,9 +31,13 @@ export function ReturnActions({ return_: return_ }: ReturnActionsProps) {
   const [refundAmount, setRefundAmount] = useState<string>(
     return_.refund?.amount.toString() || ""
   );
-  const [refundMethod, setRefundMethod] = useState<RefundMethod>(
-    return_.refund?.method || "CREDIT_CARD"
-  );
+  const [refundMethod, setRefundMethod] = useState<RefundMethod>(() => {
+    const method = return_.refund?.method;
+    if (method === "CREDIT_CARD" || method === "PAYPAL" || method === "STORE_CREDIT") {
+      return method;
+    }
+    return "CREDIT_CARD";
+  });
   const [notes, setNotes] = useState(return_.notes || "");
 
   const queryClient = useQueryClient();

@@ -6,11 +6,13 @@ import { z } from "zod";
 
 const transactionSchema = z.object({
   quantity: z.number(),
-  type: z.enum(['STOCK_ADJUSTMENT', 'SALE', 'RETURN', 'RESTOCK', 'RESERVED', 'UNRESERVED']),
+  type: z.enum(["PURCHASE", "SALE", "RETURN", "ADJUSTMENT", "RESERVED", "RELEASED"]),
   reason: z.string().optional(),
   reference: z.string().optional(),
   notes: z.string().optional(),
 });
+
+type TransactionInput = z.infer<typeof transactionSchema>;
 
 export async function POST(
   request: Request,
@@ -26,7 +28,7 @@ export async function POST(
     const validatedData = transactionSchema.parse(body);
 
     const variant = await prisma.productVariant.findUnique({
-      where: { id: params.variantId },
+      where: { id: parseInt(params.variantId) },
     });
 
     if (!variant) {
@@ -38,8 +40,8 @@ export async function POST(
     let newReservedStock = variant.reservedStock;
 
     switch (validatedData.type) {
-      case "STOCK_ADJUSTMENT":
-      case "RESTOCK":
+      case "ADJUSTMENT":
+      case "PURCHASE":
         newStock = variant.stock + validatedData.quantity;
         break;
       case "SALE":
@@ -52,7 +54,7 @@ export async function POST(
       case "RESERVED":
         newReservedStock = variant.reservedStock + validatedData.quantity;
         break;
-      case "UNRESERVED":
+      case "RELEASED":
         newReservedStock = variant.reservedStock - validatedData.quantity;
         break;
     }
@@ -66,12 +68,15 @@ export async function POST(
     const result = await prisma.$transaction([
       prisma.inventoryTransaction.create({
         data: {
-          variantId: params.variantId,
-          ...validatedData,
+          variantId: parseInt(params.variantId),
+          quantity: validatedData.quantity,
+          type: validatedData.type,
+          notes: validatedData.notes,
+          reference: validatedData.reference,
         },
       }),
       prisma.productVariant.update({
-        where: { id: params.variantId },
+        where: { id: parseInt(params.variantId) },
         data: {
           stock: newStock,
           reservedStock: newReservedStock,
@@ -105,13 +110,13 @@ export async function GET(
 
     const [transactions, total] = await prisma.$transaction([
       prisma.inventoryTransaction.findMany({
-        where: { variantId: params.variantId },
+        where: { variantId: parseInt(params.variantId) },
         orderBy: { createdAt: "desc" },
         skip,
         take: limit,
       }),
       prisma.inventoryTransaction.count({
-        where: { variantId: params.variantId },
+        where: { variantId: parseInt(params.variantId) },
       }),
     ]);
 

@@ -1,21 +1,19 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { Product } from '@prisma/client';
+import { Product, ProductVariant, ProductCollection, Prisma } from '@prisma/client';
 
-interface ProductImage {
-  id: string;
-  url: string;
-  order: number;
-  productId: string;
-  createdAt: Date;
-  updatedAt: Date;
-}
-
-interface ProductWithRelations extends Product {
-  images: ProductImage[];
-  variants: any[];
-  collections: any[];
-}
+type ProductWithRelations = Product & {
+  images: {
+    id: number;
+    url: string;
+    order: number;
+    productId: number;
+    createdAt: Date;
+    updatedAt: Date;
+  }[];
+  variants: ProductVariant[];
+  collections: ProductCollection[];
+};
 
 export async function POST(request: Request) {
   try {
@@ -55,19 +53,21 @@ export async function POST(request: Request) {
           }))
         },
         variants: {
-          create: variants.map(variant => ({
-            name: variant.name,
-            price: variant.price,
-            compareAtPrice: variant.compareAtPrice,
-            sku: variant.sku,
-            barcode: variant.barcode,
-            weight: variant.weight,
-            weightUnit: variant.weightUnit,
-            inventoryQuantity: variant.inventoryQuantity,
-            inventoryPolicy: variant.inventoryPolicy,
-            inventoryTracking: variant.inventoryTracking,
-            options: variant.options as any
-          }))
+          create: variants.map(variant => {
+            const variantData: Prisma.ProductVariantCreateWithoutProductInput = {
+              name: variant.name,
+              price: variant.price,
+              compareAtPrice: variant.compareAtPrice,
+              sku: variant.sku,
+              barcode: variant.barcode,
+              weight: variant.weight,
+              weightUnit: variant.weightUnit,
+              inventoryTracking: variant.inventoryTracking,
+              lowStockThreshold: variant.lowStockThreshold,
+              options: variant.options as Prisma.InputJsonValue
+            };
+            return variantData;
+          })
         },
         collections: {
           create: collections.map(collection => ({

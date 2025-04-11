@@ -15,7 +15,7 @@ export async function GET(
 
     const analytics = await prisma.productAnalytics.findUnique({
       where: {
-        productId: params.productId,
+        productId: parseInt(params.productId),
       },
     });
 
@@ -37,24 +37,24 @@ export async function POST(
     }
 
     const body = await req.json();
-    const { views, clicks, conversions, revenue } = body;
+    const { totalViews, uniqueViews, addToCartCount, purchaseCount } = body;
 
     const analytics = await prisma.productAnalytics.upsert({
       where: {
-        productId: params.productId,
+        productId: parseInt(params.productId),
       },
       create: {
-        productId: params.productId,
-        views: views || 0,
-        clicks: clicks || 0,
-        conversions: conversions || 0,
-        revenue: revenue || 0,
+        productId: parseInt(params.productId),
+        totalViews: totalViews || 0,
+        uniqueViews: uniqueViews || 0,
+        addToCartCount: addToCartCount || 0,
+        purchaseCount: purchaseCount || 0,
       },
       update: {
-        views: views || 0,
-        clicks: clicks || 0,
-        conversions: conversions || 0,
-        revenue: revenue || 0,
+        totalViews: totalViews || 0,
+        uniqueViews: uniqueViews || 0,
+        addToCartCount: addToCartCount || 0,
+        purchaseCount: purchaseCount || 0,
       },
     });
 
@@ -76,17 +76,17 @@ export async function PATCH(
     }
 
     const body = await req.json();
-    const { views, clicks, conversions, revenue } = body;
+    const { totalViews, uniqueViews, addToCartCount, purchaseCount } = body;
 
     const analytics = await prisma.productAnalytics.update({
       where: {
-        productId: params.productId,
+        productId: parseInt(params.productId),
       },
       data: {
-        views: views || 0,
-        clicks: clicks || 0,
-        conversions: conversions || 0,
-        revenue: revenue || 0,
+        totalViews: totalViews || 0,
+        uniqueViews: uniqueViews || 0,
+        addToCartCount: addToCartCount || 0,
+        purchaseCount: purchaseCount || 0,
       },
     });
 

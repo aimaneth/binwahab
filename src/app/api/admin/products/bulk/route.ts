@@ -2,9 +2,18 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { ProductStatus } from "@prisma/client";
+import { ProductStatus, Product, ProductVariant } from "@prisma/client";
 import { parse } from "csv-parse/sync";
 import { stringify } from "csv-stringify/sync";
+
+type ProductWithRelations = Product & {
+  category: { name: string } | null;
+  variants: ProductVariant[];
+};
+
+type ProductVariantWithProduct = ProductVariant & {
+  product: Product;
+};
 
 export async function POST(request: Request) {
   try {
@@ -67,8 +76,8 @@ export async function GET(request: Request) {
     const type = searchParams.get("type") || "all";
     const format = searchParams.get("format") || "csv";
 
-    let products = [];
-    let fields = [];
+    let products: (ProductWithRelations | ProductVariantWithProduct)[] = [];
+    let fields: string[] = [];
 
     switch (type) {
       case "all":
@@ -76,9 +85,8 @@ export async function GET(request: Request) {
           include: {
             category: true,
             variants: true,
-            attributes: true,
           },
-        });
+        }) as ProductWithRelations[];
         fields = [
           "id",
           "name",
@@ -103,7 +111,7 @@ export async function GET(request: Request) {
           include: {
             product: true,
           },
-        });
+        }) as ProductVariantWithProduct[];
         fields = [
           "id",
           "productId",
@@ -123,10 +131,12 @@ export async function GET(request: Request) {
       const data: Record<string, any> = {};
       
       fields.forEach((field) => {
-        if (field === "categoryName") {
-          data[field] = product.category?.name || "";
+        if (field === "categoryName" && "category" in product) {
+          data[field] = (product as ProductWithRelations).category?.name || "";
+        } else if (field === "productName" && "product" in product) {
+          data[field] = (product as ProductVariantWithProduct).product.name;
         } else if (field === "attributes" && "attributes" in product) {
-          data[field] = JSON.stringify(product.attributes);
+          data[field] = JSON.stringify((product as ProductVariantWithProduct).attributes);
         } else {
           data[field] = product[field as keyof typeof product] || "";
         }
@@ -168,12 +178,6 @@ async function importProducts(records: any[]) {
           stock: parseInt(record.stock),
           status: record.status as ProductStatus || ProductStatus.DRAFT,
           categoryId: record.categoryId,
-          sku: record.sku,
-          barcode: record.barcode,
-          weight: record.weight ? parseFloat(record.weight) : null,
-          dimensions: record.dimensions ? JSON.parse(record.dimensions) : null,
-          isBundle: record.isBundle === "true",
-          bundleDiscount: record.bundleDiscount ? parseFloat(record.bundleDiscount) : null,
         },
       });
       
@@ -248,21 +252,22 @@ async function createVariants(records: any[]) {
   
   for (const record of records) {
     try {
-      const attributes = record.attributes ? JSON.parse(record.attributes) : {};
-      
       const variant = await prisma.productVariant.create({
         data: {
-          productId: record.productId,
+          name: record.name,
           sku: record.sku,
           price: parseFloat(record.price),
           stock: parseInt(record.stock),
-          attributes,
+          options: record.options ? JSON.parse(record.options) : {},
+          productId: parseInt(record.productId),
+          inventoryTracking: record.inventoryTracking !== "false",
+          lowStockThreshold: record.lowStockThreshold ? parseInt(record.lowStockThreshold) : 5,
         },
       });
       
-      results.push({ success: true, id: variant.id, sku: variant.sku });
+      results.push({ success: true, id: variant.id, name: variant.name });
     } catch (error) {
-      results.push({ success: false, productId: record.productId, error: (error as Error).message });
+      results.push({ success: false, name: record.name, error: (error as Error).message });
     }
   }
   

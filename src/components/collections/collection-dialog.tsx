@@ -17,7 +17,7 @@ const CollectionDialog: React.FC<CollectionDialogProps> = ({ collection, onClose
   const [description, setDescription] = useState(collection?.description || '');
   const [image, setImage] = useState<string | undefined>(collection?.image || undefined);
   const [image2, setImage2] = useState<string | undefined>(collection?.image2 || undefined);
-  const [displaySection, setDisplaySection] = useState<"GRID" | "COLLAGE" | null>(collection?.displaySection || null);
+  const [displaySection, setDisplaySection] = useState<"FEATURED" | "COMPLETE" | "NONE">(collection?.displaySection || "NONE");
   const [type, setType] = useState(collection?.type || '');
   const [conditions, setConditions] = useState(collection?.conditions || '');
   const [isActive, setIsActive] = useState(collection?.isActive || false);
@@ -90,15 +90,16 @@ const CollectionDialog: React.FC<CollectionDialogProps> = ({ collection, onClose
       <div>
         <Label htmlFor="displaySection">Display Section</Label>
         <Select
-          value={displaySection || ""}
-          onValueChange={(value) => setDisplaySection(value as "GRID" | "COLLAGE" | null)}
+          value={displaySection}
+          onValueChange={(value) => setDisplaySection(value as "FEATURED" | "COMPLETE" | "NONE")}
         >
           <SelectTrigger>
             <SelectValue placeholder="Select display section" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="GRID">Grid</SelectItem>
-            <SelectItem value="COLLAGE">Collage</SelectItem>
+            <SelectItem value="FEATURED">Featured</SelectItem>
+            <SelectItem value="COMPLETE">Complete</SelectItem>
+            <SelectItem value="NONE">None</SelectItem>
           </SelectContent>
         </Select>
       </div>

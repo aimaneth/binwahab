@@ -28,7 +28,6 @@ export async function GET(req: Request) {
         },
         shippingAddress: {
           select: {
-            fullName: true,
             street: true,
             city: true,
             state: true,
