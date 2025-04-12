@@ -154,6 +154,7 @@ model Product {
   returnItems           ReturnItem[]
   reviews               Review[]
   wishlistItems         WishlistItem[]
+  analytics             ProductAnalytics?
 }
 
 model ProductImage {
@@ -544,6 +545,20 @@ model BulkOperation {
   user        User               @relation(fields: [createdBy], references: [id])
 }
 
+model ProductAnalytics {
+  id             Int      @id @default(autoincrement())
+  productId      Int      @unique
+  totalViews     Int      @default(0)
+  uniqueViews    Int      @default(0)
+  addToCartCount Int      @default(0)
+  purchaseCount  Int      @default(0)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  product        Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@index([productId])
+}
+
 enum Role {
   USER
   ADMIN
@@ -598,6 +613,8 @@ enum TransactionType {
   SALE
   ADJUSTMENT
   RETURN
+  RESERVED
+  RELEASED
 }
 
 enum DiscountType {

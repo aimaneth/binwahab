@@ -4,15 +4,18 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { User, Order, Role } from "@prisma/client";
+import { User, Order, UserRole } from "@prisma/client";
 
 interface CustomerWithOrders {
   id: string;
   name: string | null;
   email: string;
-  role: Role;
   createdAt: Date;
-  orders: Pick<Order, "id" | "total">[];
+  role: UserRole;
+  orders: Order[];
+  _count: {
+    orders: number;
+  };
 }
 
 interface CustomerWithStats extends Omit<CustomerWithOrders, "orders"> {
@@ -29,25 +32,26 @@ export async function GET() {
     }
 
     const customers = await prisma.user.findMany({
-      select: {
-        id: true,
-        name: true,
-        email: true,
-        role: true,
-        createdAt: true,
-        orders: {
+      where: {
+        role: UserRole.USER,
+      },
+      include: {
+        orders: true,
+        _count: {
           select: {
-            id: true,
-            total: true,
+            orders: true,
           },
         },
+      },
+      orderBy: {
+        createdAt: "desc",
       },
     });
 
     const customersWithStats = customers.map((customer: CustomerWithOrders): CustomerWithStats => ({
       ...customer,
-      totalOrders: customer.orders.length,
-      totalSpent: customer.orders.reduce((sum: number, order: Pick<Order, "id" | "total">) => sum + order.total, 0),
+      totalOrders: customer._count.orders,
+      totalSpent: customer.orders.reduce((sum: number, order: Order) => sum + order.total, 0),
     }));
 
     return NextResponse.json(customersWithStats);
