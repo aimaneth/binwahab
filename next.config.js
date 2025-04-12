@@ -3,13 +3,24 @@ const nextConfig = {
   reactStrictMode: true,
   swcMinify: true,
   images: {
-    domains: ['uploadthing.com', 'utfs.io', 'localhost', 'res.cloudinary.com', 'images.unsplash.com'],
+    domains: [
+      'localhost',
+      'binwahab.vercel.app',
+      '[YOUR-PROJECT-REF].supabase.co',
+      'uploadthing.com',
+      'utfs.io',
+      'res.cloudinary.com',
+      'images.unsplash.com'
+    ],
     remotePatterns: [
       {
         protocol: 'https',
         hostname: '**',
       },
     ],
+  },
+  experimental: {
+    serverActions: true,
   },
 };
 
