@@ -8,7 +8,10 @@ interface ProductGridProps {
 }
 
 export async function ProductGrid({ searchParams }: ProductGridProps) {
-  const { category, sort, q } = searchParams;
+  const { category, sort, q, page = "1" } = searchParams;
+  const currentPage = parseInt(page as string);
+  const itemsPerPage = 12; // Show 12 products per page
+  const skip = (currentPage - 1) * itemsPerPage;
 
   const where: Prisma.ProductWhereInput = {
     isActive: true,
@@ -29,13 +32,20 @@ export async function ProductGrid({ searchParams }: ProductGridProps) {
     ...(!sort && { createdAt: Prisma.SortOrder.desc }),
   };
 
-  const products = await prisma.product.findMany({
-    where,
-    orderBy,
-    include: {
-      category: true,
-    },
-  });
+  const [products, total] = await Promise.all([
+    prisma.product.findMany({
+      where,
+      orderBy,
+      skip,
+      take: itemsPerPage,
+      include: {
+        category: true,
+      },
+    }),
+    prisma.product.count({ where }),
+  ]);
+
+  const totalPages = Math.ceil(total / itemsPerPage);
 
   if (products.length === 0) {
     return (
@@ -51,18 +61,37 @@ export async function ProductGrid({ searchParams }: ProductGridProps) {
   }
 
   return (
-    <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-      {products.map((product: Product & { category: Category | null }) => (
-        <ProductCard key={product.id} product={product} />
-      ))}
+    <div className="space-y-8">
+      <div className="grid grid-cols-2 gap-4 sm:gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+        {products.map((product: Product & { category: Category | null }) => (
+          <ProductCard key={product.id} product={product} />
+        ))}
+      </div>
+      {totalPages > 1 && (
+        <div className="flex justify-center gap-2">
+          {Array.from({ length: totalPages }, (_, i) => i + 1).map((pageNum) => (
+            <a
+              key={pageNum}
+              href={`?page=${pageNum}${category ? `&category=${category}` : ""}${sort ? `&sort=${sort}` : ""}${q ? `&q=${q}` : ""}`}
+              className={`px-4 py-2 rounded-md ${
+                pageNum === currentPage
+                  ? "bg-primary text-primary-foreground"
+                  : "bg-muted hover:bg-muted/80"
+              }`}
+            >
+              {pageNum}
+            </a>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
 
 export function ProductGridSkeleton() {
   return (
-    <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-      {[...Array(8)].map((_, i) => (
+    <div className="grid grid-cols-2 gap-4 sm:gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+      {[...Array(12)].map((_, i) => (
         <div key={i} className="space-y-4">
           <Skeleton className="aspect-square w-full" />
           <Skeleton className="h-6 w-3/4" />
