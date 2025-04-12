@@ -4,6 +4,8 @@ import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { Order, Product, Prisma, ProductVariant } from "@prisma/client";
 
+export const dynamic = 'force-dynamic';
+
 type ProductWithVariants = Product & {
   variants: ProductVariant[]
   stock: number | null
