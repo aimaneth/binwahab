@@ -19,7 +19,7 @@ export function ProductCard({ product }: ProductCardProps) {
 
   return (
     <Card className="overflow-hidden">
-      <Link href={`/shop/products/${product.id}`}>
+      <Link href={`/products/${product.slug}`}>
         <div className="relative aspect-square">
           <Image
             src={imageUrl}
@@ -30,7 +30,7 @@ export function ProductCard({ product }: ProductCardProps) {
         </div>
       </Link>
       <CardContent className="p-4">
-        <Link href={`/shop/products/${product.id}`}>
+        <Link href={`/products/${product.slug}`}>
           <h3 className="font-semibold hover:underline">{product.name}</h3>
         </Link>
         {product.category && (
