@@ -12,6 +12,7 @@ interface Product {
   id: string;
   name: string;
   price: number;
+  slug: string;
   images: { url: string }[];
   category: {
     id: string;
@@ -174,7 +175,7 @@ export default function HomePage() {
                   
                   return (
                     <Card key={product.id} className="overflow-hidden">
-                      <Link href={`/products/${product.id}`}>
+                      <Link href={`/shop/products/${product.slug}`}>
                         <div className="relative aspect-[3/4]">
                           <ImageWithFallback
                             src={imageUrl}
@@ -186,14 +187,14 @@ export default function HomePage() {
                         </div>
                       </Link>
                       <CardContent className="p-4">
-                        <Link href={`/products/${product.id}`}>
+                        <Link href={`/shop/products/${product.slug}`}>
                           <h3 className="font-semibold hover:underline">{product.name}</h3>
                         </Link>
                         <p className="mt-2 font-semibold">{formatPrice(product.price)}</p>
                       </CardContent>
                       <CardFooter className="p-4 pt-0">
                         <Button className="w-full" asChild>
-                          <Link href={`/products/${product.id}`}>View Details</Link>
+                          <Link href={`/shop/products/${product.slug}`}>View Details</Link>
                         </Button>
                       </CardFooter>
                     </Card>
@@ -272,7 +273,7 @@ export default function HomePage() {
                   
                   return (
                     <Card key={product.id} className="overflow-hidden">
-                      <Link href={`/products/${product.id}`}>
+                      <Link href={`/shop/products/${product.slug}`}>
                         <div className="relative aspect-[3/4]">
                           <ImageWithFallback
                             src={imageUrl}
@@ -284,14 +285,14 @@ export default function HomePage() {
                         </div>
                       </Link>
                       <CardContent className="p-4">
-                        <Link href={`/products/${product.id}`}>
+                        <Link href={`/shop/products/${product.slug}`}>
                           <h3 className="font-semibold hover:underline">{product.name}</h3>
                         </Link>
                         <p className="mt-2 font-semibold">{formatPrice(product.price)}</p>
                       </CardContent>
                       <CardFooter className="p-4 pt-0">
                         <Button className="w-full" asChild>
-                          <Link href={`/products/${product.id}`}>View Details</Link>
+                          <Link href={`/shop/products/${product.slug}`}>View Details</Link>
                         </Button>
                       </CardFooter>
                     </Card>

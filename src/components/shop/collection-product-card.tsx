@@ -9,6 +9,7 @@ interface CollectionProduct {
   name: string;
   price: number;
   image: string | null;
+  slug: string;
   category: {
     name: string;
   };
@@ -21,7 +22,7 @@ interface CollectionProductCardProps {
 export function CollectionProductCard({ product }: CollectionProductCardProps) {
   return (
     <Card className="overflow-hidden">
-      <Link href={`/shop/products/${product.id}`}>
+      <Link href={`/shop/products/${product.slug}`}>
         <div className="relative aspect-square">
           <Image
             src={product.image || "/placeholder.png"}
@@ -32,7 +33,7 @@ export function CollectionProductCard({ product }: CollectionProductCardProps) {
         </div>
       </Link>
       <CardContent className="p-4">
-        <Link href={`/shop/products/${product.id}`}>
+        <Link href={`/shop/products/${product.slug}`}>
           <h3 className="font-semibold hover:underline">{product.name}</h3>
         </Link>
         <p className="text-sm text-muted-foreground">{product.category.name}</p>
