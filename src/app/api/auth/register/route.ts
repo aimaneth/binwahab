@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import bcrypt from "bcryptjs";
 import { z } from "zod";
+import { UserRole } from "@prisma/client";
 
 const registerSchema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters"),
@@ -44,7 +45,7 @@ export async function POST(req: Request) {
         name,
         email,
         password: hashedPassword,
-        role: "USER",
+        role: UserRole.USER,
       },
     });
     console.log("User created successfully");
