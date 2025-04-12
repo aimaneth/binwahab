@@ -8,11 +8,12 @@ import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { Product, Category, ProductCollection } from "@prisma/client";
 
-interface CollectionProduct {
+interface ProductWithCategory {
   id: string;
   name: string;
   price: number;
   image: string | null;
+  slug: string;
   category: {
     name: string;
   };
@@ -23,7 +24,7 @@ type CollectionWithProducts = {
   name: string;
   description: string | null;
   image: string | null;
-  products: CollectionProduct[];
+  products: ProductWithCategory[];
 };
 
 async function getCollection(collectionId: string): Promise<CollectionWithProducts | null> {
@@ -48,16 +49,17 @@ async function getCollection(collectionId: string): Promise<CollectionWithProduc
 
   // Filter out products with null categories and convert to CollectionProduct type
   const validProducts = collection.products
-    .filter(pc => pc.product.category !== null)
+    .filter(pc => pc.product.category !== null && pc.product.slug !== null)
     .map(pc => ({
       id: pc.product.id.toString(),
       name: pc.product.name,
       price: Number(pc.product.price),
       image: pc.product.image,
+      slug: pc.product.slug!,
       category: {
         name: pc.product.category!.name
       }
-    }));
+    } satisfies ProductWithCategory));
 
   return {
     id: collection.id,
