@@ -152,7 +152,7 @@ export default function HomePage() {
             </Button>
           </div>
           {isLoading ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+            <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6">
               {[1, 2, 3, 4].map((i) => (
                 <div key={i} className="animate-pulse">
                   <div className="aspect-square bg-gray-200 rounded-lg" />
@@ -165,7 +165,7 @@ export default function HomePage() {
               ))}
             </div>
           ) : featuredCollections.length > 0 ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+            <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6">
               {featuredCollections.flatMap(collection => 
                 collection.products.map(product => {
                   const imageUrl = product.images && product.images.length > 0 
