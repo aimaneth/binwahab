@@ -65,6 +65,7 @@ export function CollectionDialog({
 
   useEffect(() => {
     if (collection) {
+      // Update state with collection data
       setName(collection.name || "");
       setSlug(collection.slug || "");
       setDescription(collection.description || "");
@@ -88,8 +89,31 @@ export function CollectionDialog({
       setSeoKeywords(collection.seoKeywords || "");
       setShowOnHomePage(collection.showOnHomePage ?? false);
       setDisplaySection(collection.displaySection ?? "NONE");
+      setActiveTab("details");
+    } else {
+      // Reset state for new collection
+      setName("");
+      setSlug("");
+      setDescription("");
+      setImage("");
+      setImage2("");
+      setType("MANUAL");
+      setConditions({
+        operator: "AND",
+        rules: [
+          { field: "price", operator: "greater_than", value: 0 }
+        ]
+      });
+      setIsActive(true);
+      setOrder(0);
+      setSeoTitle("");
+      setSeoDescription("");
+      setSeoKeywords("");
+      setShowOnHomePage(false);
+      setDisplaySection("NONE");
+      setActiveTab("templates");
     }
-  }, [collection]);
+  }, [collection, open]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
