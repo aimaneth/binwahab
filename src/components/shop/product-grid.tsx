@@ -51,7 +51,7 @@ export async function ProductGrid({ searchParams }: ProductGridProps) {
   }
 
   return (
-    <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+    <div className="grid grid-cols-2 gap-4 sm:gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
       {products.map((product: Product & { category: Category | null }) => (
         <ProductCard key={product.id} product={product} />
       ))}
@@ -61,7 +61,7 @@ export async function ProductGrid({ searchParams }: ProductGridProps) {
 
 export function ProductGridSkeleton() {
   return (
-    <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+    <div className="grid grid-cols-2 gap-4 sm:gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
       {[...Array(8)].map((_, i) => (
         <div key={i} className="space-y-4">
           <Skeleton className="aspect-square w-full" />
