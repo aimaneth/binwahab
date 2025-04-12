@@ -8,16 +8,21 @@ import { formatPrice } from "@/lib/utils";
 interface ProductCardProps {
   product: Product & {
     category: Category | null;
+    images?: { url: string }[];
   };
 }
 
 export function ProductCard({ product }: ProductCardProps) {
+  const imageUrl = product.images && product.images.length > 0 
+    ? product.images[0].url 
+    : product.image || "/images/fallback-product.jpg";
+
   return (
     <Card className="overflow-hidden">
       <Link href={`/shop/products/${product.id}`}>
         <div className="relative aspect-square">
           <Image
-            src={product.image || "/placeholder.png"}
+            src={imageUrl}
             alt={product.name}
             fill
             className="object-cover"
