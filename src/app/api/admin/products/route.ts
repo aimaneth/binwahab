@@ -128,59 +128,67 @@ export async function POST(req: Request) {
       productData.status = "DRAFT";
     }
 
-    // Create the product in a transaction to ensure data consistency
-    const product = await prisma.$transaction(async (tx) => {
-      // First create the base product
-      const baseProduct = await tx.product.create({
-        data: {
-          ...productData,
-          isActive: true,
-          status: "ACTIVE" as const,
-          image: images && images.length > 0 ? images[0] : null,
-          category: categoryId ? {
-            connect: { id: categoryId }
-          } : undefined,
-        },
-      });
-
-      // Then create product images if they exist
-      if (images && images.length > 0) {
-        await tx.productImage.createMany({
-          data: images.map((url, index) => ({
-            url,
-            order: index,
-            productId: baseProduct.id
-          }))
-        });
-      }
-
-      // Finally create collection relationships if they exist
-      if (collectionIds && collectionIds.length > 0) {
-        await tx.productCollection.createMany({
-          data: collectionIds.map(collectionId => ({
-            productId: baseProduct.id,
-            collectionId: collectionId
-          }))
-        });
-      }
-
-      // Return the complete product with all relations
-      return tx.product.findUnique({
-        where: { id: baseProduct.id },
-        include: {
-          category: true,
-          collections: {
-            include: {
-              collection: true,
-            },
-          },
-          variants: true,
-          images: true
-        },
-      });
+    // Create the base product first
+    const baseProduct = await prisma.product.create({
+      data: {
+        ...productData,
+        isActive: true,
+        status: "ACTIVE" as const,
+        image: images && images.length > 0 ? images[0] : null,
+        category: categoryId ? {
+          connect: { id: categoryId }
+        } : undefined,
+      },
     });
 
-    return NextResponse.json(product);
+    // Then create product images if they exist
+    if (images && images.length > 0) {
+      await prisma.$executeRaw`
+        INSERT INTO "ProductImage" ("url", "order", "productId", "createdAt", "updatedAt")
+        VALUES ${Prisma.join(
+          images.map((url, index) => 
+            Prisma.sql`(${url}, ${index}, ${baseProduct.id}, NOW(), NOW())`
+          )
+        )}
+      `;
+    }
+
+    // Finally create collection relationships if they exist
+    if (collectionIds && collectionIds.length > 0) {
+      await prisma.productCollection.createMany({
+        data: collectionIds.map(collectionId => ({
+          productId: baseProduct.id,
+          collectionId: collectionId
+        }))
+      });
+    }
+
+    // Return the complete product with all relations
+    const product = await prisma.product.findUnique({
+      where: { id: baseProduct.id },
+      include: {
+        category: true,
+        collections: {
+          include: {
+            collection: true,
+          },
+        },
+        variants: true
+      },
+    });
+
+    // Get the images separately
+    const productImages = await prisma.$queryRaw`
+      SELECT id, url, "order", "productId", "createdAt", "updatedAt"
+      FROM "ProductImage"
+      WHERE "productId" = ${baseProduct.id}
+      ORDER BY "order" ASC
+    `;
+
+    return NextResponse.json({
+      ...product,
+      images: productImages
+    });
   } catch (error) {
     console.error("[PRODUCTS_POST] Detailed error:", error);
     
