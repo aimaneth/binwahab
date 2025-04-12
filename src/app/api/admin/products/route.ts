@@ -127,79 +127,92 @@ export async function POST(req: Request) {
     if (productData.status && !["DRAFT", "ACTIVE", "ARCHIVED"].includes(productData.status)) {
       productData.status = "DRAFT";
     }
-    
-    // Log the data being sent to Prisma
-    const prismaData = {
-      ...productData,
-      // Set default values for isActive and status
-      isActive: true,
-      status: "ACTIVE" as const,
-      // Set the main image as the first image if available
-      image: images && images.length > 0 ? images[0] : null,
-      // Connect the category using categoryId
-      category: {
-        connect: { id: categoryId }
-      },
-      collections: collectionIds ? {
-        create: collectionIds.map(collectionId => ({
-          collection: {
-            connect: { id: collectionId }
-          }
-        }))
-      } : undefined,
-      // Create product images if they exist
-      ...(images && images.length > 0 ? {
-        images: {
-          create: images.map((url, index) => ({
-            url,
-            order: index
-          }))
-        }
-      } : {})
-    };
-    
-    console.log("Data being sent to Prisma:", prismaData);
 
-    // Create the product first
-    const product = await prisma.product.create({
-      data: prismaData,
-      include: {
-        category: true,
-        collections: {
-          include: {
-            collection: true,
-          },
+    // Create the product in a transaction to ensure data consistency
+    const product = await prisma.$transaction(async (tx) => {
+      // First create the base product
+      const baseProduct = await tx.product.create({
+        data: {
+          ...productData,
+          isActive: true,
+          status: "ACTIVE" as const,
+          image: images && images.length > 0 ? images[0] : null,
+          category: categoryId ? {
+            connect: { id: categoryId }
+          } : undefined,
         },
-        variants: true,
-        images: true
-      },
+      });
+
+      // Then create product images if they exist
+      if (images && images.length > 0) {
+        await tx.productImage.createMany({
+          data: images.map((url, index) => ({
+            url,
+            order: index,
+            productId: baseProduct.id
+          }))
+        });
+      }
+
+      // Finally create collection relationships if they exist
+      if (collectionIds && collectionIds.length > 0) {
+        await tx.productCollection.createMany({
+          data: collectionIds.map(collectionId => ({
+            productId: baseProduct.id,
+            collectionId: collectionId
+          }))
+        });
+      }
+
+      // Return the complete product with all relations
+      return tx.product.findUnique({
+        where: { id: baseProduct.id },
+        include: {
+          category: true,
+          collections: {
+            include: {
+              collection: true,
+            },
+          },
+          variants: true,
+          images: true
+        },
+      });
     });
 
     return NextResponse.json(product);
   } catch (error) {
     console.error("[PRODUCTS_POST] Detailed error:", error);
     
-    // Log the full error object
-    console.error("Full error object:", JSON.stringify(error, Object.getOwnPropertyNames(error)));
-    
     if (error instanceof z.ZodError) {
       return new NextResponse(JSON.stringify({
         message: "Validation error",
         errors: error.errors
-      }), { status: 400 });
+      }), { 
+        status: 400,
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
     }
+
     if (error instanceof Prisma.PrismaClientKnownRequestError) {
       return new NextResponse(JSON.stringify({
         message: "Database error",
         code: error.code,
-      }), { status: 400 });
+        meta: error.meta,
+      }), { 
+        status: 400,
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
     }
     
     return new NextResponse(
       JSON.stringify({
         message: "Internal server error",
         error: error instanceof Error ? error.message : "Unknown error",
-        stack: error instanceof Error ? error.stack : undefined,
       }),
       { 
         status: 500,
