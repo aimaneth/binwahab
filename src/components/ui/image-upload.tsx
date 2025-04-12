@@ -4,6 +4,7 @@ import { useState, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { X, Upload } from 'lucide-react';
 import { toast } from 'sonner';
+import { useUploadThing } from "@/lib/uploadthing-client";
 
 interface ImageUploadProps {
   value?: string;
@@ -21,6 +22,7 @@ export function ImageUpload({
   const [isUploading, setIsUploading] = useState(false);
   const [previewUrl, setPreviewUrl] = useState<string | null>(value || null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const { startUpload } = useUploadThing("imageUploader");
 
   const handleRemove = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -38,23 +40,14 @@ export function ImageUpload({
     toast.info("Uploading image...");
 
     try {
-      // Create a FormData object
-      const formData = new FormData();
-      formData.append('file', file);
-
-      // Upload the file to your server
-      const response = await fetch('/api/upload', {
-        method: 'POST',
-        body: formData,
-      });
-
-      if (!response.ok) {
+      // Use UploadThing to upload the file
+      const uploadResponse = await startUpload([file]);
+      
+      if (!uploadResponse || uploadResponse.length === 0) {
         throw new Error('Upload failed');
       }
 
-      const data = await response.json();
-      const imageUrl = data.url;
-
+      const imageUrl = uploadResponse[0].url;
       console.log("Upload successful, URL:", imageUrl);
       onChange(imageUrl);
       setPreviewUrl(imageUrl);
