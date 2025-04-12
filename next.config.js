@@ -6,7 +6,7 @@ const nextConfig = {
     domains: [
       'localhost',
       'binwahab.vercel.app',
-      '[YOUR-PROJECT-REF].supabase.co',
+      'koupyrvfvczzkolwvwnc.supabase.co',
       'uploadthing.com',
       'utfs.io',
       'res.cloudinary.com',
