@@ -250,7 +250,7 @@ export default function HomePage() {
       <section className="py-16 px-4 md:px-6">
         <div className="container mx-auto">
           {isLoading ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+            <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6">
               {[1, 2, 3, 4, 5, 6, 7, 8].map((i) => (
                 <div key={i} className="animate-pulse">
                   <div className="aspect-square bg-gray-200 rounded-lg" />
@@ -263,7 +263,7 @@ export default function HomePage() {
               ))}
             </div>
           ) : completeCollections.length > 0 ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+            <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6">
               {completeCollections.flatMap(collection => 
                 collection.products.map(product => {
                   const imageUrl = product.images && product.images.length > 0 
