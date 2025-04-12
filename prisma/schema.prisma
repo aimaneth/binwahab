@@ -1,14 +1,12 @@
 generator client {
-  provider        = "prisma-client-js"
-  output          = "../node_modules/.prisma/client"
-  previewFeatures = ["postgresqlExtensions"]
+  provider = "prisma-client-js"
+  output   = "../node_modules/.prisma/client"
 }
 
 datasource db {
   provider   = "postgresql"
   url        = env("DATABASE_URL")
   directUrl  = env("DIRECT_URL")
-  extensions = [pgcrypto, uuid_ossp(map: "uuid-ossp", schema: "extensions")]
 }
 
 model User {
@@ -34,6 +32,7 @@ model User {
   sessions        Session[]
   wishlist        Wishlist?
   wishlistItems   WishlistItem[]
+  bulkOperations  BulkOperation[]
 }
 
 model Account {
@@ -140,6 +139,8 @@ model Product {
   status                ProductStatus          @default(ACTIVE)
   image                 String?
   sku                   String?                @unique
+  inventoryTracking     Boolean                @default(false)
+  lowStockThreshold     Int                    @default(5)
   addToCartEvents       AddToCartEvent[]
   cartItems             CartItem[]
   inventoryTransactions InventoryTransaction[]
@@ -530,6 +531,19 @@ model Media {
   @@index([uploadedBy])
 }
 
+model BulkOperation {
+  id          String             @id @default(cuid())
+  type        BulkOperationType
+  status      BulkOperationStatus @default(PENDING)
+  data        Json?
+  result      Json?
+  createdBy   String
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+  completedAt DateTime?
+  user        User               @relation(fields: [createdBy], references: [id])
+}
+
 enum Role {
   USER
   ADMIN
@@ -614,4 +628,20 @@ enum DisplaySection {
   FEATURED
   COMPLETE
   NONE
+}
+
+enum BulkOperationType {
+  PRODUCT_IMPORT
+  PRODUCT_EXPORT
+  CATEGORY_IMPORT
+  CATEGORY_EXPORT
+  ORDER_IMPORT
+  ORDER_EXPORT
+}
+
+enum BulkOperationStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
 }

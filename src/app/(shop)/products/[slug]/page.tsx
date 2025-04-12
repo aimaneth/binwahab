@@ -163,9 +163,6 @@ export default async function ProductPage({ params }: ProductPageProps) {
       id: Number(img.id),
       productId: Number(img.productId),
     })),
-    sku: product.sku || null,
-    inventoryTracking: product.inventoryTracking || false,
-    lowStockThreshold: product.lowStockThreshold || 5,
   };
 
   const typedRelatedProducts: Product[] = productsWithCategories.map(p => ({
@@ -176,9 +173,6 @@ export default async function ProductPage({ params }: ProductPageProps) {
       id: Number(img.id),
       productId: Number(img.productId),
     })),
-    sku: p.sku || null,
-    inventoryTracking: p.inventoryTracking || false,
-    lowStockThreshold: p.lowStockThreshold || 5,
   }));
 
   return (
