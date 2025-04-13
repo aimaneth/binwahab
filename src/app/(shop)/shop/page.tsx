@@ -1,8 +1,6 @@
 import { Metadata } from "next";
 import { ProductGrid } from "@/components/shop/product-grid";
-import { CategoryFilter } from "@/components/shop/category-filter";
-import { SortSelect } from "@/components/shop/sort-select";
-import { SearchInput } from "@/components/shop/search-input";
+import { ShopFilters } from "@/components/shop/shop-filters";
 import { prisma } from "@/lib/prisma";
 import { Product as PrismaProduct, ProductImage, ProductVariant as PrismaVariant, Category as PrismaCategory } from "@prisma/client";
 import { Product } from "@/types/product";
@@ -60,72 +58,69 @@ export default async function ShopPage({ searchParams }: ShopPageProps) {
     });
 
     // Convert Prisma products to our Product type
-    products = (dbProducts as ProductWithRelations[]).map(product => {
-      const mappedProduct: Product = {
-        id: product.id,
-        name: product.name,
-        description: product.description,
-        descriptionHtml: product.descriptionHtml,
-        handle: product.handle || '',
-        price: product.price,
-        stock: product.stock,
-        reservedStock: product.reservedStock,
-        slug: product.slug || `product-${product.id}`,
-        isActive: product.isActive,
-        status: product.status as "ACTIVE" | "DRAFT" | "ARCHIVED",
-        image: product.image,
-        sku: product.sku,
-        inventoryTracking: product.inventoryTracking,
-        lowStockThreshold: product.lowStockThreshold,
-        images: product.images.map(img => ({
-          id: img.id,
-          url: img.url,
-          order: img.order,
-          productId: img.productId,
-          createdAt: img.createdAt,
-          updatedAt: img.updatedAt
-        })),
-        variants: product.variants.map(variant => ({
-          id: variant.id,
-          name: variant.name,
-          sku: variant.sku,
-          price: variant.price,
-          compareAtPrice: variant.compareAtPrice,
-          stock: variant.stock,
-          reservedStock: variant.reservedStock,
-          options: variant.options as Record<string, string>,
-          images: variant.images,
-          inventoryTracking: variant.inventoryTracking,
-          lowStockThreshold: variant.lowStockThreshold,
-          productId: variant.productId,
-          isActive: variant.isActive,
-          barcode: variant.barcode,
-          weight: variant.weight,
-          weightUnit: variant.weightUnit,
-          dimensions: variant.dimensions as Record<string, any>,
-          attributes: variant.options as Record<string, any>
-        })),
-        category: product.category ? {
-          id: product.category.id,
-          name: product.category.name,
-          slug: product.category.slug,
-          description: product.category.description,
-          image: product.category.image,
-          isActive: product.category.isActive,
-          parentId: product.category.parentId,
-          seoTitle: product.category.seoTitle,
-          seoDescription: product.category.seoDescription,
-          seoKeywords: product.category.seoKeywords,
-          createdAt: product.category.createdAt,
-          updatedAt: product.category.updatedAt,
-          order: product.category.order
-        } : null,
-        categoryId: product.categoryId,
-        createdAt: product.createdAt,
-        updatedAt: product.updatedAt
-      };
-      return mappedProduct;
-    });
+    products = (dbProducts as ProductWithRelations[]).map(product => ({
+      id: product.id,
+      name: product.name,
+      description: product.description,
+      descriptionHtml: product.descriptionHtml,
+      handle: product.handle || '',
+      price: product.price,
+      stock: product.stock,
+      reservedStock: product.reservedStock,
+      slug: product.slug || `product-${product.id}`,
+      isActive: product.isActive,
+      status: product.status as "ACTIVE" | "DRAFT" | "ARCHIVED",
+      image: product.image,
+      sku: product.sku,
+      inventoryTracking: product.inventoryTracking,
+      lowStockThreshold: product.lowStockThreshold,
+      images: product.images.map(img => ({
+        id: img.id,
+        url: img.url,
+        order: img.order,
+        productId: img.productId,
+        createdAt: img.createdAt,
+        updatedAt: img.updatedAt
+      })),
+      variants: product.variants.map(variant => ({
+        id: variant.id,
+        name: variant.name,
+        sku: variant.sku,
+        price: variant.price,
+        compareAtPrice: variant.compareAtPrice,
+        stock: variant.stock,
+        reservedStock: variant.reservedStock,
+        options: variant.options as Record<string, string>,
+        images: variant.images,
+        inventoryTracking: variant.inventoryTracking,
+        lowStockThreshold: variant.lowStockThreshold,
+        productId: variant.productId,
+        isActive: variant.isActive,
+        barcode: variant.barcode,
+        weight: variant.weight,
+        weightUnit: variant.weightUnit,
+        dimensions: variant.dimensions as Record<string, any>,
+        attributes: variant.options as Record<string, any>
+      })),
+      category: product.category ? {
+        id: product.category.id,
+        name: product.category.name,
+        slug: product.category.slug,
+        description: product.category.description,
+        image: product.category.image,
+        isActive: product.category.isActive,
+        parentId: product.category.parentId,
+        seoTitle: product.category.seoTitle,
+        seoDescription: product.category.seoDescription,
+        seoKeywords: product.category.seoKeywords,
+        createdAt: product.category.createdAt,
+        updatedAt: product.category.updatedAt,
+        order: product.category.order
+      } : null,
+      categoryId: product.categoryId,
+      createdAt: product.createdAt,
+      updatedAt: product.updatedAt
+    }));
   } catch (err) {
     console.error("Error fetching products:", err);
     error = "Failed to load products. Please try again later.";
@@ -136,13 +131,7 @@ export default async function ShopPage({ searchParams }: ShopPageProps) {
       <div className="flex flex-col gap-8">
         <div className="flex flex-col gap-4">
           <h1 className="text-3xl font-bold">Shop</h1>
-          <div className="flex flex-col md:flex-row gap-4">
-            <SearchInput />
-            <div className="flex gap-4">
-              <CategoryFilter />
-              <SortSelect />
-            </div>
-          </div>
+          <ShopFilters />
         </div>
         
         {error ? (
