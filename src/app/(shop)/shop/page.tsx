@@ -4,7 +4,7 @@ import { CategoryFilter } from "@/components/shop/category-filter";
 import { SortSelect } from "@/components/shop/sort-select";
 import { SearchInput } from "@/components/shop/search-input";
 import { prisma } from "@/lib/prisma";
-import { Category } from "@prisma/client";
+import { Product as PrismaProduct, ProductImage, ProductVariant as PrismaVariant, Category as PrismaCategory } from "@prisma/client";
 import { Product } from "@/types/product";
 
 export const dynamic = 'force-dynamic';
@@ -17,6 +17,12 @@ export const metadata: Metadata = {
 interface ShopPageProps {
   searchParams: { [key: string]: string | string[] | undefined };
 }
+
+type ProductWithRelations = PrismaProduct & {
+  images: ProductImage[];
+  variants: (PrismaVariant & { images: ProductImage[] })[];
+  category: PrismaCategory | null;
+};
 
 export default async function ShopPage({ searchParams }: ShopPageProps) {
   let products: Product[] = [];
@@ -39,8 +45,12 @@ export default async function ShopPage({ searchParams }: ShopPageProps) {
       },
       include: {
         category: true,
-        images: true,
-        variants: true,
+        images: {
+          orderBy: {
+            order: 'asc'
+          }
+        },
+        variants: true
       },
       orderBy: searchParams.sort === 'price_desc' 
         ? { price: 'desc' }
@@ -50,44 +60,72 @@ export default async function ShopPage({ searchParams }: ShopPageProps) {
     });
 
     // Convert Prisma products to our Product type
-    products = dbProducts.map(p => ({
-      ...p,
-      slug: p.slug || p.handle || `product-${p.id}`, // Ensure we always have a slug
-      images: p.images,
-      variants: p.variants.map(v => ({
-        ...v,
-        options: v.options as Record<string, string>,
-        attributes: (v.options || {}) as Record<string, string>,
-      })),
-      // Add default values for optional fields
-      handle: p.handle || '',
-      compareAtPrice: null,
-      costPerItem: null,
-      barcode: null,
-      inventoryPolicy: "DENY" as "DENY" | "CONTINUE",
-      allowBackorder: false,
-      taxable: false,
-      taxCode: null,
-      weight: null,
-      weightUnit: null,
-      requiresShipping: false,
-      shippingProfile: null,
-      fulfillmentService: null,
-      metaTitle: null,
-      metaDescription: null,
-      metaKeywords: null,
-      ogImage: null,
-      twitterImage: null,
-      seoTitle: null,
-      seoDescription: null,
-      seoKeywords: null,
-      vendor: null,
-      type: null,
-      tags: [],
-      metafields: [],
-      optionsJson: null,
-      publishedAt: null,
-    })) as unknown as Product[];
+    products = (dbProducts as ProductWithRelations[]).map(product => {
+      const mappedProduct: Product = {
+        id: product.id,
+        name: product.name,
+        description: product.description,
+        descriptionHtml: product.descriptionHtml,
+        handle: product.handle || '',
+        price: product.price,
+        stock: product.stock,
+        reservedStock: product.reservedStock,
+        slug: product.slug || `product-${product.id}`,
+        isActive: product.isActive,
+        status: product.status as "ACTIVE" | "DRAFT" | "ARCHIVED",
+        image: product.image,
+        sku: product.sku,
+        inventoryTracking: product.inventoryTracking,
+        lowStockThreshold: product.lowStockThreshold,
+        images: product.images.map(img => ({
+          id: img.id,
+          url: img.url,
+          order: img.order,
+          productId: img.productId,
+          createdAt: img.createdAt,
+          updatedAt: img.updatedAt
+        })),
+        variants: product.variants.map(variant => ({
+          id: variant.id,
+          name: variant.name,
+          sku: variant.sku,
+          price: variant.price,
+          compareAtPrice: variant.compareAtPrice,
+          stock: variant.stock,
+          reservedStock: variant.reservedStock,
+          options: variant.options as Record<string, string>,
+          images: variant.images,
+          inventoryTracking: variant.inventoryTracking,
+          lowStockThreshold: variant.lowStockThreshold,
+          productId: variant.productId,
+          isActive: variant.isActive,
+          barcode: variant.barcode,
+          weight: variant.weight,
+          weightUnit: variant.weightUnit,
+          dimensions: variant.dimensions as Record<string, any>,
+          attributes: variant.options as Record<string, any>
+        })),
+        category: product.category ? {
+          id: product.category.id,
+          name: product.category.name,
+          slug: product.category.slug,
+          description: product.category.description,
+          image: product.category.image,
+          isActive: product.category.isActive,
+          parentId: product.category.parentId,
+          seoTitle: product.category.seoTitle,
+          seoDescription: product.category.seoDescription,
+          seoKeywords: product.category.seoKeywords,
+          createdAt: product.category.createdAt,
+          updatedAt: product.category.updatedAt,
+          order: product.category.order
+        } : null,
+        categoryId: product.categoryId,
+        createdAt: product.createdAt,
+        updatedAt: product.updatedAt
+      };
+      return mappedProduct;
+    });
   } catch (err) {
     console.error("Error fetching products:", err);
     error = "Failed to load products. Please try again later.";
