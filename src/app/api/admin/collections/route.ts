@@ -6,7 +6,7 @@ import { z } from "zod";
 
 const collectionSchema = z.object({
   name: z.string().min(1),
-  slug: z.string().min(1),
+  handle: z.string().optional(),
   description: z.string().optional(),
   image: z.string().optional(),
   image2: z.string().optional(),
@@ -134,11 +134,17 @@ export async function POST(req: Request) {
     const body = await req.json();
     const validatedData = collectionSchema.parse(body);
     
+    // Generate handle from name if not provided
+    const handle = validatedData.handle || validatedData.name.toLowerCase().replace(/\s+/g, '-');
+    
     console.log("Creating collection with image2:", validatedData.image2);
 
     // Use type assertion to handle the image2 field
     const collection = await prisma.collection.create({
-      data: validatedData as any,
+      data: {
+        ...validatedData,
+        handle,
+      } as any,
     });
 
     console.log("Collection created successfully with image2:", (collection as any).image2);

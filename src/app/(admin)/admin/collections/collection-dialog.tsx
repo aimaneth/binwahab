@@ -124,7 +124,7 @@ export function CollectionDialog({
     try {
       const data = {
         name,
-        handle,
+        handle: handle || name.toLowerCase().replace(/\s+/g, '-'),
         description,
         image,
         image2,
@@ -139,7 +139,7 @@ export function CollectionDialog({
         displaySection
       };
 
-      console.log("Submitting collection data with image2:", image2);
+      console.log("Submitting collection data:", data);
       
       onSave(data);
       toast.success(collection ? "Collection updated successfully" : "Collection created successfully");
