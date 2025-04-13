@@ -32,10 +32,8 @@ export interface Product {
   name: string;
   description: string;
   descriptionHtml: string | null;
-  handle?: string;
+  handle?: string | null;
   price: Prisma.Decimal;
-  compareAtPrice?: Prisma.Decimal | null;
-  costPerItem?: Prisma.Decimal | null;
   stock: number;
   reservedStock: number;
   slug: string | null;
@@ -45,36 +43,13 @@ export interface Product {
   sku: string | null;
   barcode?: string | null;
   inventoryTracking: boolean;
-  inventoryPolicy?: "DENY" | "CONTINUE";
-  allowBackorder?: boolean;
   lowStockThreshold: number;
-  taxable?: boolean;
-  taxCode?: string | null;
-  weight?: number | null;
-  weightUnit?: string | null;
-  requiresShipping?: boolean;
-  shippingProfile?: string | null;
-  fulfillmentService?: string | null;
-  metaTitle?: string | null;
-  metaDescription?: string | null;
-  metaKeywords?: string | null;
-  ogImage?: string | null;
-  twitterImage?: string | null;
-  seoTitle?: string | null;
-  seoDescription?: string | null;
-  seoKeywords?: string | null;
-  vendor?: string | null;
-  type?: string | null;
-  tags?: string[];
   images: ProductImage[];
   variants: ProductVariant[];
-  optionsJson?: Prisma.JsonValue | null;
   category: Category | null;
-  metafields?: ProductMetafield[];
   categoryId: string | null;
   createdAt: Date;
   updatedAt: Date;
-  publishedAt?: Date | null;
 }
 
 export interface ProductCreateInput {
@@ -96,16 +71,19 @@ export type ProductVariant = {
   sku: string;
   price: Prisma.Decimal;
   compareAtPrice?: Prisma.Decimal | null;
-  costPerItem?: Prisma.Decimal | null;
   stock: number;
   reservedStock: number;
-  options: Prisma.JsonValue;
+  options: Record<string, string>;
   images: string[];
   inventoryTracking: boolean;
   lowStockThreshold: number | null;
   productId: number;
   isActive: boolean;
-  attributes: Prisma.JsonValue;
+  barcode?: string | null;
+  weight?: number | null;
+  weightUnit?: string | null;
+  dimensions?: Record<string, any> | null;
+  attributes?: Record<string, any> | null;
 };
 
 export type ProductMetafield = {

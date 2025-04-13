@@ -3,10 +3,22 @@ import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { ProductGallery } from "@/components/shop/product-gallery";
 import { ProductInfo } from "@/components/shop/product-info";
+import { Breadcrumb } from "@/components/shop/breadcrumb";
 import { RelatedProducts } from "@/components/shop/related-products";
-import { Product, Category } from "@/types/product";
+import { Product, ProductStatus } from "@/types/product";
 import { Prisma } from "@prisma/client";
-import { ProductStatus } from "@/types/product";
+
+type PrismaProduct = Prisma.ProductGetPayload<{
+  include: {
+    category: true;
+    images: true;
+    variants: {
+      include: {
+        _count: true;
+      }
+    };
+  };
+}>;
 
 interface ProductPageProps {
   params: {
@@ -36,264 +48,198 @@ export async function generateMetadata({
 }
 
 export default async function ProductPage({ params }: ProductPageProps) {
-  const product = await prisma.product.findUnique({
+  const rawProduct = await prisma.product.findFirst({
     where: {
-      slug: params.slug,
+      OR: [
+        { slug: params.slug },
+        { handle: params.slug },
+        { id: parseInt(params.slug) || undefined }
+      ]
     },
-    select: {
-      id: true,
-      name: true,
-      description: true,
-      descriptionHtml: true,
-      price: true,
-      stock: true,
-      reservedStock: true,
-      slug: true,
-      isActive: true,
-      status: true,
-      image: true,
-      sku: true,
-      inventoryTracking: true,
-      lowStockThreshold: true,
-      categoryId: true,
-      createdAt: true,
-      updatedAt: true,
-      category: {
-        select: {
-          id: true,
-          name: true,
-          slug: true,
-          description: true,
-          image: true,
-          isActive: true,
-          parentId: true,
-          seoTitle: true,
-          seoDescription: true,
-          seoKeywords: true,
-          createdAt: true,
-          updatedAt: true,
-          order: true,
-        },
-      },
+    include: {
+      category: true,
       images: {
-        select: {
-          id: true,
-          url: true,
-          order: true,
-          productId: true,
-          createdAt: true,
-          updatedAt: true,
-        },
         orderBy: {
-          order: "asc",
-        },
+          order: 'asc'
+        }
       },
       variants: {
+        where: { isActive: true },
         select: {
           id: true,
           name: true,
+          sku: true,
           price: true,
           compareAtPrice: true,
           stock: true,
           reservedStock: true,
           options: true,
           images: true,
-          sku: true,
-          barcode: true,
-          isActive: true,
           inventoryTracking: true,
           lowStockThreshold: true,
+          productId: true,
+          isActive: true,
+          barcode: true,
           weight: true,
           weightUnit: true,
           dimensions: true,
-          attributes: true,
-          productId: true
-        },
-        where: {
-          isActive: true
+          attributes: true
         }
-      },
-    },
-  });
+      }
+    }
+  }) as PrismaProduct | null;
 
-  if (!product || !product.category) {
+  if (!rawProduct) {
     notFound();
   }
 
+  // Convert Prisma model to our Product type
+  const typedProduct: Product = {
+    id: rawProduct.id,
+    name: rawProduct.name,
+    description: rawProduct.description,
+    descriptionHtml: rawProduct.descriptionHtml,
+    handle: rawProduct.handle || null,
+    price: rawProduct.price,
+    stock: rawProduct.stock,
+    reservedStock: rawProduct.reservedStock,
+    slug: rawProduct.slug || null,
+    isActive: rawProduct.isActive,
+    status: rawProduct.status as ProductStatus,
+    image: rawProduct.image,
+    sku: rawProduct.sku,
+    inventoryTracking: rawProduct.inventoryTracking,
+    lowStockThreshold: rawProduct.lowStockThreshold,
+    images: rawProduct.images.map(img => ({
+      id: Number(img.id),
+      url: img.url,
+      order: img.order,
+      productId: Number(img.productId),
+      createdAt: img.createdAt,
+      updatedAt: img.updatedAt
+    })),
+    variants: rawProduct.variants.map(variant => ({
+      id: Number(variant.id),
+      name: variant.name,
+      sku: variant.sku,
+      price: variant.price,
+      compareAtPrice: variant.compareAtPrice,
+      stock: variant.stock,
+      reservedStock: variant.reservedStock,
+      options: variant.options as Record<string, string>,
+      images: variant.images,
+      inventoryTracking: variant.inventoryTracking,
+      lowStockThreshold: variant.lowStockThreshold || null,
+      productId: Number(rawProduct.id),
+      isActive: variant.isActive,
+      barcode: variant.barcode || null,
+      weight: variant.weight || null,
+      weightUnit: variant.weightUnit || null,
+      dimensions: variant.dimensions as Record<string, any> | null,
+      attributes: variant.attributes as Record<string, any> | null
+    })),
+    category: rawProduct.category,
+    categoryId: rawProduct.categoryId,
+    createdAt: rawProduct.createdAt,
+    updatedAt: rawProduct.updatedAt
+  };
+
   const relatedProducts = await prisma.product.findMany({
     where: {
-      categoryId: product.categoryId,
-      status: "ACTIVE",
+      categoryId: rawProduct?.categoryId || '',
       NOT: {
-        id: product.id,
+        id: rawProduct?.id
       },
+      isActive: true
     },
     take: 4,
-    select: {
-      id: true,
-      name: true,
-      description: true,
-      descriptionHtml: true,
-      price: true,
-      stock: true,
-      reservedStock: true,
-      slug: true,
-      isActive: true,
-      status: true,
-      image: true,
-      sku: true,
-      inventoryTracking: true,
-      lowStockThreshold: true,
-      categoryId: true,
-      createdAt: true,
-      updatedAt: true,
-      category: {
-        select: {
-          id: true,
-          name: true,
-          slug: true,
-          description: true,
-          image: true,
-          isActive: true,
-          parentId: true,
-          seoTitle: true,
-          seoDescription: true,
-          seoKeywords: true,
-          createdAt: true,
-          updatedAt: true,
-          order: true,
-        },
-      },
+    include: {
+      category: true,
       images: {
-        select: {
-          id: true,
-          url: true,
-          order: true,
-          productId: true,
-          createdAt: true,
-          updatedAt: true,
-        },
         orderBy: {
-          order: "asc",
-        },
-      },
-      variants: {
-        select: {
-          id: true,
-          name: true,
-          price: true,
-          stock: true,
-          options: true,
-          images: true,
-          sku: true,
-          barcode: true,
-          isActive: true,
-          inventoryTracking: true,
-          lowStockThreshold: true,
-          weight: true,
-          weightUnit: true,
-          dimensions: true
+          order: 'asc'
         }
       },
-    },
-  });
+      variants: {
+        where: { isActive: true },
+        select: {
+          id: true,
+          name: true,
+          sku: true,
+          price: true,
+          compareAtPrice: true,
+          stock: true,
+          reservedStock: true,
+          options: true,
+          images: true,
+          inventoryTracking: true,
+          lowStockThreshold: true,
+          productId: true,
+          isActive: true,
+          barcode: true,
+          weight: true,
+          weightUnit: true,
+          dimensions: true,
+          attributes: true
+        }
+      }
+    }
+  }) as PrismaProduct[];
 
   // Filter out products with null categories and map to Product type
   const productsWithCategories = relatedProducts
     .filter(p => p.category !== null)
     .map(p => ({
-      ...p,
+      id: p.id,
+      name: p.name,
+      description: p.description,
+      descriptionHtml: p.descriptionHtml,
+      handle: p.handle || null,
+      price: p.price,
+      stock: p.stock,
+      reservedStock: p.reservedStock,
+      slug: p.slug || null,
+      isActive: p.isActive,
       status: p.status as ProductStatus,
-      category: p.category as Category,
+      image: p.image,
+      sku: p.sku,
+      inventoryTracking: p.inventoryTracking,
+      lowStockThreshold: p.lowStockThreshold,
       images: p.images.map(img => ({
-        ...img,
         id: Number(img.id),
+        url: img.url,
+        order: img.order,
         productId: Number(img.productId),
+        createdAt: img.createdAt,
+        updatedAt: img.updatedAt
       })),
-      // Provide default values for optional fields
-      handle: '',
-      compareAtPrice: null,
-      costPerItem: null,
-      barcode: null,
-      inventoryPolicy: "DENY" as "DENY" | "CONTINUE",
-      allowBackorder: false,
-      taxable: false,
-      taxCode: null,
-      weight: null,
-      weightUnit: null,
-      requiresShipping: false,
-      shippingProfile: null,
-      fulfillmentService: null,
-      metaTitle: null,
-      metaDescription: null,
-      metaKeywords: null,
-      ogImage: null,
-      twitterImage: null,
-      seoTitle: null,
-      seoDescription: null,
-      seoKeywords: null,
-      vendor: null,
-      type: null,
-      tags: [],
       variants: p.variants.map(variant => ({
-        ...variant,
-        price: variant.price as unknown as Prisma.Decimal,
-        reservedStock: 0,
+        id: Number(variant.id),
+        name: variant.name,
+        sku: variant.sku,
+        price: variant.price,
+        compareAtPrice: variant.compareAtPrice,
+        stock: variant.stock,
+        reservedStock: variant.reservedStock,
+        options: variant.options as Record<string, string>,
+        images: variant.images,
+        inventoryTracking: variant.inventoryTracking,
+        lowStockThreshold: variant.lowStockThreshold || null,
         productId: Number(p.id),
-        attributes: variant.options,
+        isActive: variant.isActive,
+        barcode: variant.barcode || null,
+        weight: variant.weight || null,
+        weightUnit: variant.weightUnit || null,
+        dimensions: variant.dimensions as Record<string, any> | null,
+        attributes: variant.attributes as Record<string, any> | null
       })),
-      metafields: [],
-      optionsJson: null,
-      publishedAt: null,
-    }));
+      category: p.category,
+      categoryId: p.categoryId,
+      createdAt: p.createdAt,
+      updatedAt: p.updatedAt
+    })) as Product[];
 
-  // Convert Prisma model to our Product type
-  const typedProduct: Product = {
-    ...product,
-    status: product.status as ProductStatus,
-    category: product.category as Category,
-    images: product.images.map(img => ({
-      ...img,
-      id: Number(img.id),
-      productId: Number(img.productId),
-    })),
-    variants: product.variants.map(variant => ({
-      ...variant,
-      price: variant.price as unknown as Prisma.Decimal,
-      compareAtPrice: variant.compareAtPrice as unknown as Prisma.Decimal,
-      options: variant.options as Record<string, string>,
-      attributes: variant.attributes as Record<string, string>,
-      availableStock: variant.stock - variant.reservedStock
-    })),
-    // Provide default values for optional fields
-    handle: '',
-    compareAtPrice: null,
-    costPerItem: null,
-    barcode: null,
-    inventoryPolicy: "DENY" as "DENY" | "CONTINUE",
-    allowBackorder: false,
-    taxable: false,
-    taxCode: null,
-    weight: null,
-    weightUnit: null,
-    requiresShipping: false,
-    shippingProfile: null,
-    fulfillmentService: null,
-    metaTitle: null,
-    metaDescription: null,
-    metaKeywords: null,
-    ogImage: null,
-    twitterImage: null,
-    seoTitle: null,
-    seoDescription: null,
-    seoKeywords: null,
-    vendor: null,
-    type: null,
-    tags: [],
-    metafields: [],
-    optionsJson: null,
-    publishedAt: null,
-  };
+  console.log('Transformed variants:', typedProduct.variants);
 
   return (
     <div className="bg-white">

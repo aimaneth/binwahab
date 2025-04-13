@@ -75,6 +75,29 @@ export default async function ProductPage({ params }: ProductPageProps) {
           updatedAt: true,
         },
       },
+      variants: {
+        where: { isActive: true },
+        select: {
+          id: true,
+          name: true,
+          sku: true,
+          price: true,
+          compareAtPrice: true,
+          stock: true,
+          reservedStock: true,
+          options: true,
+          images: true,
+          inventoryTracking: true,
+          lowStockThreshold: true,
+          productId: true,
+          isActive: true,
+          barcode: true,
+          weight: true,
+          weightUnit: true,
+          dimensions: true,
+          attributes: true,
+        },
+      },
       category: {
         select: {
           id: true,
@@ -192,9 +215,7 @@ export default async function ProductPage({ params }: ProductPageProps) {
       id: Number(img.id),
       productId: Number(img.productId),
     })),
-    tags: product.tags || [],
     variants: product.variants || [],
-    metafields: product.metafields || [],
   };
 
   // Convert related products
@@ -206,9 +227,7 @@ export default async function ProductPage({ params }: ProductPageProps) {
       id: Number(img.id),
       productId: Number(img.productId),
     })),
-    tags: p.tags || [],
     variants: p.variants || [],
-    metafields: p.metafields || [],
   }));
 
   return (

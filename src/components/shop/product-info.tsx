@@ -27,6 +27,10 @@ export function ProductInfo({ product }: ProductInfoProps) {
   const router = useRouter();
   const { data: session } = useSession();
   const [quantity, setQuantity] = useState(1);
+
+  console.log('Product variants:', product.variants);
+  console.log('First variant options:', product.variants[0]?.options);
+
   const [selectedVariant, setSelectedVariant] = useState(product.variants[0]);
   const [isLoading, setIsLoading] = useState(false);
 
@@ -35,11 +39,14 @@ export function ProductInfo({ product }: ProductInfoProps) {
     ? Object.keys(product.variants[0].options as Record<string, string>)
     : [];
   
+  console.log('Option types:', optionTypes);
+
   const [selectedOptions, setSelectedOptions] = useState<Record<string, string>>(() => {
     const initialOptions: Record<string, string> = {};
     if (product.variants.length > 0) {
       const firstVariant = product.variants[0];
-      Object.entries(firstVariant.options as Record<string, string>).forEach(([key, value]) => {
+      const options = firstVariant.options as Record<string, string>;
+      Object.entries(options).forEach(([key, value]) => {
         initialOptions[key] = value;
       });
     }
@@ -78,9 +85,9 @@ export function ProductInfo({ product }: ProductInfoProps) {
   // Find the variant that matches the selected options
   const findMatchingVariant = () => {
     return product.variants.find((variant) => {
-      const variantOptions = variant.options as Record<string, string>;
+      const options = variant.options as Record<string, string>;
       return Object.entries(selectedOptions).every(
-        ([key, value]) => variantOptions[key] === value
+        ([key, value]) => options[key] === value
       );
     });
   };
@@ -90,9 +97,9 @@ export function ProductInfo({ product }: ProductInfoProps) {
     const newOptions = { ...selectedOptions, [optionType]: value };
     setSelectedOptions(newOptions);
     const matchingVariant = product.variants.find((variant) => {
-      const variantOptions = variant.options as Record<string, string>;
+      const options = variant.options as Record<string, string>;
       return Object.entries(newOptions).every(
-        ([key, val]) => variantOptions[key] === val
+        ([key, val]) => options[key] === val
       );
     });
     if (matchingVariant) {
