@@ -11,13 +11,14 @@ import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
 import { Card, CardContent } from "@/components/ui/card";
 import { ImageUpload } from "@/components/ui/image-upload";
-import { Collection } from "@prisma/client";
+import { CollectionType, DisplaySection } from "@prisma/client";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { CollectionPreview } from "@/components/collections/collection-preview";
 import { CollectionTemplates } from "@/components/collections/collection-templates";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Collection, CollectionCreateInput, CollectionSortOption } from "@/types/collection";
 
-type CollectionType = "MANUAL" | "AUTOMATED";
+type CollectionFormType = "MANUAL" | "AUTOMATED";
 
 interface ConditionRule {
   field: string;
@@ -34,7 +35,7 @@ interface CollectionDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   collection?: Collection;
-  onSave: (data: Partial<Collection>) => void;
+  onSave: (data: CollectionCreateInput) => void;
 }
 
 export function CollectionDialog({
@@ -46,10 +47,11 @@ export function CollectionDialog({
   const [isLoading, setIsLoading] = useState(false);
   const [name, setName] = useState(collection?.name ?? "");
   const [handle, setHandle] = useState(collection?.handle ?? "");
+  const [slug, setSlug] = useState(collection?.slug ?? "");
   const [description, setDescription] = useState(collection?.description ?? "");
   const [image, setImage] = useState(collection?.image ?? "");
   const [image2, setImage2] = useState(collection?.image2 ?? "");
-  const [type, setType] = useState<CollectionType>(collection?.type as CollectionType ?? "MANUAL");
+  const [type, setType] = useState<CollectionFormType>(collection?.type as CollectionFormType ?? "MANUAL");
   const [conditions, setConditions] = useState<Conditions>({
     operator: "AND",
     rules: [
@@ -64,16 +66,19 @@ export function CollectionDialog({
   const [activeTab, setActiveTab] = useState(collection ? "details" : "templates");
   const [showOnHomePage, setShowOnHomePage] = useState(collection?.showOnHomePage ?? false);
   const [displaySection, setDisplaySection] = useState<"FEATURED" | "COMPLETE" | "NONE">(collection?.displaySection ?? "NONE");
+  const [sortBy, setSortBy] = useState<CollectionSortOption>(collection?.sortBy ?? "MANUAL");
 
   useEffect(() => {
     if (collection) {
       // Update state with collection data
       setName(collection.name || "");
       setHandle(collection.handle || "");
+      setSlug(collection.slug || "");
       setDescription(collection.description || "");
       setImage(collection.image || "");
       setImage2(collection.image2 || "");
-      setType(collection.type as CollectionType || "MANUAL");
+      setType(collection.type as CollectionFormType || "MANUAL");
+      setSortBy(collection.sortBy ?? "MANUAL");
       if (collection.conditions) {
         try {
           const parsedConditions = JSON.parse(JSON.stringify(collection.conditions)) as Conditions;
@@ -96,10 +101,12 @@ export function CollectionDialog({
       // Reset state for new collection
       setName("");
       setHandle("");
+      setSlug("");
       setDescription("");
       setImage("");
       setImage2("");
       setType("MANUAL");
+      setSortBy("MANUAL");
       setConditions({
         operator: "AND",
         rules: [
@@ -122,9 +129,11 @@ export function CollectionDialog({
     setIsLoading(true);
 
     try {
+      const slug = handle || name.toLowerCase().replace(/\s+/g, '-');
       const data = {
         name,
         handle: handle || name.toLowerCase().replace(/\s+/g, '-'),
+        slug,
         description,
         image,
         image2,
@@ -136,7 +145,8 @@ export function CollectionDialog({
         seoDescription,
         seoKeywords,
         showOnHomePage,
-        displaySection
+        displaySection: displaySection as DisplaySection,
+        sortBy: sortBy as CollectionSortOption
       };
 
       console.log("Submitting collection data:", data);
@@ -263,6 +273,16 @@ export function CollectionDialog({
                   </div>
 
                   <div className="space-y-2">
+                    <Label htmlFor="slug">Slug</Label>
+                    <Input
+                      id="slug"
+                      value={slug}
+                      onChange={(e) => setSlug(e.target.value)}
+                      required
+                    />
+                  </div>
+
+                  <div className="space-y-2">
                     <Label htmlFor="description">Description</Label>
                     <Textarea
                       id="description"
@@ -296,7 +316,7 @@ export function CollectionDialog({
                     <Label htmlFor="type">Collection Type</Label>
                     <Select
                       value={type}
-                      onValueChange={(value: "MANUAL" | "AUTOMATED") => setType(value as CollectionType)}
+                      onValueChange={(value: "MANUAL" | "AUTOMATED") => setType(value as CollectionFormType)}
                     >
                       <SelectTrigger>
                         <SelectValue placeholder="Select type" />
@@ -496,6 +516,28 @@ export function CollectionDialog({
                         </SelectContent>
                       </Select>
                     </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="sortBy">Sort By</Label>
+                    <Select
+                      value={sortBy}
+                      onValueChange={(value: CollectionSortOption) => setSortBy(value)}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select sort order" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="MANUAL">Manual</SelectItem>
+                        <SelectItem value="BEST_SELLING">Best Selling</SelectItem>
+                        <SelectItem value="TITLE_ASC">Title (A-Z)</SelectItem>
+                        <SelectItem value="TITLE_DESC">Title (Z-A)</SelectItem>
+                        <SelectItem value="PRICE_ASC">Price (Low to High)</SelectItem>
+                        <SelectItem value="PRICE_DESC">Price (High to Low)</SelectItem>
+                        <SelectItem value="CREATED_ASC">Created (Oldest)</SelectItem>
+                        <SelectItem value="CREATED_DESC">Created (Newest)</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
                 </div>
               </div>

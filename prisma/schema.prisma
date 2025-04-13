@@ -106,7 +106,7 @@ model Collection {
   image2          String?
   displaySection  DisplaySection      @default(NONE)
   handle          String?             @unique
-  sortBy          String              @default("MANUAL")
+  sortBy          CollectionSortOption @default(MANUAL)
   descriptionHtml String?
   publishedAt     DateTime?
   metaTitle       String?

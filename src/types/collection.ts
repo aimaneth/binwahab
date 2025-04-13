@@ -7,7 +7,8 @@ export type DisplaySection = "FEATURED" | "COMPLETE" | "NONE";
 export interface Collection {
   id: string;
   name: string;
-  handle: string;
+  slug: string;
+  handle: string | null;
   description: string | null;
   descriptionHtml: string | null;
   image: string | null;
@@ -34,7 +35,7 @@ export interface Collection {
 
 export interface CollectionCreateInput {
   name: string;
-  handle: string;
+  handle?: string;
   description?: string | null;
   descriptionHtml?: string | null;
   image?: string | null;
