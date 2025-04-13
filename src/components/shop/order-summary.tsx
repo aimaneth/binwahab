@@ -2,9 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { formatPrice } from "@/lib/utils";
-import { calculateShippingCost, getShippingZoneByState } from "@/lib/shipping";
-import { Loader2 } from "lucide-react";
 import { CartItem, Product } from "@prisma/client";
+import { Loader2 } from "lucide-react";
 
 interface OrderSummaryProps {
   items: (CartItem & {
@@ -26,21 +25,25 @@ export function OrderSummary({ items, shippingState = "Selangor" }: OrderSummary
           0
         );
         
-        // Get the shipping zone for the state
-        const zone = await getShippingZoneByState(shippingState);
-        if (!zone) {
-          setShipping(0);
-          return;
-        }
-        
-        // Calculate shipping cost with the correct parameters
-        const shippingCost = await calculateShippingCost({
-          zoneId: zone.id,
-          orderValue: subtotal,
-          orderWeight: 0 // Default to 0 since weight is not available on Product
+        // Calculate shipping cost using the API
+        const response = await fetch('/api/shipping/calculate', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            state: shippingState,
+            orderValue: subtotal,
+            orderWeight: 0, // You can add weight calculation if needed
+          }),
         });
-        
-        setShipping(shippingCost);
+
+        if (!response.ok) {
+          throw new Error('Failed to calculate shipping');
+        }
+
+        const { cost } = await response.json();
+        setShipping(cost);
       } catch (error) {
         console.error("Failed to calculate shipping:", error);
         setShipping(0);

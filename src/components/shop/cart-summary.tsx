@@ -4,7 +4,6 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { formatPrice } from "@/lib/utils";
-import { calculateShippingCost, getShippingZoneByState } from "@/lib/shipping";
 import { CartItem, Product, ProductVariant } from "@prisma/client";
 import { Loader2 } from "lucide-react";
 
@@ -25,26 +24,30 @@ export function CartSummary({ items, shippingState = "Selangor" }: CartSummaryPr
     const calculateShipping = async () => {
       setIsLoading(true);
       try {
-        const total = items.reduce(
+        const subtotal = items.reduce(
           (sum, item) => sum + Number(item.variant?.price ?? item.product.price) * item.quantity,
           0
         );
         
-        // Get the shipping zone for the state
-        const zone = await getShippingZoneByState(shippingState);
-        if (!zone) {
-          setShipping(0);
-          return;
-        }
-        
-        // Calculate shipping cost with the correct parameters
-        const shippingCost = await calculateShippingCost({
-          zoneId: zone.id,
-          orderValue: total,
-          orderWeight: 0 // Default to 0 since weight is not available on Product
+        // Calculate shipping cost using the API
+        const response = await fetch('/api/shipping/calculate', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            state: shippingState,
+            orderValue: subtotal,
+            orderWeight: 0, // You can add weight calculation if needed
+          }),
         });
-        
-        setShipping(shippingCost);
+
+        if (!response.ok) {
+          throw new Error('Failed to calculate shipping');
+        }
+
+        const { cost } = await response.json();
+        setShipping(cost);
       } catch (error) {
         console.error("Failed to calculate shipping:", error);
         setShipping(0);
