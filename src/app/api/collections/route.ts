@@ -107,6 +107,7 @@ export async function GET(req: Request) {
     const transformedCollections = collections.map(collection => {
       const products = collection.products.map(pc => ({
         ...pc.product,
+        slug: pc.product.slug || pc.product.handle || `product-${pc.product.id}`, // Ensure we always have a slug
         images: pc.product.images.map(img => ({ url: img.url }))
       }));
       return {
