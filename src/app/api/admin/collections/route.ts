@@ -5,6 +5,18 @@ import { prisma } from "@/lib/prisma";
 import { z } from "zod";
 import { CollectionSortOption, CollectionType, DisplaySection } from "@prisma/client";
 
+// Define the sort options as a string enum
+const SortOptions = {
+  MANUAL: "MANUAL",
+  BEST_SELLING: "BEST_SELLING",
+  TITLE_ASC: "TITLE_ASC",
+  TITLE_DESC: "TITLE_DESC",
+  PRICE_ASC: "PRICE_ASC",
+  PRICE_DESC: "PRICE_DESC",
+  CREATED_ASC: "CREATED_ASC",
+  CREATED_DESC: "CREATED_DESC",
+} as const;
+
 const collectionSchema = z.object({
   name: z.string().min(1),
   handle: z.string().optional(),
@@ -147,10 +159,21 @@ export async function POST(req: Request) {
     // Create the collection with proper type casting
     const collection = await prisma.collection.create({
       data: {
-        ...validatedData,
+        name: validatedData.name,
         handle,
+        description: validatedData.description,
+        descriptionHtml: validatedData.descriptionHtml,
+        image: validatedData.image,
+        image2: validatedData.image2,
         type: validatedData.type as CollectionType,
-        displaySection: (validatedData.displaySection || "NONE") as DisplaySection,
+        conditions: validatedData.conditions,
+        isActive: validatedData.isActive ?? true,
+        order: validatedData.order ?? 0,
+        seoTitle: validatedData.seoTitle,
+        seoDescription: validatedData.seoDescription,
+        seoKeywords: validatedData.seoKeywords,
+        showOnHomePage: validatedData.showOnHomePage ?? false,
+        displaySection: (validatedData.displaySection ?? "NONE") as DisplaySection,
         sortBy: validatedData.sortBy as CollectionSortOption,
       },
     });
