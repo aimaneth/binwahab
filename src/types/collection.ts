@@ -1,14 +1,11 @@
-import { Prisma } from "@prisma/client";
+import { Prisma, CollectionType, DisplaySection, CollectionSortOption } from "@prisma/client";
 
-export type CollectionType = "MANUAL" | "AUTOMATED";
-export type CollectionSortOption = "MANUAL" | "BEST_SELLING" | "TITLE_ASC" | "TITLE_DESC" | "PRICE_ASC" | "PRICE_DESC" | "CREATED_ASC" | "CREATED_DESC";
-export type DisplaySection = "FEATURED" | "COMPLETE" | "NONE";
+export { CollectionType, DisplaySection, CollectionSortOption };
 
 export interface Collection {
   id: string;
   name: string;
-  slug: string;
-  handle: string | null;
+  handle: string;
   description: string | null;
   descriptionHtml: string | null;
   image: string | null;

@@ -5,8 +5,11 @@ import { prisma } from "@/lib/prisma";
 import { z } from "zod";
 
 const cartItemSchema = z.object({
-  productId: z.string().transform((val) => parseInt(val)),
+  variantId: z.number().optional(),
+  productId: z.string().transform((val) => parseInt(val)).optional(),
   quantity: z.number().min(1),
+}).refine(data => data.variantId || data.productId, {
+  message: "Either variantId or productId must be provided"
 });
 
 export async function POST(req: Request) {
@@ -21,7 +24,7 @@ export async function POST(req: Request) {
     }
 
     const body = await req.json();
-    const { productId, quantity } = cartItemSchema.parse(body);
+    const { variantId, productId, quantity } = cartItemSchema.parse(body);
 
     // Get or create cart
     let cart = await prisma.cart.findUnique({
@@ -44,64 +47,134 @@ export async function POST(req: Request) {
       });
     }
 
-    // Check if product exists and has enough stock
-    const product = await prisma.product.findUnique({
-      where: {
-        id: productId,
-      },
-    });
-
-    if (!product) {
-      return NextResponse.json(
-        { message: "Product not found" },
-        { status: 404 }
-      );
-    }
-
-    if (product.stock < quantity) {
-      return NextResponse.json(
-        { message: "Not enough stock" },
-        { status: 400 }
-      );
-    }
-
-    // Check if product is already in cart
-    const existingItem = cart.items.find(
-      (item) => item.productId === productId
-    );
-
-    if (existingItem) {
-      // Update quantity
-      await prisma.cartItem.update({
+    if (variantId) {
+      // Check if variant exists and has enough stock
+      const variant = await prisma.productVariant.findUnique({
         where: {
-          id: existingItem.id,
+          id: variantId,
         },
-        data: {
-          quantity: existingItem.quantity + quantity,
-        },
-      });
-    } else {
-      // Add new item
-      await prisma.cartItem.create({
-        data: {
-          cart: {
-            connect: {
-              id: cart.id
-            }
-          },
-          product: {
-            connect: {
-              id: productId
-            }
-          },
-          user: {
-            connect: {
-              id: session.user.id
-            }
-          },
-          quantity,
+        include: {
+          product: true,
         },
       });
+
+      if (!variant) {
+        return NextResponse.json(
+          { message: "Variant not found" },
+          { status: 404 }
+        );
+      }
+
+      if (variant.stock < quantity) {
+        return NextResponse.json(
+          { message: "Not enough stock" },
+          { status: 400 }
+        );
+      }
+
+      // Check if variant is already in cart
+      const existingItem = cart.items.find(
+        (item) => item.variantId === variantId
+      );
+
+      if (existingItem) {
+        // Update quantity
+        await prisma.cartItem.update({
+          where: {
+            id: existingItem.id,
+          },
+          data: {
+            quantity: existingItem.quantity + quantity,
+          },
+        });
+      } else {
+        // Add new item
+        await prisma.cartItem.create({
+          data: {
+            cart: {
+              connect: {
+                id: cart.id
+              }
+            },
+            product: {
+              connect: {
+                id: variant.productId
+              }
+            },
+            variant: {
+              connect: {
+                id: variantId
+              }
+            },
+            user: {
+              connect: {
+                id: session.user.id
+              }
+            },
+            quantity,
+          },
+        });
+      }
+    } else if (productId) {
+      // Check if product exists and has enough stock
+      const product = await prisma.product.findUnique({
+        where: {
+          id: productId,
+        },
+      });
+
+      if (!product) {
+        return NextResponse.json(
+          { message: "Product not found" },
+          { status: 404 }
+        );
+      }
+
+      if (product.stock < quantity) {
+        return NextResponse.json(
+          { message: "Not enough stock" },
+          { status: 400 }
+        );
+      }
+
+      // Check if product is already in cart
+      const existingItem = cart.items.find(
+        (item) => item.productId === productId && !item.variantId
+      );
+
+      if (existingItem) {
+        // Update quantity
+        await prisma.cartItem.update({
+          where: {
+            id: existingItem.id,
+          },
+          data: {
+            quantity: existingItem.quantity + quantity,
+          },
+        });
+      } else {
+        // Add new item
+        await prisma.cartItem.create({
+          data: {
+            cart: {
+              connect: {
+                id: cart.id
+              }
+            },
+            product: {
+              connect: {
+                id: productId
+              }
+            },
+            user: {
+              connect: {
+                id: session.user.id
+              }
+            },
+            quantity,
+          },
+        });
+      }
     }
 
     return NextResponse.json(
@@ -142,6 +215,7 @@ export async function GET(req: Request) {
         items: {
           include: {
             product: true,
+            variant: true,
           },
         },
       },

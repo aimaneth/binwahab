@@ -1,10 +1,12 @@
 import { Product, Category } from "@prisma/client";
 import { ProductCard } from "./product-card";
 import { CollectionSort } from "./collection-sort";
+import { Product as CustomProduct, ProductImage, ProductVariant } from "@/types/product";
 
-interface ProductWithRelations extends Product {
+interface ProductWithRelations extends Omit<CustomProduct, 'variants' | 'images'> {
   category: Category | null;
-  images?: { url: string }[];
+  images: ProductImage[];
+  variants: ProductVariant[];
 }
 
 interface ProductGridProps {

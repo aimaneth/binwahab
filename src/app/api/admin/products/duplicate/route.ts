@@ -7,18 +7,17 @@ interface ProductWithRelations {
   name: string;
   description: string;
   descriptionHtml: string | null;
-  handle: string;
   price: Prisma.Decimal;
-  compareAtPrice: Prisma.Decimal | null;
-  costPerItem: Prisma.Decimal | null;
+  categoryId: string | null;
   stock: number;
   reservedStock: number;
   slug: string | null;
   isActive: boolean;
   status: ProductStatus;
   image: string | null;
-  categoryId: string | null;
-  optionsJson: Prisma.JsonValue | null;
+  sku: string | null;
+  inventoryTracking: boolean;
+  lowStockThreshold: number;
   variants: Array<{
     name: string;
     price: Prisma.Decimal;
@@ -79,7 +78,6 @@ export async function POST(
       data: {
         name: `${typedProduct.name} (Copy)`,
         description: typedProduct.description,
-        handle: `${typedProduct.handle}-copy-${Date.now()}`,
         price: typedProduct.price,
         image: typedProduct.image,
         stock: typedProduct.stock,
@@ -87,7 +85,9 @@ export async function POST(
         isActive: false, // Set to inactive by default
         slug: `${typedProduct.slug}-copy-${Date.now()}`, // Ensure unique slug
         status: typedProduct.status || ProductStatus.DRAFT,
-        optionsJson: typedProduct.optionsJson === null ? Prisma.JsonNull : typedProduct.optionsJson,
+        sku: typedProduct.sku ? `${typedProduct.sku}-copy` : null,
+        inventoryTracking: typedProduct.inventoryTracking,
+        lowStockThreshold: typedProduct.lowStockThreshold,
         // Duplicate variants
         variants: {
           create: typedProduct.variants.map((variant) => {
@@ -99,7 +99,7 @@ export async function POST(
               name: variant.name,
               price: variant.price,
               stock: variant.stock,
-              sku: `${variant.sku}-copy`,
+              sku: variant.sku,
               compareAtPrice: variant.compareAtPrice,
               isActive: variant.isActive,
               options: options,

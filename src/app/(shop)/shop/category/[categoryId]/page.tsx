@@ -6,7 +6,8 @@ import { ProductFilters } from "@/components/shop/product-filters";
 import { SearchBar } from "@/components/shop/search-bar";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
-import { Product, Category } from "@prisma/client";
+import { Product as PrismaProduct, Category as PrismaCategory } from "@prisma/client";
+import { Product, ProductStatus } from "@/types/product";
 
 // Fashion categories
 const categories = [
@@ -247,6 +248,25 @@ const products = {
   ],
 };
 
+interface ProductWithCategories extends Product {
+  category: {
+    id: string;
+    name: string;
+    description: string;
+    isActive: boolean;
+    order: number;
+    slug: string;
+    image: string | null;
+    createdAt: Date;
+    updatedAt: Date;
+    parentId: string | null;
+    seoTitle: string | null;
+    seoDescription: string | null;
+    seoKeywords: string | null;
+  } | null;
+  options?: Record<string, string>;
+}
+
 export async function generateMetadata({ params }: { params: { categoryId: string } }): Promise<Metadata> {
   const category = await prisma.category.findUnique({
     where: {
@@ -278,6 +298,8 @@ export default async function CategoryPage({ params }: { params: { categoryId: s
         },
         include: {
           category: true,
+          images: true,
+          variants: true,
         },
       },
     },
@@ -297,10 +319,59 @@ export default async function CategoryPage({ params }: { params: { categoryId: s
     },
   });
 
-  // Filter out products with null categories and ensure correct typing
-  const productsWithCategories = category.products.filter((product): product is Product & { category: Category } => 
-    product.category !== null
-  );
+  // Convert Prisma products to our Product type
+  const productsWithCategories = category.products.map((product) => ({
+    id: product.id,
+    name: product.name,
+    description: product.description || "",
+    descriptionHtml: product.descriptionHtml || "",
+    handle: product.slug || "",
+    slug: product.slug || "",
+    status: product.status as ProductStatus,
+    price: Number(product.price),
+    stock: product.stock || 0,
+    reservedStock: product.reservedStock || 0,
+    isActive: product.isActive,
+    image: product.images[0]?.url || "",
+    sku: product.sku || "",
+    inventoryTracking: product.inventoryTracking || false,
+    images: product.images.map(img => ({
+      id: img.id,
+      url: img.url,
+      order: img.order,
+    })),
+    variants: product.variants.map(variant => ({
+      id: variant.id,
+      name: variant.name,
+      price: Number(variant.price),
+      compareAtPrice: variant.compareAtPrice ? Number(variant.compareAtPrice) : null,
+      stock: variant.stock,
+      isActive: variant.isActive,
+      images: variant.images as string[],
+      attributes: variant.options as Record<string, string>,
+    })),
+    category: product.category ? {
+      id: product.category.id,
+      name: product.category.name,
+      description: product.category.description || "",
+      isActive: product.category.isActive,
+      order: product.category.order,
+      slug: product.category.slug || "",
+      image: product.category.image || null,
+      createdAt: product.category.createdAt,
+      updatedAt: product.category.updatedAt,
+      parentId: product.category.parentId,
+      seoTitle: product.category.seoTitle || null,
+      seoDescription: product.category.seoDescription || null,
+      seoKeywords: product.category.seoKeywords || null,
+    } : null,
+    createdAt: product.createdAt,
+    updatedAt: product.updatedAt,
+    seo: {
+      title: product.name,
+      description: product.description || "",
+    },
+  })) as unknown as ProductWithCategories[];
 
   return (
     <div className="min-h-screen flex flex-col bg-white">

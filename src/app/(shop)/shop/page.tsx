@@ -4,29 +4,27 @@ import { CategoryFilter } from "@/components/shop/category-filter";
 import { SortSelect } from "@/components/shop/sort-select";
 import { SearchInput } from "@/components/shop/search-input";
 import { prisma } from "@/lib/prisma";
-import { Product, Category } from "@prisma/client";
+import { Category } from "@prisma/client";
+import { Product } from "@/types/product";
+
+export const dynamic = 'force-dynamic';
 
 export const metadata: Metadata = {
   title: "Shop - BINWAHAB",
   description: "Browse our collection of trendy fashion items",
 };
 
-interface ProductWithRelations extends Product {
-  category: Category | null;
-  images?: { url: string }[];
-}
-
 interface ShopPageProps {
   searchParams: { [key: string]: string | string[] | undefined };
 }
 
 export default async function ShopPage({ searchParams }: ShopPageProps) {
-  let products: ProductWithRelations[] = [];
+  let products: Product[] = [];
   let error: string | null = null;
 
   try {
     // Fetch products based on search parameters
-    products = await prisma.product.findMany({
+    const dbProducts = await prisma.product.findMany({
       where: {
         status: "ACTIVE",
         ...(searchParams.category ? {
@@ -41,18 +39,26 @@ export default async function ShopPage({ searchParams }: ShopPageProps) {
       },
       include: {
         category: true,
-        images: {
-          select: {
-            url: true,
-          },
-        },
+        images: true,
+        variants: true,
       },
       orderBy: searchParams.sort === 'price_desc' 
         ? { price: 'desc' }
         : searchParams.sort === 'price_asc'
         ? { price: 'asc' }
         : { createdAt: 'desc' },
-    }) as ProductWithRelations[];
+    });
+
+    // Convert Prisma products to our Product type
+    products = dbProducts.map(p => ({
+      ...p,
+      images: p.images,
+      variants: p.variants.map(v => ({
+        ...v,
+        options: v.options as Record<string, string>,
+        attributes: (v.options || {}) as Record<string, string>,
+      })),
+    })) as unknown as Product[];
   } catch (err) {
     console.error("Error fetching products:", err);
     error = "Failed to load products. Please try again later.";

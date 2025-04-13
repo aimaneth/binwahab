@@ -90,7 +90,7 @@ model Category {
 model Collection {
   id              String              @id @default(cuid())
   name            String
-  slug            String              @unique
+  handle          String              @unique
   description     String?
   image           String?
   createdAt       DateTime            @default(now())
@@ -105,7 +105,6 @@ model Collection {
   showOnHomePage  Boolean             @default(false)
   image2          String?
   displaySection  DisplaySection      @default(NONE)
-  handle          String?             @unique
   sortBy          CollectionSortOption @default(MANUAL)
   descriptionHtml String?
   publishedAt     DateTime?
@@ -148,6 +147,7 @@ model Product {
   image                 String?
   descriptionHtml       String?
   sku                   String?                @unique
+  handle                String?                @unique
   inventoryTracking     Boolean                @default(false)
   lowStockThreshold     Int                    @default(5)
   addToCartEvents       AddToCartEvent[]
@@ -163,6 +163,7 @@ model Product {
   returnItems           ReturnItem[]
   reviews               Review[]
   wishlistItems         WishlistItem[]
+  analytics            ProductAnalytics?
 }
 
 model ProductImage {
@@ -540,6 +541,20 @@ model Media {
   @@index([uploadedBy])
 }
 
+model ProductAnalytics {
+  id             Int      @id @default(autoincrement())
+  productId      Int      @unique
+  totalViews     Int      @default(0)
+  uniqueViews    Int      @default(0)
+  addToCartCount Int      @default(0)
+  purchaseCount  Int      @default(0)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  product        Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@index([productId])
+}
+
 enum Role {
   USER
   ADMIN
@@ -594,6 +609,8 @@ enum TransactionType {
   SALE
   ADJUSTMENT
   RETURN
+  RESERVED
+  RELEASED
 }
 
 enum DiscountType {

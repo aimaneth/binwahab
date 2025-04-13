@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { prisma } from "@/lib/prisma";
 
 const contactSchema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters"),
@@ -15,19 +14,9 @@ export async function POST(req: Request) {
     const body = await req.json();
     const validatedData = contactSchema.parse(body);
 
-    // Save the contact message to the database
-    const contact = await prisma.contact.create({
-      data: {
-        name: validatedData.name,
-        email: validatedData.email,
-        subject: validatedData.subject,
-        message: validatedData.message,
-        category: validatedData.category,
-      },
-    });
+    // TODO: Implement email sending or other contact handling logic
+    console.log("Contact form submission:", validatedData);
 
-    // Here you would typically also send an email notification
-    // For now, we'll just return success
     return NextResponse.json(
       { message: "Contact message received successfully" },
       { status: 201 }

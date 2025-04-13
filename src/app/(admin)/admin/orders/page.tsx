@@ -52,6 +52,11 @@ interface Order {
     product: {
       name: string
     }
+    variant?: {
+      name: string
+      images: string[]
+      options: Record<string, string>
+    } | null
   }[]
   paymentMethod: "CREDIT_CARD" | "DEBIT_CARD" | "BANK_TRANSFER" | "E_WALLET"
   paymentStatus: "PENDING" | "PAID" | "FAILED" | "REFUNDED"
@@ -201,87 +206,99 @@ export default function OrdersPage() {
               <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
               <Input
                 placeholder="Search orders..."
-                className="pl-8"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-8"
               />
             </div>
           </div>
         </CardHeader>
         <CardContent>
-          <div className="rounded-md border">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Order ID</TableHead>
-                  <TableHead>Customer</TableHead>
-                  <TableHead>Date</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Payment</TableHead>
-                  <TableHead>Total</TableHead>
-                  <TableHead>Items</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredOrders.map((order) => (
-                  <TableRow key={order.id}>
-                    <TableCell className="font-medium">{order.id}</TableCell>
-                    <TableCell>
-                      <div>
-                        <div className="font-medium">{order.user.name}</div>
-                        <div className="text-sm text-muted-foreground">
-                          {order.user.email}
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Order ID</TableHead>
+                <TableHead>Customer</TableHead>
+                <TableHead>Items</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead>Payment</TableHead>
+                <TableHead>Total</TableHead>
+                <TableHead>Date</TableHead>
+                <TableHead></TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {filteredOrders.map((order) => (
+                <TableRow key={order.id}>
+                  <TableCell className="font-medium">{order.id}</TableCell>
+                  <TableCell>
+                    <div>
+                      <p className="font-medium">{order.shippingAddress.fullName}</p>
+                      <p className="text-sm text-muted-foreground">{order.user.email}</p>
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <div className="space-y-1">
+                      {order.items.map((item) => (
+                        <div key={item.id}>
+                          <p className="text-sm">{item.product.name}</p>
+                          {item.variant && (
+                            <p className="text-xs text-muted-foreground">
+                              {Object.entries(item.variant.options)
+                                .map(([key, value]) => `${key}: ${value}`)
+                                .join(", ")}
+                            </p>
+                          )}
+                          <p className="text-xs text-muted-foreground">
+                            Qty: {item.quantity} × {formatPrice(item.price)}
+                          </p>
                         </div>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      {format(new Date(order.createdAt), "MMM d, yyyy")}
-                    </TableCell>
-                    <TableCell>
-                      <Badge
-                        variant="secondary"
-                        className={`${getStatusColor(
-                          order.status
-                        )} flex items-center gap-1`}
-                      >
-                        {getStatusIcon(order.status)}
-                        {order.status}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      <Badge
-                        variant="secondary"
-                        className={getPaymentStatusColor(order.paymentStatus)}
-                      >
-                        {order.paymentStatus}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>{formatPrice(order.total)}</TableCell>
-                    <TableCell>{order.items.length} items</TableCell>
-                    <TableCell className="text-right">
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" className="h-8 w-8 p-0">
-                            <span className="sr-only">Open menu</span>
-                            <MoreHorizontal className="h-4 w-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem
-                            onClick={() => router.push(`/admin/orders/${order.id}`)}
-                          >
-                            <Eye className="mr-2 h-4 w-4" />
-                            View Details
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
+                      ))}
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <Badge
+                      variant="secondary"
+                      className={`${getStatusColor(order.status)} flex items-center gap-1`}
+                    >
+                      {getStatusIcon(order.status)}
+                      {order.status}
+                    </Badge>
+                  </TableCell>
+                  <TableCell>
+                    <Badge
+                      variant="secondary"
+                      className={getPaymentStatusColor(order.paymentStatus)}
+                    >
+                      {order.paymentStatus}
+                    </Badge>
+                  </TableCell>
+                  <TableCell>{formatPrice(order.total)}</TableCell>
+                  <TableCell>
+                    {format(new Date(order.createdAt), "MMM d, yyyy")}
+                  </TableCell>
+                  <TableCell>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" className="h-8 w-8 p-0">
+                          <span className="sr-only">Open menu</span>
+                          <MoreHorizontal className="h-4 w-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem
+                          onClick={() => router.push(`/admin/orders/${order.id}`)}
+                        >
+                          <Eye className="mr-2 h-4 w-4" />
+                          View details
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
         </CardContent>
       </Card>
     </div>

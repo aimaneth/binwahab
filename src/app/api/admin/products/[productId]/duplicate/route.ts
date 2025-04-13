@@ -32,7 +32,6 @@ export async function POST(
       data: {
         name: `${originalProduct.name} (Copy)`,
         description: originalProduct.description,
-        handle: `${originalProduct.handle}-copy-${Date.now()}`,
         price: originalProduct.price,
         image: originalProduct.image,
         stock: originalProduct.stock,

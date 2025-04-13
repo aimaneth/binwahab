@@ -3,7 +3,8 @@ import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { ProductGrid } from "@/components/shop/product-grid";
 import { Breadcrumb } from "@/components/shop/breadcrumb";
-import { Product, Category, Collection } from "@prisma/client";
+import { Category, Collection } from "@prisma/client";
+import { Product, ProductImage, ProductVariant } from "@/types/product";
 
 interface CollectionPageProps {
   params: {
@@ -11,14 +12,22 @@ interface CollectionPageProps {
   };
 }
 
-interface ProductWithRelations extends Product {
-  category: Category | null;
-  images: { url: string }[];
-}
-
 type CollectionWithProducts = Collection & {
   products: {
-    product: ProductWithRelations;
+    product: {
+      id: number;
+      name: string;
+      description: string;
+      price: number;
+      stock: number;
+      slug: string | null;
+      isActive: boolean;
+      status: string;
+      image: string | null;
+      category: Category | null;
+      images: ProductImage[];
+      variants: ProductVariant[];
+    };
   }[];
 };
 
@@ -35,21 +44,56 @@ async function getCollection(slug: string) {
               include: {
                 images: true,
                 variants: true,
+                category: true,
               },
             }
           }
         }
       }
-    }) as CollectionWithProducts | null;
+    });
 
     if (!collection) {
       return null;
     }
 
     const products = collection.products.map(({ product: p }) => ({
-      ...p,
-      images: [] // We'll handle images separately if needed
-    }));
+      id: p.id,
+      name: p.name,
+      description: p.description,
+      descriptionHtml: p.descriptionHtml,
+      handle: p.handle,
+      price: Number(p.price),
+      stock: p.stock,
+      reservedStock: p.reservedStock,
+      slug: p.slug,
+      isActive: p.isActive,
+      status: p.status,
+      image: p.image,
+      sku: p.sku,
+      inventoryTracking: p.inventoryTracking,
+      lowStockThreshold: p.lowStockThreshold,
+      category: p.category,
+      images: p.images,
+      variants: p.variants.map(v => ({
+        id: v.id,
+        name: v.name,
+        sku: v.sku,
+        price: Number(v.price),
+        compareAtPrice: v.compareAtPrice ? Number(v.compareAtPrice) : null,
+        stock: v.stock,
+        reservedStock: v.reservedStock,
+        options: v.options as Record<string, string>,
+        images: v.images,
+        inventoryTracking: v.inventoryTracking,
+        lowStockThreshold: v.lowStockThreshold,
+        productId: v.productId,
+        isActive: v.isActive,
+        attributes: (v.options || {}) as Record<string, string>,
+      })),
+      categoryId: p.categoryId,
+      createdAt: p.createdAt,
+      updatedAt: p.updatedAt,
+    })) as unknown as Product[];
 
     return { collection, products };
   } catch (error) {

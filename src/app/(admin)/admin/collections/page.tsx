@@ -6,8 +6,9 @@ import { Plus } from "lucide-react";
 import { columns } from "./columns";
 import { useEffect, useState } from "react";
 import { CollectionDialog } from "./collection-dialog";
-import { Collection } from "@prisma/client";
+import { useRouter } from "next/navigation";
 import { toast } from "sonner";
+import { Collection, CollectionType, DisplaySection, CollectionSortOption } from "@/types/collection";
 
 export default function CollectionsPage() {
   const [collections, setCollections] = useState<Collection[]>([]);
@@ -15,23 +16,22 @@ export default function CollectionsPage() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingCollection, setEditingCollection] = useState<Collection | undefined>(undefined);
 
+  async function fetchCollections() {
+    try {
+      const response = await fetch("/api/admin/collections");
+      const data = await response.json();
+      setCollections(data);
+      setLoading(false);
+    } catch (error) {
+      console.error("Error fetching collections:", error);
+      toast.error("Failed to load collections");
+      setLoading(false);
+    }
+  }
+
   useEffect(() => {
     fetchCollections();
   }, []);
-
-  const fetchCollections = async () => {
-    try {
-      setLoading(true);
-      const response = await fetch("/api/admin/collections");
-      if (!response.ok) throw new Error("Failed to fetch collections");
-      const data = await response.json();
-      setCollections(data);
-    } catch (error) {
-      console.error("Error fetching collections:", error);
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const handleCreateCollection = () => {
     setEditingCollection(undefined);

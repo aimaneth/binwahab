@@ -153,16 +153,13 @@ export async function POST(req: Request) {
     const validatedData = collectionSchema.parse(body);
     console.log("Validated collection data:", validatedData);
     
-    // Generate slug and handle from name if not provided
-    const baseSlug = validatedData.handle || validatedData.name.toLowerCase().replace(/\s+/g, '-');
-    const slug = baseSlug;
-    const handle = baseSlug;
+    // Generate handle from name if not provided
+    const handle = validatedData.handle || validatedData.name.toLowerCase().replace(/\s+/g, '-');
     
     // Create the collection with proper type casting
     const collection = await prisma.collection.create({
       data: {
         name: validatedData.name,
-        slug,
         handle,
         description: validatedData.description,
         descriptionHtml: validatedData.descriptionHtml,

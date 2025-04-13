@@ -5,7 +5,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { CartItem, Product } from "@prisma/client";
+import { CartItem, Product, ProductVariant } from "@prisma/client";
 import { formatPrice } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -14,6 +14,7 @@ import { Trash2, ShoppingBag } from "lucide-react";
 interface CartItemsProps {
   items: (CartItem & {
     product: Product;
+    variant?: ProductVariant | null;
   })[];
 }
 
@@ -95,7 +96,7 @@ export function CartItems({ items }: CartItemsProps) {
             >
               <div className="flex items-center space-x-4">
                 <img
-                  src={item.product.image || ''}
+                  src={item.variant?.images?.[0] || item.product.image || ''}
                   alt={item.product.name}
                   className="h-16 w-16 object-cover rounded"
                 />
@@ -103,8 +104,15 @@ export function CartItems({ items }: CartItemsProps) {
                   <h3 className="text-sm font-medium text-gray-900">
                     {item.product.name}
                   </h3>
+                  {item.variant && (
+                    <p className="text-sm text-gray-600">
+                      {Object.entries(item.variant.options as Record<string, string>)
+                        .map(([key, value]) => `${key}: ${value}`)
+                        .join(", ")}
+                    </p>
+                  )}
                   <p className="text-sm text-gray-500">
-                    {formatPrice(item.product.price)}
+                    {formatPrice(item.variant?.price ?? item.product.price)}
                   </p>
                 </div>
               </div>

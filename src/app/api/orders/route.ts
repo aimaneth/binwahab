@@ -26,6 +26,13 @@ export async function GET(req: Request) {
                 image: true,
               },
             },
+            variant: {
+              select: {
+                name: true,
+                images: true,
+                options: true,
+              },
+            },
           },
         },
         shippingAddress: {
@@ -71,6 +78,7 @@ export async function POST(req: Request) {
         items: {
           include: {
             product: true,
+            variant: true,
           },
         },
       },
@@ -85,7 +93,7 @@ export async function POST(req: Request) {
 
     // Calculate order total
     const subtotal = validItems.reduce(
-      (sum, item) => sum + Number(item.product.price) * item.quantity,
+      (sum, item) => sum + Number(item.variant?.price ?? item.product.price) * item.quantity,
       0
     );
     const tax = subtotal * 0.06; // 6% tax
@@ -155,8 +163,9 @@ export async function POST(req: Request) {
         items: {
           create: validItems.map((item) => ({
             productId: item.product.id,
+            variantId: item.variant?.id ?? null,
             quantity: item.quantity,
-            price: Number(item.product.price),
+            price: Number(item.variant?.price ?? item.product.price),
           })),
         },
       },

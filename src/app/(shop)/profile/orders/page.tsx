@@ -23,6 +23,11 @@ interface Order {
       name: string
       image: string | null
     }
+    variant?: {
+      name: string
+      images: string[]
+      options: Record<string, string>
+    } | null
   }[]
   createdAt: string
   updatedAt: string
@@ -164,9 +169,35 @@ export default function OrdersPage() {
                   <span className="text-muted-foreground">Total</span>
                   <span className="font-medium">{formatPrice(order.total)}</span>
                 </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">Items</span>
-                  <span>{order.items.length} items</span>
+                <div className="border-t pt-4">
+                  <h3 className="text-sm font-medium mb-2">Items</h3>
+                  <div className="space-y-2">
+                    {order.items.map((item) => (
+                      <div key={item.id} className="flex justify-between items-start">
+                        <div>
+                          <p className="text-sm font-medium">{item.product.name}</p>
+                          {item.variant && (
+                            <p className="text-xs text-muted-foreground">
+                              {Object.entries(item.variant.options)
+                                .map(([key, value]) => `${key}: ${value}`)
+                                .join(", ")}
+                            </p>
+                          )}
+                          <p className="text-xs text-muted-foreground">
+                            Quantity: {item.quantity}
+                          </p>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-sm font-medium">
+                            {formatPrice(item.price * item.quantity)}
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            {formatPrice(item.price)} each
+                          </p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               </div>
             </CardContent>

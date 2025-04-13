@@ -5,12 +5,13 @@ import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { formatPrice } from "@/lib/utils";
 import { calculateShippingCost, getShippingZoneByState } from "@/lib/shipping";
-import { CartItem, Product } from "@prisma/client";
+import { CartItem, Product, ProductVariant } from "@prisma/client";
 import { Loader2 } from "lucide-react";
 
 interface CartSummaryProps {
   items: (CartItem & {
     product: Product;
+    variant?: ProductVariant | null;
   })[];
   shippingState?: string;
 }
@@ -25,7 +26,7 @@ export function CartSummary({ items, shippingState = "Selangor" }: CartSummaryPr
       setIsLoading(true);
       try {
         const total = items.reduce(
-          (sum, item) => sum + Number(item.product.price) * item.quantity,
+          (sum, item) => sum + Number(item.variant?.price ?? item.product.price) * item.quantity,
           0
         );
         
@@ -60,7 +61,7 @@ export function CartSummary({ items, shippingState = "Selangor" }: CartSummaryPr
   }
 
   const subtotal = items.reduce(
-    (sum, item) => sum + Number(item.product.price) * item.quantity,
+    (sum, item) => sum + Number(item.variant?.price ?? item.product.price) * item.quantity,
     0
   );
   const tax = subtotal * 0.06; // 6% tax

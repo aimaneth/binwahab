@@ -2,14 +2,13 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { Product, Category } from "@prisma/client";
+import { Product as PrismaProduct, Category } from "@prisma/client";
+import { Product } from "@/types/product";
 import { formatPrice } from "@/utils/format";
 import { ProductCard } from "./product-card";
 
 interface RelatedProductsProps {
-  products: (Product & {
-    category: Category | null;
-  })[];
+  products: Product[];
 }
 
 export function RelatedProducts({ products }: RelatedProductsProps) {

@@ -5,11 +5,16 @@ import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { CheckoutForm } from "@/components/shop/checkout-form";
 import { CartSummary } from "@/components/shop/cart-summary";
-import { CartItem, Product } from "@prisma/client";
+import { CartItem, Product, ProductVariant } from "@prisma/client";
 
 export const metadata: Metadata = {
   title: "Checkout - BINWAHAB",
   description: "Complete your purchase",
+};
+
+type CartItemWithDetails = CartItem & {
+  product: Product;
+  variant: ProductVariant | null;
 };
 
 export default async function CheckoutPage() {
@@ -27,18 +32,15 @@ export default async function CheckoutPage() {
       items: {
         include: {
           product: true,
+          variant: true,
         },
       },
     },
   });
 
   // Filter out items with null products
-  const validItems = cart?.items?.filter(item => item.product !== null) || [];
-  const typedItems = validItems.map(item => ({
-    ...item,
-    product: item.product!
-  })) as (CartItem & { product: Product })[];
-  const isEmpty = typedItems.length === 0;
+  const validItems = (cart?.items?.filter(item => item.product !== null) || []) as CartItemWithDetails[];
+  const isEmpty = validItems.length === 0;
 
   if (isEmpty) {
     redirect("/shop/cart");
@@ -59,7 +61,7 @@ export default async function CheckoutPage() {
           <CheckoutForm addresses={addresses} />
         </div>
         <div className="lg:col-span-1">
-          <CartSummary items={typedItems} />
+          <CartSummary items={validItems} />
         </div>
       </div>
     </main>

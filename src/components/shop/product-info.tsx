@@ -8,6 +8,14 @@ import { Product } from "@/types/product";
 import { formatPrice } from "@/utils/format";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Label } from "@/components/ui/label";
 
 interface ProductInfoProps {
   product: Product;
@@ -17,11 +25,70 @@ export function ProductInfo({ product }: ProductInfoProps) {
   const router = useRouter();
   const { data: session } = useSession();
   const [quantity, setQuantity] = useState(1);
+  const [selectedVariant, setSelectedVariant] = useState(product.variants[0]);
   const [isLoading, setIsLoading] = useState(false);
+
+  // Group variants by option type
+  const optionTypes = product.variants.length > 0
+    ? Object.keys(product.variants[0].options as Record<string, string>)
+    : [];
+  
+  const [selectedOptions, setSelectedOptions] = useState<Record<string, string>>(() => {
+    const initialOptions: Record<string, string> = {};
+    if (product.variants.length > 0) {
+      const firstVariant = product.variants[0];
+      Object.entries(firstVariant.options as Record<string, string>).forEach(([key, value]) => {
+        initialOptions[key] = value;
+      });
+    }
+    return initialOptions;
+  });
+
+  // Get unique values for each option type
+  const getOptionsForType = (optionType: string) => {
+    const uniqueValues = new Set<string>();
+    product.variants.forEach((variant) => {
+      const options = variant.options as Record<string, string>;
+      if (options[optionType]) {
+        uniqueValues.add(options[optionType]);
+      }
+    });
+    return Array.from(uniqueValues);
+  };
+
+  // Find the variant that matches the selected options
+  const findMatchingVariant = () => {
+    return product.variants.find((variant) => {
+      const variantOptions = variant.options as Record<string, string>;
+      return Object.entries(selectedOptions).every(
+        ([key, value]) => variantOptions[key] === value
+      );
+    });
+  };
+
+  // Update selected options and find matching variant
+  const handleOptionChange = (optionType: string, value: string) => {
+    const newOptions = { ...selectedOptions, [optionType]: value };
+    setSelectedOptions(newOptions);
+    const matchingVariant = product.variants.find((variant) => {
+      const variantOptions = variant.options as Record<string, string>;
+      return Object.entries(newOptions).every(
+        ([key, val]) => variantOptions[key] === val
+      );
+    });
+    if (matchingVariant) {
+      setSelectedVariant(matchingVariant);
+    }
+  };
 
   const handleAddToCart = async () => {
     if (!session) {
       router.push("/login");
+      return;
+    }
+
+    if (!selectedVariant) {
+      toast.error("Please select all options");
       return;
     }
 
@@ -33,7 +100,7 @@ export function ProductInfo({ product }: ProductInfoProps) {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          productId: product.id,
+          variantId: selectedVariant.id,
           quantity,
         }),
       });
@@ -60,7 +127,7 @@ export function ProductInfo({ product }: ProductInfoProps) {
       <div className="mt-3">
         <h2 className="sr-only">Product information</h2>
         <p className="text-3xl tracking-tight text-foreground">
-          {formatPrice(product.price)}
+          {formatPrice(selectedVariant?.price ?? product.price)}
         </p>
       </div>
 
@@ -71,6 +138,31 @@ export function ProductInfo({ product }: ProductInfoProps) {
           dangerouslySetInnerHTML={{ __html: product.description }}
         />
       </div>
+
+      {product.variants.length > 0 && (
+        <div className="mt-6 space-y-4">
+          {optionTypes.map((optionType) => (
+            <div key={optionType} className="flex items-center gap-4">
+              <Label className="w-24">{optionType}</Label>
+              <Select
+                value={selectedOptions[optionType]}
+                onValueChange={(value) => handleOptionChange(optionType, value)}
+              >
+                <SelectTrigger className="w-[180px]">
+                  <SelectValue placeholder={`Select ${optionType}`} />
+                </SelectTrigger>
+                <SelectContent>
+                  {getOptionsForType(optionType).map((value) => (
+                    <SelectItem key={value} value={value}>
+                      {value}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          ))}
+        </div>
+      )}
 
       <div className="mt-6">
         <div className="flex items-center">
@@ -90,7 +182,7 @@ export function ProductInfo({ product }: ProductInfoProps) {
             id="quantity"
             type="number"
             min="1"
-            max={product.stock}
+            max={selectedVariant?.stock ?? product.stock}
             value={quantity}
             onChange={(e) => setQuantity(Number(e.target.value))}
             className="w-20"
@@ -101,14 +193,14 @@ export function ProductInfo({ product }: ProductInfoProps) {
       <div className="mt-8 flex">
         <Button
           onClick={handleAddToCart}
-          disabled={isLoading || product.stock === 0}
+          disabled={isLoading || (selectedVariant ? selectedVariant.stock === 0 : product.stock === 0)}
           className="w-full"
         >
-          {isLoading ? "Adding..." : product.stock === 0 ? "Out of stock" : "Add to cart"}
+          {isLoading ? "Adding..." : (selectedVariant ? selectedVariant.stock === 0 : product.stock === 0) ? "Out of stock" : "Add to cart"}
         </Button>
       </div>
 
-      {product.stock === 0 && (
+      {(selectedVariant ? selectedVariant.stock === 0 : product.stock === 0) && (
         <p className="mt-2 text-sm text-red-600">This product is out of stock</p>
       )}
     </div>

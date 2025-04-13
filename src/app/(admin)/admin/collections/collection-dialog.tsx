@@ -47,7 +47,6 @@ export function CollectionDialog({
   const [isLoading, setIsLoading] = useState(false);
   const [name, setName] = useState(collection?.name ?? "");
   const [handle, setHandle] = useState(collection?.handle ?? "");
-  const [slug, setSlug] = useState(collection?.slug ?? "");
   const [description, setDescription] = useState(collection?.description ?? "");
   const [image, setImage] = useState(collection?.image ?? "");
   const [image2, setImage2] = useState(collection?.image2 ?? "");
@@ -73,7 +72,6 @@ export function CollectionDialog({
       // Update state with collection data
       setName(collection.name || "");
       setHandle(collection.handle || "");
-      setSlug(collection.slug || "");
       setDescription(collection.description || "");
       setImage(collection.image || "");
       setImage2(collection.image2 || "");
@@ -101,7 +99,6 @@ export function CollectionDialog({
       // Reset state for new collection
       setName("");
       setHandle("");
-      setSlug("");
       setDescription("");
       setImage("");
       setImage2("");
@@ -129,11 +126,9 @@ export function CollectionDialog({
     setIsLoading(true);
 
     try {
-      const slug = handle || name.toLowerCase().replace(/\s+/g, '-');
       const data = {
         name,
         handle: handle || name.toLowerCase().replace(/\s+/g, '-'),
-        slug,
         description,
         image,
         image2,
@@ -270,16 +265,6 @@ export function CollectionDialog({
                         required
                       />
                     </div>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="slug">Slug</Label>
-                    <Input
-                      id="slug"
-                      value={slug}
-                      onChange={(e) => setSlug(e.target.value)}
-                      required
-                    />
                   </div>
 
                   <div className="space-y-2">

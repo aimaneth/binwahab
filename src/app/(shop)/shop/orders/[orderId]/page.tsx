@@ -37,6 +37,7 @@ export default async function OrderPage({ params }: OrderPageProps) {
       items: {
         include: {
           product: true,
+          variant: true,
         },
       },
       shippingAddress: true,
@@ -131,13 +132,25 @@ export default async function OrderPage({ params }: OrderPageProps) {
                   <div key={item.id} className="flex justify-between items-center">
                     <div>
                       <p className="font-medium">{item.product?.name}</p>
+                      {item.variant && (
+                        <p className="text-sm text-muted-foreground">
+                          {Object.entries(item.variant.options as Record<string, string>)
+                            .map(([key, value]) => `${key}: ${value}`)
+                            .join(", ")}
+                        </p>
+                      )}
                       <p className="text-sm text-muted-foreground">
                         Quantity: {item.quantity}
                       </p>
                     </div>
-                    <p className="font-medium">
-                      {formatPrice(Number(item.price) * item.quantity)}
-                    </p>
+                    <div className="text-right">
+                      <p className="font-medium">
+                        {formatPrice(Number(item.price) * item.quantity)}
+                      </p>
+                      <p className="text-sm text-muted-foreground">
+                        {formatPrice(Number(item.price))} each
+                      </p>
+                    </div>
                   </div>
                 ))}
               </div>

@@ -1,6 +1,6 @@
 import { Prisma } from "@prisma/client";
 
-export type ProductStatus = "ACTIVE" | "DRAFT" | "ARCHIVED" | "HIDDEN" | "SCHEDULED";
+export type ProductStatus = "ACTIVE" | "DRAFT" | "ARCHIVED";
 
 export interface ProductImage {
   id: number;
@@ -15,13 +15,13 @@ export interface Category {
   id: string;
   name: string;
   slug: string;
-  description?: string;
-  image?: string;
+  description: string | null;
+  image: string | null;
   isActive: boolean;
-  parentId?: string;
-  seoTitle?: string;
-  seoDescription?: string;
-  seoKeywords?: string;
+  parentId: string | null;
+  seoTitle: string | null;
+  seoDescription: string | null;
+  seoKeywords: string | null;
   createdAt: Date;
   updatedAt: Date;
   order: number;
@@ -32,10 +32,10 @@ export interface Product {
   name: string;
   description: string;
   descriptionHtml: string | null;
-  handle: string;
+  handle?: string;
   price: Prisma.Decimal;
-  compareAtPrice: Prisma.Decimal | null;
-  costPerItem: Prisma.Decimal | null;
+  compareAtPrice?: Prisma.Decimal | null;
+  costPerItem?: Prisma.Decimal | null;
   stock: number;
   reservedStock: number;
   slug: string | null;
@@ -43,38 +43,38 @@ export interface Product {
   status: ProductStatus;
   image: string | null;
   sku: string | null;
-  barcode: string | null;
+  barcode?: string | null;
   inventoryTracking: boolean;
-  inventoryPolicy: "DENY" | "CONTINUE";
-  allowBackorder: boolean;
+  inventoryPolicy?: "DENY" | "CONTINUE";
+  allowBackorder?: boolean;
   lowStockThreshold: number;
-  taxable: boolean;
-  taxCode: string | null;
-  weight: number | null;
-  weightUnit: string | null;
-  requiresShipping: boolean;
-  shippingProfile: string | null;
-  fulfillmentService: string | null;
-  metaTitle: string | null;
-  metaDescription: string | null;
-  metaKeywords: string | null;
-  ogImage: string | null;
-  twitterImage: string | null;
-  seoTitle: string | null;
-  seoDescription: string | null;
-  seoKeywords: string | null;
-  vendor: string | null;
-  type: string | null;
-  tags: string[];
+  taxable?: boolean;
+  taxCode?: string | null;
+  weight?: number | null;
+  weightUnit?: string | null;
+  requiresShipping?: boolean;
+  shippingProfile?: string | null;
+  fulfillmentService?: string | null;
+  metaTitle?: string | null;
+  metaDescription?: string | null;
+  metaKeywords?: string | null;
+  ogImage?: string | null;
+  twitterImage?: string | null;
+  seoTitle?: string | null;
+  seoDescription?: string | null;
+  seoKeywords?: string | null;
+  vendor?: string | null;
+  type?: string | null;
+  tags?: string[];
   images: ProductImage[];
   variants: ProductVariant[];
-  optionsJson: Prisma.JsonValue | null;
+  optionsJson?: Prisma.JsonValue | null;
   category: Category | null;
-  metafields: ProductMetafield[];
+  metafields?: ProductMetafield[];
   categoryId: string | null;
   createdAt: Date;
   updatedAt: Date;
-  publishedAt: Date | null;
+  publishedAt?: Date | null;
 }
 
 export interface ProductCreateInput {
@@ -95,12 +95,17 @@ export type ProductVariant = {
   name: string;
   sku: string;
   price: Prisma.Decimal;
-  compareAtPrice: Prisma.Decimal | null;
-  costPerItem: Prisma.Decimal | null;
+  compareAtPrice?: Prisma.Decimal | null;
+  costPerItem?: Prisma.Decimal | null;
   stock: number;
   reservedStock: number;
   options: Prisma.JsonValue;
   images: string[];
+  inventoryTracking: boolean;
+  lowStockThreshold: number | null;
+  productId: number;
+  isActive: boolean;
+  attributes: Prisma.JsonValue;
 };
 
 export type ProductMetafield = {

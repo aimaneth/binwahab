@@ -1,15 +1,13 @@
 import Image from "next/image";
 import Link from "next/link";
-import { Product, Category } from "@prisma/client";
+import { Product as PrismaProduct, Category } from "@prisma/client";
+import { Product } from "@/types/product";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { formatPrice } from "@/lib/utils";
 
 interface ProductCardProps {
-  product: Product & {
-    category: Category | null;
-    images?: { url: string }[];
-  };
+  product: Product;
 }
 
 export function ProductCard({ product }: ProductCardProps) {
