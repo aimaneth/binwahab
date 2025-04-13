@@ -1,6 +1,6 @@
-import { Decimal } from "@prisma/client/runtime/library";
+import { Prisma } from "@prisma/client";
 
-export type ProductStatus = "ACTIVE" | "DRAFT" | "ARCHIVED";
+export type ProductStatus = "ACTIVE" | "DRAFT" | "ARCHIVED" | "HIDDEN" | "SCHEDULED";
 
 export interface ProductImage {
   id: number;
@@ -15,13 +15,13 @@ export interface Category {
   id: string;
   name: string;
   slug: string;
-  description: string | null;
-  image: string | null;
+  description?: string;
+  image?: string;
   isActive: boolean;
-  parentId: string | null;
-  seoTitle: string | null;
-  seoDescription: string | null;
-  seoKeywords: string | null;
+  parentId?: string;
+  seoTitle?: string;
+  seoDescription?: string;
+  seoKeywords?: string;
   createdAt: Date;
   updatedAt: Date;
   order: number;
@@ -31,27 +31,46 @@ export interface Product {
   id: number;
   name: string;
   description: string;
-  image: string | null;
-  price: Decimal;
+  descriptionHtml?: string;
+  handle: string;
+  price: Prisma.Decimal;
+  compareAtPrice?: Prisma.Decimal;
+  costPerItem?: Prisma.Decimal;
   stock: number;
   reservedStock: number;
-  slug: string | null;
+  slug?: string;
   isActive: boolean;
   status: ProductStatus;
-  categoryId: string | null;
-  createdAt: Date;
-  updatedAt: Date;
-  images: ProductImage[];
-  category: Category | null;
-  sku: string | null;
+  image?: string;
+  sku?: string;
+  barcode?: string;
   inventoryTracking: boolean;
+  inventoryPolicy: "DENY" | "CONTINUE";
+  allowBackorder: boolean;
   lowStockThreshold: number;
-  dimensions?: {
-    length: number;
-    width: number;
-    height: number;
-  } | null;
-  weight?: number | null;
+  taxable: boolean;
+  taxCode?: string;
+  weight?: number;
+  weightUnit?: string;
+  requiresShipping: boolean;
+  shippingProfile?: string;
+  fulfillmentService?: string;
+  metaTitle?: string;
+  metaDescription?: string;
+  metaKeywords?: string;
+  ogImage?: string;
+  twitterImage?: string;
+  seoTitle?: string;
+  seoDescription?: string;
+  seoKeywords?: string;
+  vendor?: string;
+  type?: string;
+  tags: string[];
+  images: ProductImage[];
+  variants: ProductVariant[];
+  options?: Prisma.JsonValue;
+  category?: Category;
+  metafields: ProductMetafield[];
 }
 
 export interface ProductCreateInput {
@@ -65,4 +84,25 @@ export interface ProductCreateInput {
   status?: ProductStatus;
   categoryId?: string | null;
   images?: { url: string; order: number }[];
-} 
+}
+
+export type ProductVariant = {
+  id: number;
+  name: string;
+  sku: string;
+  price: Prisma.Decimal;
+  compareAtPrice?: Prisma.Decimal;
+  costPerItem?: Prisma.Decimal;
+  stock: number;
+  reservedStock: number;
+  options: Prisma.JsonValue;
+  images: string[];
+};
+
+export type ProductMetafield = {
+  id: string;
+  namespace: string;
+  key: string;
+  value: string;
+  type: string;
+}; 
