@@ -3,31 +3,18 @@ import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { ProductGallery } from "@/components/shop/product-gallery";
 import { ProductInfo } from "@/components/shop/product-info";
+import { Breadcrumb } from "@/components/shop/breadcrumb";
 import { RelatedProducts } from "@/components/shop/related-products";
-import { Prisma } from "@prisma/client";
-
-interface ProductPageProps {
-  params: {
-    slug: string;
-  };
-}
-
-interface ProductImage {
-  id: number;
-  url: string;
-  order: number;
-  productId: number;
-  createdAt: Date;
-  updatedAt: Date;
-}
+import { Product } from "@/types/product";
 
 export async function generateMetadata({
   params,
-}: ProductPageProps): Promise<Metadata> {
+}: {
+  params: { slug: string };
+}): Promise<Metadata> {
   const product = await prisma.product.findUnique({
-    where: {
-      slug: params.slug,
-    },
+    where: { slug: params.slug },
+    include: { category: true },
   });
 
   if (!product) {
@@ -37,99 +24,150 @@ export async function generateMetadata({
   }
 
   return {
-    title: `${product.name} - BINWAHAB`,
+    title: product.name,
     description: product.description,
   };
 }
 
+interface ProductPageProps {
+  params: {
+    slug: string;
+  };
+}
+
 export default async function ProductPage({ params }: ProductPageProps) {
-  // Fetch the product
-  const product = await prisma.product.findUnique({
-    where: {
-      slug: params.slug,
+  const rawProduct = await prisma.product.findUnique({
+    where: { slug: params.slug },
+    select: {
+      id: true,
+      name: true,
+      description: true,
+      image: true,
+      price: true,
+      stock: true,
+      reservedStock: true,
+      slug: true,
+      isActive: true,
+      status: true,
+      categoryId: true,
+      createdAt: true,
+      updatedAt: true,
+      sku: true,
+      inventoryTracking: true,
+      lowStockThreshold: true,
+      images: {
+        select: {
+          id: true,
+          url: true,
+          order: true,
+          productId: true,
+          createdAt: true,
+          updatedAt: true,
+        },
+      },
+      category: {
+        select: {
+          id: true,
+          name: true,
+          slug: true,
+          description: true,
+          image: true,
+          isActive: true,
+          parentId: true,
+          seoTitle: true,
+          seoDescription: true,
+          seoKeywords: true,
+          createdAt: true,
+          updatedAt: true,
+          order: true,
+        },
+      },
     },
   });
 
-  if (!product) {
+  if (!rawProduct) {
     notFound();
   }
 
-  // Fetch the category
-  const category = await prisma.category.findUnique({
-    where: {
-      id: product.categoryId || "",
-    },
-  });
+  const product = rawProduct as unknown as Product;
 
-  if (!category) {
-    notFound();
-  }
-
-  // Fetch product images
-  const productImages = await prisma.$queryRaw<ProductImage[]>`
-    SELECT id, url, "order", "productId", "createdAt", "updatedAt"
-    FROM "ProductImage"
-    WHERE "productId" = ${product.id}
-    ORDER BY "order" ASC
-  `;
-
-  // Fetch related products
-  const relatedProducts = await prisma.product.findMany({
+  const rawRelatedProducts = await prisma.product.findMany({
     where: {
       categoryId: product.categoryId,
-      status: "ACTIVE",
-      NOT: {
-        id: product.id,
+      id: { not: product.id },
+      isActive: true,
+    },
+    select: {
+      id: true,
+      name: true,
+      description: true,
+      image: true,
+      price: true,
+      stock: true,
+      reservedStock: true,
+      slug: true,
+      isActive: true,
+      status: true,
+      categoryId: true,
+      createdAt: true,
+      updatedAt: true,
+      sku: true,
+      inventoryTracking: true,
+      lowStockThreshold: true,
+      images: {
+        select: {
+          id: true,
+          url: true,
+          order: true,
+          productId: true,
+          createdAt: true,
+          updatedAt: true,
+        },
+      },
+      category: {
+        select: {
+          id: true,
+          name: true,
+          slug: true,
+          description: true,
+          image: true,
+          isActive: true,
+          parentId: true,
+          seoTitle: true,
+          seoDescription: true,
+          seoKeywords: true,
+          createdAt: true,
+          updatedAt: true,
+          order: true,
+        },
       },
     },
     take: 4,
   });
 
-  // Fetch categories for related products
-  const relatedProductCategories = await prisma.category.findMany({
-    where: {
-      id: {
-        in: relatedProducts.map(p => p.categoryId).filter(Boolean) as string[],
-      },
-    },
-  });
+  const relatedProducts = rawRelatedProducts as unknown as Product[];
 
-  // Fetch images for related products
-  const relatedProductImages = await prisma.$queryRaw<ProductImage[]>`
-    SELECT id, url, "order", "productId", "createdAt", "updatedAt"
-    FROM "ProductImage"
-    WHERE "productId" IN (${Prisma.join(relatedProducts.map(p => p.id))})
-    ORDER BY "order" ASC
-  `;
-
-  // Combine the data
-  const productWithRelations = {
-    ...product,
-    category,
-    images: productImages,
-  };
-
-  const relatedProductsWithRelations = relatedProducts.map(p => {
-    const category = relatedProductCategories.find(c => c.id === p.categoryId);
-    const images = relatedProductImages.filter(img => img.productId === p.id);
-    return {
-      ...p,
-      category,
-      images,
-    };
-  });
+  const breadcrumbItems = [
+    { label: "Home", href: "/" },
+    { label: "Shop", href: "/shop" },
+    ...(product.category
+      ? [{ label: product.category.name, href: `/shop/categories/${product.category.slug}` }]
+      : []),
+    { label: product.name, href: `/shop/products/${product.slug}` },
+  ];
 
   return (
-    <div className="bg-white">
-      <div className="mx-auto max-w-2xl px-4 py-16 sm:px-6 sm:py-24 lg:max-w-7xl lg:px-8">
-        <div className="lg:grid lg:grid-cols-2 lg:items-start lg:gap-x-8">
-          <ProductGallery 
-            images={productImages.map(img => img.url)} 
-            name={product.name} 
-          />
-          <ProductInfo product={productWithRelations as any} />
-        </div>
-        <RelatedProducts products={relatedProductsWithRelations as any} />
+    <div className="container mx-auto px-4 py-8">
+      <Breadcrumb items={breadcrumbItems} />
+      <div className="mt-8 grid grid-cols-1 gap-8 md:grid-cols-2">
+        <ProductGallery 
+          images={product.images.map(img => img.url)} 
+          name={product.name} 
+        />
+        <ProductInfo product={product} />
+      </div>
+      <div className="mt-16">
+        <RelatedProducts products={relatedProducts} />
       </div>
     </div>
   );
