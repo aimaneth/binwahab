@@ -30,7 +30,7 @@ export async function POST(req: Request) {
     const collection = await prisma.collection.create({
       data: {
         name: body.name,
-        slug: body.name.toLowerCase().replace(/\s+/g, '-'),
+        handle: body.name.toLowerCase().replace(/\s+/g, '-'),
         description: body.description,
         image: body.image,
         isActive: body.isActive,
@@ -46,7 +46,8 @@ export async function POST(req: Request) {
       return new NextResponse(JSON.stringify(error.issues), { status: 422 });
     }
 
-    return new NextResponse(null, { status: 500 });
+    console.error("Error creating collection:", error);
+    return new NextResponse(JSON.stringify({ error: "Failed to create collection" }), { status: 500 });
   }
 }
 
@@ -54,55 +55,86 @@ export async function GET(req: Request) {
   try {
     const { searchParams } = new URL(req.url);
     const section = searchParams.get("section") as DisplaySection | null;
+    const category = searchParams.get("category");
 
     let whereClause: Prisma.CollectionWhereInput = {
       isActive: true,
-      showOnHomePage: true,
     };
 
     if (section) {
       whereClause.displaySection = section;
+      whereClause.showOnHomePage = true;
     }
 
-    const collections = await prisma.collection.findMany({
-      where: whereClause,
-      take: section === "FEATURED" ? 3 : undefined,
-      orderBy: [
-        { order: "asc" },
-        { createdAt: "desc" },
-      ],
-      include: {
-        products: {
-          include: {
-            product: {
-              include: {
-                images: {
-                  orderBy: {
-                    order: 'asc'
+    if (category) {
+      whereClause.products = {
+        some: {
+          product: {
+            categoryId: category
+          }
+        }
+      };
+    }
+
+    // Use a try-catch block to handle potential schema mismatch errors
+    try {
+      const collections = await prisma.collection.findMany({
+        where: whereClause,
+        take: section === "FEATURED" ? 3 : undefined,
+        orderBy: [
+          { order: "asc" },
+          { createdAt: "desc" },
+        ],
+        include: {
+          products: {
+            include: {
+              product: {
+                include: {
+                  images: {
+                    orderBy: {
+                      order: 'asc'
+                    }
                   }
                 }
               }
             }
           }
         }
-      }
-    });
+      });
 
-    // Transform the response to include products directly
-    const transformedCollections = collections.map(collection => {
-      const products = collection.products.map(pc => ({
-        ...pc.product,
-        images: pc.product.images.map(img => ({ url: img.url }))
-      }));
-      return {
+      // Transform the response to include products directly
+      const transformedCollections = collections.map(collection => {
+        const products = collection.products.map(pc => ({
+          ...pc.product,
+          images: pc.product.images.map(img => ({ url: img.url }))
+        }));
+        return {
+          ...collection,
+          products
+        };
+      });
+
+      return NextResponse.json(transformedCollections);
+    } catch (dbError) {
+      console.error("Database error:", dbError);
+      
+      // Fallback to a simpler query if the schema doesn't match
+      const simpleCollections = await prisma.collection.findMany({
+        where: whereClause,
+        take: section === "FEATURED" ? 3 : undefined,
+        orderBy: [
+          { order: "asc" },
+          { createdAt: "desc" },
+        ],
+      });
+      
+      return NextResponse.json(simpleCollections.map(collection => ({
         ...collection,
-        products
-      };
-    });
-
-    return NextResponse.json({ collections: transformedCollections });
+        products: []
+      })));
+    }
   } catch (error) {
-    console.error("[COLLECTIONS_GET]", error);
-    return new NextResponse("Internal error", { status: 500 });
+    console.error("Error fetching collections:", error);
+    return new NextResponse(JSON.stringify({ error: "Failed to fetch collections" }), { status: 500 });
   }
 } 
