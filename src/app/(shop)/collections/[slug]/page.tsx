@@ -163,29 +163,51 @@ export default async function CollectionPage({ params }: CollectionPageProps) {
         </div>
       </div>
 
-      <div className="container mx-auto px-4 py-12">
-        <div className="flex flex-col gap-8">
-          {/* Search and Filters Header */}
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-            <SearchBar />
-            <ProductFilters />
+      {/* Main Content */}
+      <div className="container mx-auto px-4 py-8">
+        {/* Search Bar - Full Width */}
+        <div className="mb-8">
+          <SearchBar />
+        </div>
+
+        {/* Products Section with Sidebar */}
+        <div className="flex flex-col lg:flex-row gap-8">
+          {/* Sidebar Filters */}
+          <div className="lg:w-64 flex-shrink-0">
+            <div className="sticky top-8">
+              <div className="bg-white rounded-lg shadow-sm p-6">
+                <h2 className="text-lg font-semibold mb-4">Filters</h2>
+                <ProductFilters />
+              </div>
+            </div>
           </div>
 
           {/* Products Grid */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-            {collection.products.map((product) => (
-              <ProductCard key={product.id} product={product} />
-            ))}
-          </div>
-
-          {collection.products.length === 0 && (
-            <div className="text-center py-12">
-              <h3 className="text-lg font-medium text-gray-900">No products found</h3>
-              <p className="mt-2 text-sm text-gray-500">
-                We couldn't find any products in this collection.
+          <div className="flex-1">
+            {/* Products Count */}
+            <div className="mb-6">
+              <p className="text-sm text-gray-600">
+                Showing {collection.products.length} products
               </p>
             </div>
-          )}
+
+            {/* Products Grid */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+              {collection.products.map((product) => (
+                <ProductCard key={product.id} product={product} />
+              ))}
+            </div>
+
+            {/* Empty State */}
+            {collection.products.length === 0 && (
+              <div className="text-center py-12 bg-gray-50 rounded-lg">
+                <h3 className="text-lg font-medium text-gray-900">No products found</h3>
+                <p className="mt-2 text-sm text-gray-500">
+                  We couldn't find any products in this collection.
+                </p>
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </div>
