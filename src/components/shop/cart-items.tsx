@@ -51,13 +51,17 @@ export function CartItems({ items }: CartItemsProps) {
       const response = await fetch("/api/cart", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ itemId, quantity }),
+        body: JSON.stringify({ itemId: itemId.toString(), quantity }),
       });
 
-      if (!response.ok) throw new Error("Failed to update quantity");
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || "Failed to update quantity");
+      }
+      
       router.refresh();
     } catch (error) {
-      toast.error("Failed to update quantity");
+      toast.error(error instanceof Error ? error.message : "Failed to update quantity");
     } finally {
       setUpdating(null);
     }
@@ -66,10 +70,8 @@ export function CartItems({ items }: CartItemsProps) {
   const removeItem = async (itemId: number) => {
     setUpdating(itemId.toString());
     try {
-      const response = await fetch("/api/cart", {
+      const response = await fetch(`/api/cart?itemId=${itemId}`, {
         method: "DELETE",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ itemId }),
       });
 
       if (!response.ok) throw new Error("Failed to remove item");

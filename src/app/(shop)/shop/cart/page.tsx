@@ -5,7 +5,7 @@ import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { CartItems } from "@/components/shop/cart-items";
 import { CartSummary } from "@/components/shop/cart-summary";
-import { CartItem, Product } from "@prisma/client";
+import { CartItem, Product, ProductVariant } from "@prisma/client";
 
 export const metadata: Metadata = {
   title: "Shopping Cart - BINWAHAB",
@@ -27,6 +27,7 @@ export default async function CartPage() {
       items: {
         include: {
           product: true,
+          variant: true,
         },
       },
     },
@@ -36,8 +37,9 @@ export default async function CartPage() {
   const validItems = cart?.items?.filter(item => item.product !== null) || [];
   const typedItems = validItems.map(item => ({
     ...item,
-    product: item.product!
-  })) as (CartItem & { product: Product })[];
+    product: item.product!,
+    variant: item.variant
+  })) as (CartItem & { product: Product, variant: ProductVariant | null })[];
   const isEmpty = typedItems.length === 0;
 
   return (
