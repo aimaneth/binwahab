@@ -58,8 +58,8 @@ export default function HomePage() {
           completeCollectionsRes.json()
         ]);
 
-        setFeaturedCollections(featuredCollectionsData.collections);
-        setCompleteCollections(completeCollectionsData.collections);
+        setFeaturedCollections(featuredCollectionsData || []);
+        setCompleteCollections(completeCollectionsData || []);
       } catch (error) {
         console.error("Error fetching data:", error);
         setError("Failed to load content. Please try again later.");
