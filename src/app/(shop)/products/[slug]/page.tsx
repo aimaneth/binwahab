@@ -196,7 +196,7 @@ export default async function ProductPage({ params }: ProductPageProps) {
     .filter(p => p.category !== null)
     .map(p => ({
       ...p,
-      status: p.status === "HIDDEN" ? "DRAFT" : p.status as ProductStatus,
+      status: p.status as ProductStatus,
       category: p.category as Category,
       images: p.images.map(img => ({
         ...img,
@@ -243,7 +243,7 @@ export default async function ProductPage({ params }: ProductPageProps) {
   // Convert Prisma model to our Product type
   const typedProduct: Product = {
     ...product,
-    status: product.status === "HIDDEN" ? "DRAFT" : product.status as ProductStatus,
+    status: product.status as ProductStatus,
     category: product.category as Category,
     images: product.images.map(img => ({
       ...img,
