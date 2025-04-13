@@ -27,12 +27,22 @@ interface ProductImage {
   updatedAt: Date;
 }
 
-type ProductWithImages = Product & {
+interface ProductVariant {
+  id: number;
+  name: string;
+  sku: string;
+  price: number;
+  stock: number;
+  options: Record<string, string>;
+}
+
+type ProductWithDetails = Product & {
   images: ProductImage[];
+  variants: ProductVariant[];
 };
 
 export default function ProductsPage() {
-  const [products, setProducts] = useState<ProductWithImages[]>([]);
+  const [products, setProducts] = useState<ProductWithDetails[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const { toast } = useToast();
@@ -172,6 +182,9 @@ export default function ProductsPage() {
                     Name
                   </th>
                   <th className="h-10 px-2 text-left align-middle font-medium text-muted-foreground">
+                    Variants
+                  </th>
+                  <th className="h-10 px-2 text-left align-middle font-medium text-muted-foreground">
                     Price
                   </th>
                   <th className="h-10 px-2 text-left align-middle font-medium text-muted-foreground">
@@ -204,31 +217,67 @@ export default function ProductsPage() {
                             }}
                           />
                         ) : (
-                          <div className="w-full h-full flex items-center justify-center text-muted-foreground">
-                            <span className="text-xs">No image</span>
+                          <div className="text-muted-foreground text-xs text-center">
+                            No image
                           </div>
                         )}
                       </div>
                     </td>
-                    <td className="p-2 align-middle font-medium">{product.id}</td>
+                    <td className="p-2 align-middle">{product.id}</td>
                     <td className="p-2 align-middle">{product.name}</td>
-                    <td className="p-2 align-middle">{formatPrice(Number(product.price))}</td>
-                    <td className="p-2 align-middle">{product.stock ?? 0}</td>
                     <td className="p-2 align-middle">
-                      <span
-                        className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold ${
-                          (product.stock ?? 0) > 10
-                            ? "bg-green-100 text-green-800"
-                            : (product.stock ?? 0) > 0
-                            ? "bg-yellow-100 text-yellow-800"
-                            : "bg-red-100 text-red-800"
-                        }`}
-                      >
-                        {(product.stock ?? 0) > 10
-                          ? "In Stock"
-                          : (product.stock ?? 0) > 0
-                          ? "Low Stock"
-                          : "Out of Stock"}
+                      <div className="space-y-1">
+                        {product.variants && product.variants.length > 0 ? (
+                          product.variants.map((variant) => (
+                            <div key={variant.id} className="text-xs">
+                              <span className="font-medium">{variant.name}</span>
+                              {Object.entries(variant.options).map(([key, value]) => (
+                                <span key={key} className="ml-2 text-muted-foreground">
+                                  {key}: {value}
+                                </span>
+                              ))}
+                            </div>
+                          ))
+                        ) : (
+                          <span className="text-xs text-muted-foreground">No variants</span>
+                        )}
+                      </div>
+                    </td>
+                    <td className="p-2 align-middle">
+                      {product.variants && product.variants.length > 0 ? (
+                        <div className="space-y-1">
+                          {product.variants.map((variant) => (
+                            <div key={variant.id} className="text-xs">
+                              {formatPrice(Number(variant.price))}
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        formatPrice(Number(product.price))
+                      )}
+                    </td>
+                    <td className="p-2 align-middle">
+                      {product.variants && product.variants.length > 0 ? (
+                        <div className="space-y-1">
+                          {product.variants.map((variant) => (
+                            <div key={variant.id} className="text-xs">
+                              {variant.stock}
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        product.stock
+                      )}
+                    </td>
+                    <td className="p-2 align-middle">
+                      <span className={`inline-flex items-center rounded-full px-2 py-1 text-xs font-medium ${
+                        product.status === "ACTIVE" 
+                          ? "bg-green-50 text-green-700" 
+                          : product.status === "DRAFT"
+                          ? "bg-yellow-50 text-yellow-700"
+                          : "bg-red-50 text-red-700"
+                      }`}>
+                        {product.status}
                       </span>
                     </td>
                     <td className="p-2 align-middle">

@@ -64,30 +64,45 @@ export async function GET() {
       return new NextResponse("Unauthorized", { status: 401 });
     }
 
-    const products = await prisma.$queryRaw`
-      SELECT 
-        p.*,
-        c.id as "categoryId",
-        c.name as "categoryName",
-        pc."collectionId",
-        col.name as "collectionName",
-        pi.id as "imageId",
-        pi.url as "imageUrl",
-        pi.order as "imageOrder",
-        pv.id as "variantId",
-        pv.name as "variantName",
-        pv.price as "variantPrice",
-        pv.sku as "variantSku"
-      FROM "Product" p
-      LEFT JOIN "Category" c ON p."categoryId" = c.id
-      LEFT JOIN "ProductCollection" pc ON p.id = pc."productId"
-      LEFT JOIN "Collection" col ON pc."collectionId" = col.id
-      LEFT JOIN "ProductImage" pi ON p.id = pi."productId"
-      LEFT JOIN "ProductVariant" pv ON p.id = pv."productId"
-      ORDER BY p."createdAt" DESC
-    `;
+    const products = await prisma.product.findMany({
+      include: {
+        category: {
+          select: {
+            id: true,
+            name: true
+          }
+        },
+        images: {
+          orderBy: {
+            order: 'asc'
+          }
+        },
+        variants: {
+          select: {
+            id: true,
+            name: true,
+            sku: true,
+            price: true,
+            stock: true,
+            options: true
+          }
+        }
+      },
+      orderBy: {
+        createdAt: 'desc'
+      }
+    });
 
-    return NextResponse.json(products);
+    // Transform the products to include formatted variant information
+    const transformedProducts = products.map(product => ({
+      ...product,
+      variants: product.variants.map(variant => ({
+        ...variant,
+        options: variant.options as Record<string, string>
+      }))
+    }));
+
+    return NextResponse.json(transformedProducts);
   } catch (error) {
     console.error("[PRODUCTS_GET] Detailed error:", error);
     
