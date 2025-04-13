@@ -9,7 +9,7 @@
     "lint": "next lint",
     "postinstall": "prisma generate",
     "seed:collections": "node prisma/seed-collections.js",
-    "vercel-build": "prisma generate && prisma migrate deploy && next build",
+    "vercel-build": "node scripts/vercel-build.js",
     "fix:schema": "node scripts/fix-schema.js",
     "apply:migrations": "node scripts/apply-migrations.js",
     "fix:db": "npm run fix:schema && npm run apply:migrations",

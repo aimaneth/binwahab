@@ -1,5 +1,10 @@
 {
   "buildCommand": "npm run vercel-build",
   "installCommand": "npm install",
-  "framework": "nextjs"
+  "framework": "nextjs",
+  "regions": ["sin1"],
+  "env": {
+    "NEXT_PUBLIC_SUPABASE_URL": "https://koupyrvfvczzkolwvwnc.supabase.co",
+    "NEXT_PUBLIC_SUPABASE_ANON_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtvdXB5cnZmdmN6emtvbHd2d25jIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDQzOTkwNTUsImV4cCI6MjA1OTk3NTA1NX0.ojhNXM8dLiVj87AaLFVRDY8KW_N1st_xppsmG-gBGRs"
+  }
 } 
