@@ -22,7 +22,6 @@ model User {
   accounts        Account[]
   addToCartEvents AddToCartEvent[]
   addresses       Address[]
-  bulkOperations  BulkOperation[]
   cart            Cart?
   cartItems       CartItem[]
   media           Media[]
@@ -89,34 +88,34 @@ model Category {
 }
 
 model Collection {
-  id             String              @id @default(cuid())
-  name           String
-  handle         String              @unique
-  description    String?
-  descriptionHtml String? @db.Text
-  image          String?
-  createdAt      DateTime            @default(now())
-  updatedAt      DateTime            @updatedAt
-  publishedAt    DateTime?
-  conditions     Json?
-  isActive       Boolean             @default(true)
-  order          Int                 @default(0)
-  sortBy         CollectionSortOption @default(MANUAL)
-  seoTitle       String?
-  seoDescription String?
-  seoKeywords    String?
-  metaTitle      String?
+  id              String              @id @default(cuid())
+  name            String
+  slug            String              @unique
+  description     String?
+  image           String?
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
+  conditions      Json?
+  isActive        Boolean             @default(true)
+  order           Int                 @default(0)
+  seoDescription  String?
+  seoKeywords     String?
+  seoTitle        String?
+  type            CollectionType      @default(MANUAL)
+  showOnHomePage  Boolean             @default(false)
+  image2          String?
+  displaySection  DisplaySection      @default(NONE)
+  handle          String?             @unique
+  sortBy          String              @default("MANUAL")
+  descriptionHtml String?
+  publishedAt     DateTime?
+  metaTitle       String?
   metaDescription String?
-  metaKeywords   String?
-  ogImage        String?
-  twitterImage   String?
-  type           CollectionType      @default(MANUAL)
-  showOnHomePage Boolean             @default(false)
-  image2         String?
-  displaySection DisplaySection      @default(NONE)
-  rules          CollectionRule[]
-  products       ProductCollection[]
-  metafields     CollectionMetafield[]
+  metaKeywords    String?
+  ogImage         String?
+  twitterImage    String?
+  rules           CollectionRule[]
+  products        ProductCollection[]
 }
 
 model CollectionRule {
@@ -134,65 +133,36 @@ model CollectionRule {
 }
 
 model Product {
-  id                    Int                    @id @default(autoincrement())
   name                  String
   description           String
-  descriptionHtml       String?                // Rich text description
-  handle               String                 @unique // URL-friendly version of name
   price                 Decimal                @db.Decimal(10, 2)
-  compareAtPrice        Decimal?               @db.Decimal(10, 2)
-  costPerItem          Decimal?               @db.Decimal(10, 2)
   categoryId            String?
   createdAt             DateTime               @default(now())
   updatedAt             DateTime               @updatedAt
-  publishedAt           DateTime?
   stock                 Int                    @default(0)
   reservedStock         Int                    @default(0)
   slug                  String?                @unique
+  id                    Int                    @id @default(autoincrement())
   isActive              Boolean                @default(true)
   status                ProductStatus          @default(ACTIVE)
   image                 String?
+  descriptionHtml       String?
   sku                   String?                @unique
-  barcode               String?
   inventoryTracking     Boolean                @default(false)
-  inventoryPolicy       InventoryPolicy        @default(DENY)
-  allowBackorder        Boolean                @default(false)
   lowStockThreshold     Int                    @default(5)
-  taxable               Boolean                @default(true)
-  taxCode               String?
-  weight                Float?
-  weightUnit            String?                @default("kg")
-  requiresShipping      Boolean                @default(true)
-  shippingProfile       String?
-  fulfillmentService    String?
-  metaTitle             String?
-  metaDescription       String?
-  metaKeywords          String?
-  ogImage               String?
-  twitterImage          String?
-  seoTitle              String?
-  seoDescription        String?
-  seoKeywords           String?
-  vendor                String?
-  type                  String?
-  tags                  String[]
-  optionsJson           Json?                  @map("options") // Rename the existing options field
-  variants              ProductVariant[]
-  images                ProductImage[]
+  addToCartEvents       AddToCartEvent[]
+  cartItems             CartItem[]
+  inventoryTransactions InventoryTransaction[]
+  orderItems            OrderItem[]
   category              Category?              @relation(fields: [categoryId], references: [id])
   collections           ProductCollection[]
-  metafields           ProductMetafield[]
-  reviews               Review[]
+  images                ProductImage[]
+  variants              ProductVariant[]
   productViews          ProductView[]
-  cartItems             CartItem[]
-  orderItems            OrderItem[]
-  returnItems           ReturnItem[]
-  wishlistItems         WishlistItem[]
-  addToCartEvents       AddToCartEvent[]
-  inventoryTransactions InventoryTransaction[]
   promotionalProducts   PromotionalProduct[]
-  analytics             ProductAnalytics?
-  productOptions        ProductOption[]
+  returnItems           ReturnItem[]
+  reviews               Review[]
+  wishlistItems         WishlistItem[]
 }
 
 model ProductImage {
@@ -208,55 +178,36 @@ model ProductImage {
 }
 
 model ProductVariant {
-  id                    Int                    @id @default(autoincrement())
   sku                   String                 @unique
   barcode               String?
   price                 Decimal                @db.Decimal(10, 2)
   compareAtPrice        Decimal?               @db.Decimal(10, 2)
-  costPerItem          Decimal?               @db.Decimal(10, 2)
   weight                Float?
   weightUnit            String?                @default("kg")
   dimensions            Json?
-  options               Json                   // Selected option values
+  options               Json
   stock                 Int                    @default(0)
-  reservedStock         Int                    @default(0)
   isActive              Boolean                @default(true)
-  inventoryTracking     Boolean                @default(true)
-  inventoryPolicy       InventoryPolicy        @default(DENY)
-  allowBackorder        Boolean                @default(false)
-  lowStockThreshold     Int?                   @default(5)
-  taxable               Boolean                @default(true)
-  taxCode               String?
-  requiresShipping      Boolean                @default(true)
-  shippingProfile       String?
-  fulfillmentService    String?
-  name                  String
-  productId             Int
-  product               Product                @relation(fields: [productId], references: [id], onDelete: Cascade)
+  attributes            Json?
   images                String[]
-  metafields           VariantMetafield[]
-  cartItems             CartItem[]
-  orderItems            OrderItem[]
-  returnItems           ReturnItem[]
-  wishlistItems         WishlistItem[]
+  inventoryTracking     Boolean                @default(true)
+  lowStockThreshold     Int?                   @default(5)
+  name                  String
+  reservedStock         Int                    @default(0)
+  id                    Int                    @id @default(autoincrement())
+  productId             Int
   addToCartEvents       AddToCartEvent[]
+  cartItems             CartItem[]
   inventoryTransactions InventoryTransaction[]
+  orderItems            OrderItem[]
+  product               Product                @relation(fields: [productId], references: [id], onDelete: Cascade)
   productViews          ProductView[]
   promotionalProducts   PromotionalProduct[]
+  returnItems           ReturnItem[]
   reviews               Review[]
-}
+  wishlistItems         WishlistItem[]
 
-model VariantMetafield {
-  id          String         @id @default(cuid())
-  namespace   String         // e.g., "custom", "shopify"
-  key         String
-  value       String
-  type        String         // e.g., "string", "number", "json"
-  variantId   Int
-  variant     ProductVariant @relation(fields: [variantId], references: [id], onDelete: Cascade)
-
-  @@unique([namespace, key, variantId])
-  @@index([variantId])
+  @@index([productId])
 }
 
 model ProductCollection {
@@ -589,81 +540,6 @@ model Media {
   @@index([uploadedBy])
 }
 
-model BulkOperation {
-  id          String              @id @default(cuid())
-  type        BulkOperationType
-  status      BulkOperationStatus @default(PENDING)
-  data        Json?
-  result      Json?
-  createdBy   String
-  createdAt   DateTime            @default(now())
-  updatedAt   DateTime            @updatedAt
-  completedAt DateTime?
-  user        User                @relation(fields: [createdBy], references: [id])
-}
-
-model ProductAnalytics {
-  id             Int      @id @default(autoincrement())
-  productId      Int      @unique
-  totalViews     Int      @default(0)
-  uniqueViews    Int      @default(0)
-  addToCartCount Int      @default(0)
-  purchaseCount  Int      @default(0)
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
-  product        Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
-
-  @@index([productId])
-}
-
-model Contact {
-  id        String   @id @default(cuid())
-  name      String
-  email     String
-  subject   String
-  message   String
-  category  String
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-}
-
-model ProductOption {
-  id        String   @id @default(cuid())
-  name      String   // e.g., "Size", "Color"
-  values    String[] // e.g., ["S", "M", "L"] or ["Red", "Blue"]
-  productId Int
-  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
-  order     Int      @default(0)
-
-  @@index([productId])
-}
-
-model ProductMetafield {
-  id        String   @id @default(cuid())
-  namespace String   // e.g., "custom", "shopify"
-  key       String
-  value     String
-  type      String   // e.g., "string", "number", "json"
-  productId Int
-  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
-
-  @@unique([namespace, key, productId])
-  @@index([productId])
-}
-
-model CollectionMetafield {
-  id           String     @id @default(cuid())
-  namespace    String     // e.g., "custom", "shopify"
-  key          String
-  value        String
-  type         String     // e.g., "string", "number", "json"
-  collectionId String
-  collection   Collection @relation(fields: [collectionId], references: [id], onDelete: Cascade)
-
-  @@unique([namespace, key, collectionId])
-  @@index([collectionId])
-}
-
 enum Role {
   USER
   ADMIN
@@ -696,11 +572,9 @@ enum CollectionType {
 }
 
 enum ProductStatus {
-  ACTIVE
   DRAFT
+  ACTIVE
   ARCHIVED
-  HIDDEN
-  SCHEDULED
 }
 
 enum ShippingZoneType {
@@ -720,8 +594,6 @@ enum TransactionType {
   SALE
   ADJUSTMENT
   RETURN
-  RESERVED
-  RELEASED
 }
 
 enum DiscountType {
@@ -749,25 +621,9 @@ enum UserRole {
 }
 
 enum DisplaySection {
-  NONE
   FEATURED
   COMPLETE
-}
-
-enum BulkOperationType {
-  PRODUCT_IMPORT
-  PRODUCT_EXPORT
-  CATEGORY_IMPORT
-  CATEGORY_EXPORT
-  ORDER_IMPORT
-  ORDER_EXPORT
-}
-
-enum BulkOperationStatus {
-  PENDING
-  PROCESSING
-  COMPLETED
-  FAILED
+  NONE
 }
 
 enum CollectionSortOption {
@@ -779,9 +635,4 @@ enum CollectionSortOption {
   PRICE_DESC
   CREATED_ASC
   CREATED_DESC
-}
-
-enum InventoryPolicy {
-  DENY
-  CONTINUE
 }

@@ -5,16 +5,22 @@ async function main() {
   try {
     console.log('Adding descriptionHtml column to Collection table...');
     
-    // Use raw SQL to add the column
+    // Execute raw SQL to add the column if it doesn't exist
     await prisma.$executeRaw`
-      ALTER TABLE "Collection" 
-      ADD COLUMN IF NOT EXISTS "descriptionHtml" TEXT;
+      DO $$
+      BEGIN
+        IF NOT EXISTS (
+          SELECT 1 FROM information_schema.columns 
+          WHERE table_name = 'Collection' AND column_name = 'descriptionHtml'
+        ) THEN
+          ALTER TABLE "Collection" ADD COLUMN "descriptionHtml" TEXT;
+        END IF;
+      END $$;
     `;
     
     console.log('Successfully added descriptionHtml column to Collection table');
   } catch (error) {
     console.error('Error adding descriptionHtml column:', error);
-    process.exit(1);
   } finally {
     await prisma.$disconnect();
   }
