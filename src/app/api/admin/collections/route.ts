@@ -3,14 +3,16 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { z } from "zod";
+import { CollectionSortOption, CollectionType, DisplaySection } from "@prisma/client";
 
 const collectionSchema = z.object({
   name: z.string().min(1),
   handle: z.string().optional(),
   description: z.string().optional(),
+  descriptionHtml: z.string().optional(),
   image: z.string().optional(),
   image2: z.string().optional(),
-  type: z.enum(["MANUAL", "AUTOMATED"]),
+  type: z.enum(["MANUAL", "AUTOMATED"]).default("MANUAL"),
   conditions: z.record(z.any()).optional(),
   isActive: z.boolean().optional(),
   order: z.number().int().optional(),
@@ -19,6 +21,7 @@ const collectionSchema = z.object({
   seoKeywords: z.string().optional(),
   showOnHomePage: z.boolean().optional(),
   displaySection: z.enum(["NONE", "FEATURED", "COMPLETE"]).optional(),
+  sortBy: z.nativeEnum(CollectionSortOption).default(CollectionSortOption.MANUAL),
 });
 
 // Helper function to build Prisma where clause from conditions
@@ -62,18 +65,19 @@ function buildWhereClause(conditions: any) {
   };
 }
 
+// Helper function to convert operator strings to Prisma operators
 function getOperator(operator: string) {
   switch (operator) {
     case "equals":
       return "equals";
-    case "not_equals":
-      return "not";
     case "greater_than":
       return "gt";
     case "less_than":
       return "lt";
-    case "contains":
-      return "contains";
+    case "greater_than_or_equal":
+      return "gte";
+    case "less_than_or_equal":
+      return "lte";
     default:
       return "equals";
   }
@@ -132,22 +136,26 @@ export async function POST(req: Request) {
     }
 
     const body = await req.json();
+    console.log("Received collection data:", body);
+    
     const validatedData = collectionSchema.parse(body);
+    console.log("Validated collection data:", validatedData);
     
     // Generate handle from name if not provided
     const handle = validatedData.handle || validatedData.name.toLowerCase().replace(/\s+/g, '-');
     
-    console.log("Creating collection with image2:", validatedData.image2);
-
-    // Use type assertion to handle the image2 field
+    // Create the collection with proper type casting
     const collection = await prisma.collection.create({
       data: {
         ...validatedData,
         handle,
-      } as any,
+        type: validatedData.type as CollectionType,
+        displaySection: (validatedData.displaySection || "NONE") as DisplaySection,
+        sortBy: validatedData.sortBy as CollectionSortOption,
+      },
     });
 
-    console.log("Collection created successfully with image2:", (collection as any).image2);
+    console.log("Collection created successfully:", collection);
 
     // If it's an automated collection, add products based on conditions
     if (validatedData.type === "AUTOMATED" && validatedData.conditions) {
@@ -156,20 +164,36 @@ export async function POST(req: Request) {
         where: whereClause,
       });
 
-      await prisma.productCollection.createMany({
-        data: products.map(product => ({
-          productId: product.id,
-          collectionId: collection.id,
-        })),
-      });
+      if (products.length > 0) {
+        await prisma.productCollection.createMany({
+          data: products.map(product => ({
+            productId: product.id,
+            collectionId: collection.id,
+          })),
+        });
+      }
     }
 
     return NextResponse.json(collection);
   } catch (error) {
+    console.error("[COLLECTIONS_POST] Error:", error);
+    
     if (error instanceof z.ZodError) {
-      return new NextResponse(JSON.stringify(error.errors), { status: 400 });
+      return new NextResponse(
+        JSON.stringify({ 
+          error: "Validation error", 
+          details: error.errors 
+        }), 
+        { status: 400 }
+      );
     }
-    console.error("[COLLECTIONS_POST]", error);
-    return new NextResponse("Internal error", { status: 500 });
+    
+    return new NextResponse(
+      JSON.stringify({ 
+        error: "Internal error", 
+        details: error instanceof Error ? error.message : "Unknown error" 
+      }), 
+      { status: 500 }
+    );
   }
 } 
