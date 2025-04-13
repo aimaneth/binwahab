@@ -6,6 +6,7 @@ import { ProductInfo } from "@/components/shop/product-info";
 import { RelatedProducts } from "@/components/shop/related-products";
 import { Product, Category } from "@/types/product";
 import { Prisma } from "@prisma/client";
+import { ProductStatus } from "@/types/product";
 
 interface ProductPageProps {
   params: {
@@ -87,7 +88,24 @@ export default async function ProductPage({ params }: ProductPageProps) {
           order: "asc",
         },
       },
-      variants: true,
+      variants: {
+        select: {
+          id: true,
+          name: true,
+          price: true,
+          stock: true,
+          options: true,
+          images: true,
+          sku: true,
+          barcode: true,
+          isActive: true,
+          inventoryTracking: true,
+          lowStockThreshold: true,
+          weight: true,
+          weightUnit: true,
+          dimensions: true
+        }
+      },
     },
   });
 
@@ -152,16 +170,80 @@ export default async function ProductPage({ params }: ProductPageProps) {
           order: "asc",
         },
       },
-      variants: true,
+      variants: {
+        select: {
+          id: true,
+          name: true,
+          price: true,
+          stock: true,
+          options: true,
+          images: true,
+          sku: true,
+          barcode: true,
+          isActive: true,
+          inventoryTracking: true,
+          lowStockThreshold: true,
+          weight: true,
+          weightUnit: true,
+          dimensions: true
+        }
+      },
     },
   });
 
-  // Filter out products with null categories
-  const productsWithCategories = relatedProducts.filter(p => p.category !== null);
+  // Filter out products with null categories and map to Product type
+  const productsWithCategories = relatedProducts
+    .filter(p => p.category !== null)
+    .map(p => ({
+      ...p,
+      status: p.status === "HIDDEN" ? "DRAFT" : p.status as ProductStatus,
+      category: p.category as Category,
+      images: p.images.map(img => ({
+        ...img,
+        id: Number(img.id),
+        productId: Number(img.productId),
+      })),
+      // Provide default values for optional fields
+      handle: '',
+      compareAtPrice: null,
+      costPerItem: null,
+      barcode: null,
+      inventoryPolicy: "DENY" as "DENY" | "CONTINUE",
+      allowBackorder: false,
+      taxable: false,
+      taxCode: null,
+      weight: null,
+      weightUnit: null,
+      requiresShipping: false,
+      shippingProfile: null,
+      fulfillmentService: null,
+      metaTitle: null,
+      metaDescription: null,
+      metaKeywords: null,
+      ogImage: null,
+      twitterImage: null,
+      seoTitle: null,
+      seoDescription: null,
+      seoKeywords: null,
+      vendor: null,
+      type: null,
+      tags: [],
+      variants: p.variants.map(variant => ({
+        ...variant,
+        price: variant.price as unknown as Prisma.Decimal,
+        reservedStock: 0,
+        productId: Number(p.id),
+        attributes: variant.options,
+      })),
+      metafields: [],
+      optionsJson: null,
+      publishedAt: null,
+    }));
 
   // Convert Prisma model to our Product type
   const typedProduct: Product = {
     ...product,
+    status: product.status === "HIDDEN" ? "DRAFT" : product.status as ProductStatus,
     category: product.category as Category,
     images: product.images.map(img => ({
       ...img,
@@ -193,51 +275,17 @@ export default async function ProductPage({ params }: ProductPageProps) {
     vendor: null,
     type: null,
     tags: [],
-    variants: product.variants || [],
+    variants: product.variants.map(variant => ({
+      ...variant,
+      price: variant.price as unknown as Prisma.Decimal,
+      reservedStock: 0,
+      productId: Number(product.id),
+      attributes: variant.options,
+    })),
     metafields: [],
     optionsJson: null,
     publishedAt: null,
   };
-
-  // Use the Prisma types directly for related products
-  const typedRelatedProducts = productsWithCategories.map(product => ({
-    ...product,
-    category: product.category as Category,
-    images: product.images.map(img => ({
-      ...img,
-      id: Number(img.id),
-      productId: Number(img.productId),
-    })),
-    // Provide default values for optional fields
-    handle: '',
-    compareAtPrice: null,
-    costPerItem: null,
-    barcode: null,
-    inventoryPolicy: "DENY" as "DENY" | "CONTINUE",
-    allowBackorder: false,
-    taxable: false,
-    taxCode: null,
-    weight: null,
-    weightUnit: null,
-    requiresShipping: false,
-    shippingProfile: null,
-    fulfillmentService: null,
-    metaTitle: null,
-    metaDescription: null,
-    metaKeywords: null,
-    ogImage: null,
-    twitterImage: null,
-    seoTitle: null,
-    seoDescription: null,
-    seoKeywords: null,
-    vendor: null,
-    type: null,
-    tags: [],
-    variants: product.variants || [],
-    metafields: [],
-    optionsJson: null,
-    publishedAt: null,
-  }));
 
   return (
     <div className="bg-white">
@@ -246,7 +294,7 @@ export default async function ProductPage({ params }: ProductPageProps) {
           <ProductGallery images={typedProduct.images.map(img => img.url)} name={typedProduct.name} />
           <ProductInfo product={typedProduct} />
         </div>
-        <RelatedProducts products={typedRelatedProducts} />
+        <RelatedProducts products={productsWithCategories} />
       </div>
     </div>
   );
