@@ -36,8 +36,18 @@ interface ProductPageProps {
 }
 
 export default async function ProductPage({ params }: ProductPageProps) {
-  const rawProduct = await prisma.product.findUnique({
-    where: { slug: params.slug },
+  if (!params.slug || params.slug === 'null') {
+    notFound();
+  }
+
+  const rawProduct = await prisma.product.findFirst({
+    where: {
+      OR: [
+        { slug: params.slug },
+        { handle: params.slug },
+        { id: parseInt(params.slug) || undefined }
+      ]
+    },
     select: {
       id: true,
       name: true,

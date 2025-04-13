@@ -52,12 +52,41 @@ export default async function ShopPage({ searchParams }: ShopPageProps) {
     // Convert Prisma products to our Product type
     products = dbProducts.map(p => ({
       ...p,
+      slug: p.slug || p.handle || `product-${p.id}`, // Ensure we always have a slug
       images: p.images,
       variants: p.variants.map(v => ({
         ...v,
         options: v.options as Record<string, string>,
         attributes: (v.options || {}) as Record<string, string>,
       })),
+      // Add default values for optional fields
+      handle: p.handle || '',
+      compareAtPrice: null,
+      costPerItem: null,
+      barcode: null,
+      inventoryPolicy: "DENY" as "DENY" | "CONTINUE",
+      allowBackorder: false,
+      taxable: false,
+      taxCode: null,
+      weight: null,
+      weightUnit: null,
+      requiresShipping: false,
+      shippingProfile: null,
+      fulfillmentService: null,
+      metaTitle: null,
+      metaDescription: null,
+      metaKeywords: null,
+      ogImage: null,
+      twitterImage: null,
+      seoTitle: null,
+      seoDescription: null,
+      seoKeywords: null,
+      vendor: null,
+      type: null,
+      tags: [],
+      metafields: [],
+      optionsJson: null,
+      publishedAt: null,
     })) as unknown as Product[];
   } catch (err) {
     console.error("Error fetching products:", err);
