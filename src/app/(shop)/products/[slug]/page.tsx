@@ -93,7 +93,9 @@ export default async function ProductPage({ params }: ProductPageProps) {
           id: true,
           name: true,
           price: true,
+          compareAtPrice: true,
           stock: true,
+          reservedStock: true,
           options: true,
           images: true,
           sku: true,
@@ -103,7 +105,12 @@ export default async function ProductPage({ params }: ProductPageProps) {
           lowStockThreshold: true,
           weight: true,
           weightUnit: true,
-          dimensions: true
+          dimensions: true,
+          attributes: true,
+          productId: true
+        },
+        where: {
+          isActive: true
         }
       },
     },
@@ -250,6 +257,14 @@ export default async function ProductPage({ params }: ProductPageProps) {
       id: Number(img.id),
       productId: Number(img.productId),
     })),
+    variants: product.variants.map(variant => ({
+      ...variant,
+      price: variant.price as unknown as Prisma.Decimal,
+      compareAtPrice: variant.compareAtPrice as unknown as Prisma.Decimal,
+      options: variant.options as Record<string, string>,
+      attributes: variant.attributes as Record<string, string>,
+      availableStock: variant.stock - variant.reservedStock
+    })),
     // Provide default values for optional fields
     handle: '',
     compareAtPrice: null,
@@ -275,13 +290,6 @@ export default async function ProductPage({ params }: ProductPageProps) {
     vendor: null,
     type: null,
     tags: [],
-    variants: product.variants.map(variant => ({
-      ...variant,
-      price: variant.price as unknown as Prisma.Decimal,
-      reservedStock: 0,
-      productId: Number(product.id),
-      attributes: variant.options,
-    })),
     metafields: [],
     optionsJson: null,
     publishedAt: null,
