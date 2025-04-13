@@ -3,6 +3,7 @@ import { ProductGrid } from "@/components/shop/product-grid";
 import { CategoryFilter } from "@/components/shop/category-filter";
 import { SortSelect } from "@/components/shop/sort-select";
 import { SearchInput } from "@/components/shop/search-input";
+import { prisma } from "@/lib/prisma";
 
 export const metadata: Metadata = {
   title: "Shop - BINWAHAB",
@@ -13,7 +14,36 @@ interface ShopPageProps {
   searchParams: { [key: string]: string | string[] | undefined };
 }
 
-export default function ShopPage({ searchParams }: ShopPageProps) {
+export default async function ShopPage({ searchParams }: ShopPageProps) {
+  // Fetch products based on search parameters
+  const products = await prisma.product.findMany({
+    where: {
+      status: "ACTIVE",
+      ...(searchParams.category ? {
+        categoryId: searchParams.category as string
+      } : {}),
+      ...(searchParams.search ? {
+        OR: [
+          { name: { contains: searchParams.search as string, mode: 'insensitive' } },
+          { description: { contains: searchParams.search as string, mode: 'insensitive' } },
+        ]
+      } : {}),
+    },
+    include: {
+      category: true,
+      images: {
+        select: {
+          url: true,
+        },
+      },
+    },
+    orderBy: searchParams.sort === 'price_desc' 
+      ? { price: 'desc' }
+      : searchParams.sort === 'price_asc'
+      ? { price: 'asc' }
+      : { createdAt: 'desc' },
+  });
+
   return (
     <main className="container mx-auto px-4 py-8">
       <div className="flex flex-col gap-8">
@@ -33,7 +63,7 @@ export default function ShopPage({ searchParams }: ShopPageProps) {
             <div className="flex justify-end">
               <SortSelect />
             </div>
-            <ProductGrid searchParams={searchParams} />
+            <ProductGrid products={products} />
           </div>
         </div>
       </div>

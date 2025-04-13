@@ -9,6 +9,10 @@ export default async function NewProductPage() {
       },
     }),
     prisma.collection.findMany({
+      select: {
+        id: true,
+        name: true,
+      },
       orderBy: {
         name: "asc",
       },

@@ -156,18 +156,63 @@ export default async function ProductPage({ params }: ProductPageProps) {
     { label: product.name, href: `/shop/products/${product.slug}` },
   ];
 
+  // Helper function to convert Prisma category to our Category type
+  const convertCategory = (prismaCategory: any) => ({
+    id: prismaCategory.id,
+    name: prismaCategory.name,
+    slug: prismaCategory.slug,
+    description: prismaCategory.description || null,
+    image: prismaCategory.image || null,
+    isActive: prismaCategory.isActive,
+    parentId: prismaCategory.parentId || null,
+    seoTitle: prismaCategory.seoTitle || null,
+    seoDescription: prismaCategory.seoDescription || null,
+    seoKeywords: prismaCategory.seoKeywords || null,
+    createdAt: prismaCategory.createdAt,
+    updatedAt: prismaCategory.updatedAt,
+    order: prismaCategory.order,
+  });
+
+  // Convert Prisma model to our Product type
+  const typedProduct = {
+    ...product,
+    category: product.category ? convertCategory(product.category) : null,
+    images: product.images.map(img => ({
+      ...img,
+      id: Number(img.id),
+      productId: Number(img.productId),
+    })),
+    tags: product.tags || [],
+    variants: product.variants || [],
+    metafields: product.metafields || [],
+  };
+
+  // Convert related products
+  const typedRelatedProducts = relatedProducts.map(p => ({
+    ...p,
+    category: p.category ? convertCategory(p.category) : null,
+    images: p.images.map(img => ({
+      ...img,
+      id: Number(img.id),
+      productId: Number(img.productId),
+    })),
+    tags: p.tags || [],
+    variants: p.variants || [],
+    metafields: p.metafields || [],
+  }));
+
   return (
     <div className="container mx-auto px-4 py-8">
       <Breadcrumb items={breadcrumbItems} />
       <div className="mt-8 grid grid-cols-1 gap-8 md:grid-cols-2">
         <ProductGallery 
-          images={product.images.map(img => img.url)} 
-          name={product.name} 
+          images={typedProduct.images.map(img => img.url)} 
+          name={typedProduct.name} 
         />
-        <ProductInfo product={product} />
+        <ProductInfo product={typedProduct} />
       </div>
       <div className="mt-16">
-        <RelatedProducts products={relatedProducts} />
+        <RelatedProducts products={typedRelatedProducts} />
       </div>
     </div>
   );

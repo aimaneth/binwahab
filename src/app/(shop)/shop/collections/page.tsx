@@ -12,7 +12,11 @@ export const metadata: Metadata = {
 async function getCollections() {
   const collections = await prisma.collection.findMany({
     orderBy: { createdAt: 'desc' },
-    include: {
+    select: {
+      id: true,
+      name: true,
+      description: true,
+      image: true,
       products: {
         select: {
           product: {

@@ -287,6 +287,16 @@ export default async function CategoryPage({ params }: { params: { categoryId: s
     notFound();
   }
 
+  // Fetch all categories for the filters
+  const categories = await prisma.category.findMany({
+    where: {
+      isActive: true,
+    },
+    orderBy: {
+      order: 'asc',
+    },
+  });
+
   // Filter out products with null categories and ensure correct typing
   const productsWithCategories = category.products.filter((product): product is Product & { category: Category } => 
     product.category !== null
@@ -322,7 +332,7 @@ export default async function CategoryPage({ params }: { params: { categoryId: s
             <div className="flex flex-col gap-8 lg:flex-row">
               {/* Filters Sidebar */}
               <div className="w-full lg:w-64">
-                <ProductFilters />
+                <ProductFilters categories={categories} />
               </div>
 
               {/* Product Grid */}

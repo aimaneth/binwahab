@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { CollectionRulesDialog } from "./collection-rules-dialog";
-import { Collection } from "@/types/collection";
+import { Collection } from "@prisma/client";
 
 interface CollectionRulesProps {
   collection: Collection;

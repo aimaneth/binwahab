@@ -6,7 +6,7 @@ import { Plus } from "lucide-react";
 import { columns } from "./columns";
 import { useEffect, useState } from "react";
 import { CollectionDialog } from "./collection-dialog";
-import { Collection } from "@/types/collection";
+import { Collection } from "@prisma/client";
 import { toast } from "sonner";
 
 export default function CollectionsPage() {

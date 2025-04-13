@@ -1,5 +1,11 @@
 import { useRouter, useSearchParams } from "next/navigation";
-import { Select } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 const sortOptions = [
   { value: "manual", label: "Featured" },
@@ -27,17 +33,17 @@ export function CollectionSort() {
       <label htmlFor="sort" className="text-sm text-gray-600">
         Sort by:
       </label>
-      <Select
-        id="sort"
-        value={currentSort}
-        onValueChange={handleSortChange}
-        className="w-48"
-      >
-        {sortOptions.map((option) => (
-          <option key={option.value} value={option.value}>
-            {option.label}
-          </option>
-        ))}
+      <Select value={currentSort} onValueChange={handleSortChange}>
+        <SelectTrigger className="w-48">
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          {sortOptions.map((option) => (
+            <SelectItem key={option.value} value={option.value}>
+              {option.label}
+            </SelectItem>
+          ))}
+        </SelectContent>
       </Select>
     </div>
   );

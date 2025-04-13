@@ -32,6 +32,7 @@ export async function POST(
       data: {
         name: `${originalProduct.name} (Copy)`,
         description: originalProduct.description,
+        handle: `${originalProduct.handle}-copy-${Date.now()}`,
         price: originalProduct.price,
         image: originalProduct.image,
         stock: originalProduct.stock,
@@ -45,7 +46,6 @@ export async function POST(
             // Handle dimensions separately to ensure correct type
             const dimensions = variant.dimensions === null ? Prisma.JsonNull : variant.dimensions;
             const options = variant.options === null ? Prisma.JsonNull : variant.options;
-            const attributes = variant.attributes === null ? Prisma.JsonNull : variant.attributes;
             
             return {
               name: variant.name,
@@ -62,7 +62,6 @@ export async function POST(
               weight: variant.weight,
               weightUnit: variant.weightUnit,
               dimensions: dimensions,
-              attributes: attributes,
               barcode: variant.barcode,
             };
           }),

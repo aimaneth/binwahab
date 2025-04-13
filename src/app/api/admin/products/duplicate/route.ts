@@ -1,93 +1,149 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { Product, ProductVariant, ProductCollection, Prisma } from '@prisma/client';
+import { Prisma, ProductStatus } from '@prisma/client';
 
-type ProductWithRelations = Product & {
-  images: {
-    id: number;
+interface ProductWithRelations {
+  id: number;
+  name: string;
+  description: string;
+  descriptionHtml: string | null;
+  handle: string;
+  price: Prisma.Decimal;
+  compareAtPrice: Prisma.Decimal | null;
+  costPerItem: Prisma.Decimal | null;
+  stock: number;
+  reservedStock: number;
+  slug: string | null;
+  isActive: boolean;
+  status: ProductStatus;
+  image: string | null;
+  categoryId: string | null;
+  optionsJson: Prisma.JsonValue | null;
+  variants: Array<{
+    name: string;
+    price: Prisma.Decimal;
+    stock: number;
+    sku: string;
+    compareAtPrice: Prisma.Decimal | null;
+    isActive: boolean;
+    options: Prisma.JsonValue;
+    lowStockThreshold: number | null;
+    reservedStock: number;
+    images: string[];
+    inventoryTracking: boolean;
+    weight: number | null;
+    weightUnit: string | null;
+    dimensions: Prisma.JsonValue | null;
+    barcode: string | null;
+  }>;
+  images: Array<{
     url: string;
     order: number;
-    productId: number;
-    createdAt: Date;
-    updatedAt: Date;
-  }[];
-  variants: ProductVariant[];
-  collections: ProductCollection[];
-};
+  }>;
+  collections: Array<{
+    collection: {
+      id: string;
+    };
+  }>;
+}
 
-export async function POST(request: Request) {
+export async function POST(
+  request: Request,
+  { params }: { params: { productId: string } }
+) {
   try {
-    const { productId } = await request.json();
+    const productId = parseInt(params.productId, 10);
 
-    // Get the original product with all its relations
+    // Get the original product with its relationships
     const product = await prisma.product.findUnique({
       where: { id: productId },
       include: {
-        images: true,
         variants: true,
-        collections: true
-      }
+        collections: {
+          include: {
+            collection: true
+          }
+        },
+        images: true,
+      },
     });
 
     if (!product) {
-      return NextResponse.json(
-        { error: 'Product not found' },
-        { status: 404 }
-      );
+      return new NextResponse("Product not found", { status: 404 });
     }
 
-    // Prepare product data without relations
-    const { images, variants, collections, ...productData } = product as ProductWithRelations;
+    const typedProduct = product as unknown as ProductWithRelations;
 
-    // Create the new product
-    const newProduct = await prisma.product.create({
+    // Create a copy of the product with a modified name
+    const duplicatedProduct = await prisma.product.create({
       data: {
-        ...productData,
-        name: `${productData.name} (Copy)`,
-        slug: `${productData.slug}-copy`,
-        image: productData.image, // Keep the main image
-        images: {
-          create: images.map(img => ({
-            url: img.url,
-            order: img.order
-          }))
-        },
+        name: `${typedProduct.name} (Copy)`,
+        description: typedProduct.description,
+        handle: `${typedProduct.handle}-copy-${Date.now()}`,
+        price: typedProduct.price,
+        image: typedProduct.image,
+        stock: typedProduct.stock,
+        categoryId: typedProduct.categoryId,
+        isActive: false, // Set to inactive by default
+        slug: `${typedProduct.slug}-copy-${Date.now()}`, // Ensure unique slug
+        status: typedProduct.status || ProductStatus.DRAFT,
+        optionsJson: typedProduct.optionsJson === null ? Prisma.JsonNull : typedProduct.optionsJson,
+        // Duplicate variants
         variants: {
-          create: variants.map(variant => {
-            const variantData: Prisma.ProductVariantCreateWithoutProductInput = {
+          create: typedProduct.variants.map((variant) => {
+            // Handle dimensions separately to ensure correct type
+            const dimensions = variant.dimensions === null ? Prisma.JsonNull : variant.dimensions;
+            const options = variant.options === null ? Prisma.JsonNull : variant.options;
+            
+            return {
               name: variant.name,
               price: variant.price,
+              stock: variant.stock,
+              sku: `${variant.sku}-copy`,
               compareAtPrice: variant.compareAtPrice,
-              sku: variant.sku,
-              barcode: variant.barcode,
+              isActive: variant.isActive,
+              options: options,
+              lowStockThreshold: variant.lowStockThreshold,
+              reservedStock: variant.reservedStock,
+              images: variant.images,
+              inventoryTracking: variant.inventoryTracking,
               weight: variant.weight,
               weightUnit: variant.weightUnit,
-              inventoryTracking: variant.inventoryTracking,
-              lowStockThreshold: variant.lowStockThreshold,
-              options: variant.options as Prisma.InputJsonValue
+              dimensions: dimensions,
+              barcode: variant.barcode,
             };
-            return variantData;
-          })
+          }),
         },
+        // Duplicate collection relationships
         collections: {
-          create: collections.map(collection => ({
-            collectionId: collection.collectionId
-          }))
-        }
+          create: typedProduct.collections.map((pc) => ({
+            collection: {
+              connect: { id: pc.collection.id },
+            },
+          })),
+        },
+        // Duplicate product images
+        images: {
+          create: typedProduct.images.map((image) => ({
+            url: image.url,
+            order: image.order,
+          })),
+        },
       },
       include: {
-        images: true,
         variants: true,
-        collections: true
-      }
+        collections: {
+          include: {
+            collection: true
+          }
+        },
+        images: true,
+      },
     });
 
-    return NextResponse.json(newProduct);
+    return NextResponse.json(duplicatedProduct);
   } catch (error) {
-    console.error('Error duplicating product:', error);
-    return NextResponse.json(
-      { error: 'Failed to duplicate product' },
-      { status: 500 }
-    );
+    console.error("[PRODUCT_DUPLICATE]", error);
+    return new NextResponse("Internal error", { status: 500 });
   }
 } 

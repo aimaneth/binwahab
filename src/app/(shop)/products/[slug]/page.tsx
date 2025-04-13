@@ -5,6 +5,7 @@ import { ProductGallery } from "@/components/shop/product-gallery";
 import { ProductInfo } from "@/components/shop/product-info";
 import { RelatedProducts } from "@/components/shop/related-products";
 import { Product, Category } from "@/types/product";
+import { Prisma } from "@prisma/client";
 
 interface ProductPageProps {
   params: {
@@ -42,19 +43,46 @@ export default async function ProductPage({ params }: ProductPageProps) {
       id: true,
       name: true,
       description: true,
-      image: true,
+      descriptionHtml: true,
+      handle: true,
       price: true,
+      compareAtPrice: true,
+      costPerItem: true,
       stock: true,
       reservedStock: true,
       slug: true,
       isActive: true,
       status: true,
+      image: true,
+      sku: true,
+      barcode: true,
+      inventoryTracking: true,
+      inventoryPolicy: true,
+      allowBackorder: true,
+      lowStockThreshold: true,
+      taxable: true,
+      taxCode: true,
+      weight: true,
+      weightUnit: true,
+      requiresShipping: true,
+      shippingProfile: true,
+      fulfillmentService: true,
+      metaTitle: true,
+      metaDescription: true,
+      metaKeywords: true,
+      ogImage: true,
+      twitterImage: true,
+      seoTitle: true,
+      seoDescription: true,
+      seoKeywords: true,
+      vendor: true,
+      type: true,
+      tags: true,
       categoryId: true,
       createdAt: true,
       updatedAt: true,
-      sku: true,
-      inventoryTracking: true,
-      lowStockThreshold: true,
+      publishedAt: true,
+      optionsJson: true,
       category: {
         select: {
           id: true,
@@ -85,6 +113,8 @@ export default async function ProductPage({ params }: ProductPageProps) {
           order: "asc",
         },
       },
+      variants: true,
+      metafields: true,
     },
   });
 
@@ -105,19 +135,46 @@ export default async function ProductPage({ params }: ProductPageProps) {
       id: true,
       name: true,
       description: true,
-      image: true,
+      descriptionHtml: true,
+      handle: true,
       price: true,
+      compareAtPrice: true,
+      costPerItem: true,
       stock: true,
       reservedStock: true,
       slug: true,
       isActive: true,
       status: true,
+      image: true,
+      sku: true,
+      barcode: true,
+      inventoryTracking: true,
+      inventoryPolicy: true,
+      allowBackorder: true,
+      lowStockThreshold: true,
+      taxable: true,
+      taxCode: true,
+      weight: true,
+      weightUnit: true,
+      requiresShipping: true,
+      shippingProfile: true,
+      fulfillmentService: true,
+      metaTitle: true,
+      metaDescription: true,
+      metaKeywords: true,
+      ogImage: true,
+      twitterImage: true,
+      seoTitle: true,
+      seoDescription: true,
+      seoKeywords: true,
+      vendor: true,
+      type: true,
+      tags: true,
       categoryId: true,
       createdAt: true,
       updatedAt: true,
-      sku: true,
-      inventoryTracking: true,
-      lowStockThreshold: true,
+      optionsJson: true,
+      publishedAt: true,
       category: {
         select: {
           id: true,
@@ -148,6 +205,8 @@ export default async function ProductPage({ params }: ProductPageProps) {
           order: "asc",
         },
       },
+      variants: true,
+      metafields: true,
     },
   });
 
@@ -163,17 +222,15 @@ export default async function ProductPage({ params }: ProductPageProps) {
       id: Number(img.id),
       productId: Number(img.productId),
     })),
+    tags: product.tags || [],
+    variants: product.variants || [],
+    metafields: product.metafields || [],
+    optionsJson: product.optionsJson || null,
+    publishedAt: product.publishedAt || null,
   };
 
-  const typedRelatedProducts: Product[] = productsWithCategories.map(p => ({
-    ...p,
-    category: p.category as Category,
-    images: p.images.map(img => ({
-      ...img,
-      id: Number(img.id),
-      productId: Number(img.productId),
-    })),
-  }));
+  // Use the Prisma types directly for related products
+  const typedRelatedProducts = productsWithCategories;
 
   return (
     <div className="bg-white">

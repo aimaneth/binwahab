@@ -11,11 +11,13 @@ import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
 import { Card, CardContent } from "@/components/ui/card";
 import { ImageUpload } from "@/components/ui/image-upload";
-import { Collection, CollectionType } from "@/types/collection";
+import { Collection } from "@prisma/client";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { CollectionPreview } from "@/components/collections/collection-preview";
 import { CollectionTemplates } from "@/components/collections/collection-templates";
 import { Checkbox } from "@/components/ui/checkbox";
+
+type CollectionType = "MANUAL" | "AUTOMATED";
 
 interface ConditionRule {
   field: string;
@@ -43,7 +45,7 @@ export function CollectionDialog({
 }: CollectionDialogProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [name, setName] = useState(collection?.name ?? "");
-  const [slug, setSlug] = useState(collection?.slug ?? "");
+  const [handle, setHandle] = useState(collection?.handle ?? "");
   const [description, setDescription] = useState(collection?.description ?? "");
   const [image, setImage] = useState(collection?.image ?? "");
   const [image2, setImage2] = useState(collection?.image2 ?? "");
@@ -67,7 +69,7 @@ export function CollectionDialog({
     if (collection) {
       // Update state with collection data
       setName(collection.name || "");
-      setSlug(collection.slug || "");
+      setHandle(collection.handle || "");
       setDescription(collection.description || "");
       setImage(collection.image || "");
       setImage2(collection.image2 || "");
@@ -93,7 +95,7 @@ export function CollectionDialog({
     } else {
       // Reset state for new collection
       setName("");
-      setSlug("");
+      setHandle("");
       setDescription("");
       setImage("");
       setImage2("");
@@ -122,7 +124,7 @@ export function CollectionDialog({
     try {
       const data = {
         name,
-        slug,
+        handle,
         description,
         image,
         image2,
@@ -250,11 +252,11 @@ export function CollectionDialog({
                     </div>
 
                     <div className="space-y-2">
-                      <Label htmlFor="slug">Slug</Label>
+                      <Label htmlFor="handle">Handle</Label>
                       <Input
-                        id="slug"
-                        value={slug}
-                        onChange={(e) => setSlug(e.target.value)}
+                        id="handle"
+                        value={handle}
+                        onChange={(e) => setHandle(e.target.value)}
                         required
                       />
                     </div>

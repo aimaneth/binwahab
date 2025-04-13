@@ -26,15 +26,16 @@ async function getCollection(slug: string) {
   try {
     const collection = await prisma.collection.findFirst({
       where: {
-        slug: slug
+        handle: slug
       },
       include: {
         products: {
           include: {
             product: {
               include: {
-                category: true
-              }
+                images: true,
+                variants: true,
+              },
             }
           }
         }
@@ -88,7 +89,9 @@ export async function generateMetadata({ params }: CollectionPageProps): Promise
 }
 
 export default async function CollectionPage({ params }: CollectionPageProps) {
-  const result = await getCollection(params.slug);
+  const { slug } = params;
+
+  const result = await getCollection(slug);
 
   if (!result) {
     notFound();
@@ -103,7 +106,7 @@ export default async function CollectionPage({ params }: CollectionPageProps) {
     },
     {
       label: collection.name,
-      href: `/collections/${collection.slug}`,
+      href: `/collections/${collection.handle}`,
     },
   ];
 

@@ -27,19 +27,32 @@ export async function GET() {
       orderBy: {
         createdAt: "desc",
       },
-      include: {
-        category: true,
-        collections: {
-          include: {
-            collection: true
+      select: {
+        id: true,
+        name: true,
+        description: true,
+        price: true,
+        image: true,
+        category: {
+          select: {
+            name: true
           }
         },
-        variants: {
-          take: 1
+        collections: {
+          select: {
+            collection: {
+              select: {
+                name: true
+              }
+            }
+          }
         },
         images: {
           orderBy: {
             order: "asc"
+          },
+          select: {
+            url: true
           }
         }
       },

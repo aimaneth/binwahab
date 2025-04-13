@@ -93,6 +93,16 @@ export default async function CollectionPage({ params }: { params: { collectionI
     notFound();
   }
 
+  // Fetch all categories for the filters
+  const categories = await prisma.category.findMany({
+    where: {
+      isActive: true,
+    },
+    orderBy: {
+      order: 'asc',
+    },
+  });
+
   return (
     <div className="min-h-screen flex flex-col bg-white">
       <Navbar />
@@ -113,7 +123,7 @@ export default async function CollectionPage({ params }: { params: { collectionI
             {/* Search and Filters Header */}
             <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
               <SearchBar />
-              <ProductFilters />
+              <ProductFilters categories={categories} />
             </div>
 
             {/* Products Grid */}

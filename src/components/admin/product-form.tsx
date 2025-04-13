@@ -21,6 +21,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ProductVariantForm } from "./product-variant-form";
 import { ImageUpload } from "./image-upload";
 import { useUploadThing } from "@/lib/uploadthing-client";
+import { ProductStatus } from "@prisma/client";
 
 type ProductWithRelations = {
   id: string;
@@ -34,13 +35,11 @@ type ProductWithRelations = {
   updatedAt: Date;
   slug?: string;
   stock?: number;
-  status?: "DRAFT" | "ACTIVE" | "ARCHIVED";
+  status?: ProductStatus;
   collections?: { collectionId: string }[];
   variants?: any[];
   images?: string[];
 };
-
-type ProductStatus = "DRAFT" | "ACTIVE" | "ARCHIVED";
 
 interface ProductFormProps {
   product?: ProductWithRelations;
@@ -69,7 +68,7 @@ export function ProductForm({ product, categories, collections }: ProductFormPro
     image: string;
     images: string[];
     isActive: boolean;
-    status: "DRAFT" | "ACTIVE" | "ARCHIVED";
+    status: ProductStatus;
     collectionIds: string[];
   }>({
     name: product?.name || "",

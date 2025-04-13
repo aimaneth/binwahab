@@ -20,14 +20,13 @@ export async function GET(
       },
       select: {
         id: true,
-        attributes: true,
         options: true,
       },
     });
 
     // Extract attributes from variants
     const attributes = variants.flatMap(variant => {
-      const attrs = variant.attributes as Record<string, any> || {};
+      const attrs = variant.options as Record<string, any> || {};
       return Object.entries(attrs).map(([key, value]) => ({
         id: `${variant.id}-${key}`,
         name: key,
@@ -70,7 +69,7 @@ export async function POST(
     }
 
     // Update the attributes
-    const currentAttributes = variant.attributes as Record<string, any> || {};
+    const currentAttributes = variant.options as Record<string, any> || {};
     const updatedAttributes = {
       ...currentAttributes,
       [name]: value,
@@ -80,7 +79,7 @@ export async function POST(
     const updatedVariant = await prisma.productVariant.update({
       where: { id: variantId },
       data: {
-        attributes: updatedAttributes,
+        options: updatedAttributes,
       },
     });
 
@@ -123,7 +122,7 @@ export async function PATCH(
     }
 
     // Update the attributes
-    const currentAttributes = variant.attributes as Record<string, any> || {};
+    const currentAttributes = variant.options as Record<string, any> || {};
     const updatedAttributes = {
       ...currentAttributes,
       [name]: value,
@@ -133,7 +132,7 @@ export async function PATCH(
     const updatedVariant = await prisma.productVariant.update({
       where: { id: variantId },
       data: {
-        attributes: updatedAttributes,
+        options: updatedAttributes,
       },
     });
 
@@ -177,14 +176,14 @@ export async function DELETE(
     }
 
     // Remove the attribute
-    const currentAttributes = variant.attributes as Record<string, any> || {};
+    const currentAttributes = variant.options as Record<string, any> || {};
     const { [name]: removed, ...remainingAttributes } = currentAttributes;
 
     // Update the variant with the remaining attributes
     await prisma.productVariant.update({
       where: { id: parseInt(variantId) },
       data: {
-        attributes: remainingAttributes,
+        options: remainingAttributes,
       },
     });
 

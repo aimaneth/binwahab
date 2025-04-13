@@ -132,6 +132,7 @@ export async function POST(req: Request) {
     const baseProduct = await prisma.product.create({
       data: {
         ...productData,
+        handle: productData.name.toLowerCase().replace(/[^a-z0-9]+/g, '-'), // Generate handle from name
         isActive: true,
         status: "ACTIVE" as const,
         image: images && images.length > 0 ? images[0] : null,

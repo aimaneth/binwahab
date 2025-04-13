@@ -119,7 +119,7 @@ export async function GET(request: Request) {
           "sku",
           "price",
           "stock",
-          "attributes",
+          "options",
         ];
         break;
       default:
@@ -135,8 +135,8 @@ export async function GET(request: Request) {
           data[field] = (product as ProductWithRelations).category?.name || "";
         } else if (field === "productName" && "product" in product) {
           data[field] = (product as ProductVariantWithProduct).product.name;
-        } else if (field === "attributes" && "attributes" in product) {
-          data[field] = JSON.stringify((product as ProductVariantWithProduct).attributes);
+        } else if (field === "options" && "options" in product) {
+          data[field] = JSON.stringify((product as ProductVariantWithProduct).options);
         } else {
           data[field] = product[field as keyof typeof product] || "";
         }
@@ -170,15 +170,17 @@ async function importProducts(records: any[]) {
   
   for (const record of records) {
     try {
+      const productData = {
+        name: record.name,
+        description: record.description,
+        handle: record.name.toLowerCase().replace(/[^a-z0-9]+/g, '-'),
+        price: parseFloat(record.price),
+        stock: parseInt(record.stock),
+        status: record.status as ProductStatus,
+        categoryId: record.categoryId,
+      };
       const product = await prisma.product.create({
-        data: {
-          name: record.name,
-          description: record.description,
-          price: parseFloat(record.price),
-          stock: parseInt(record.stock),
-          status: record.status as ProductStatus || ProductStatus.DRAFT,
-          categoryId: record.categoryId,
-        },
+        data: productData,
       });
       
       results.push({ success: true, id: product.id, name: product.name });
