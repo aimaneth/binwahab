@@ -1,7 +1,7 @@
 import { Prisma } from "@prisma/client";
 
 export type CollectionType = "MANUAL" | "AUTOMATED";
-export type CollectionSortOption = "MANUAL" | "BEST_SELLING" | "CREATED" | "PRICE_LOW_TO_HIGH" | "PRICE_HIGH_TO_LOW" | "TITLE_A_TO_Z" | "TITLE_Z_TO_A";
+export type CollectionSortOption = "MANUAL" | "BEST_SELLING" | "TITLE_ASC" | "TITLE_DESC" | "PRICE_ASC" | "PRICE_DESC" | "CREATED_ASC" | "CREATED_DESC";
 export type DisplaySection = "FEATURED" | "COMPLETE" | "NONE";
 
 export interface Collection {
