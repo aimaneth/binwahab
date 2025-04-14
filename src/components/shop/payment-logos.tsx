@@ -4,7 +4,7 @@ export function StripeLogo() {
   return (
     <Image
       src="/payment-logos/stripe.svg"
-      alt="Visa"
+      alt="Stripe"
       width={62}
       height={20}
       className="h-7 w-auto"

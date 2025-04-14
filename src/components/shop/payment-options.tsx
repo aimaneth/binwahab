@@ -1,69 +1,74 @@
 "use client";
 
-import { useId } from "react";
-import { Label } from "@/components/ui/label";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Building2, CreditCard } from "lucide-react";
 import { StripeLogo, VisaLogo, MastercardLogo, UnionPayLogo, LinkLogo, FPXLogo } from "./payment-logos";
-import { cn } from "@/lib/utils";
 
 interface PaymentOptionsProps {
   onPaymentMethodChange: (method: string) => void;
   selectedMethod?: string;
 }
 
-export function PaymentOptions({ onPaymentMethodChange, selectedMethod = "card" }: PaymentOptionsProps) {
-  const id = useId();
-
+export function PaymentOptions({
+  onPaymentMethodChange,
+  selectedMethod = "card",
+}: PaymentOptionsProps) {
   return (
-    <div className="space-y-4">
-      <h3 className="text-lg font-medium">Payment Method</h3>
-      <RadioGroup 
-        defaultValue={selectedMethod}
-        onValueChange={onPaymentMethodChange}
-        className="space-y-2"
-      >
-        {/* Credit/Debit Card Option */}
-        <Label
-          htmlFor={`${id}-card`}
-          className="cursor-pointer rounded-lg border border-input data-[state=checked]:border-2 data-[state=checked]:border-primary hover:bg-accent hover:text-accent-foreground"
-          data-state={selectedMethod === "card" ? "checked" : "unchecked"}
-        >
-          <div className="flex items-start justify-between p-4">
-            <div className="space-y-3">
-              <div className="flex gap-2">
-                <StripeLogo />
+    <div className="grid gap-4">
+      <div>
+        <div className="grid gap-2">
+          <label
+            className="flex cursor-pointer items-start gap-4 rounded-lg border p-4 hover:bg-accent"
+            onClick={() => onPaymentMethodChange("card")}
+          >
+            <input
+              type="radio"
+              name="payment-method"
+              className="mt-1"
+              checked={selectedMethod === "card"}
+              onChange={() => onPaymentMethodChange("card")}
+            />
+            <div className="grid gap-1">
+              <div className="flex items-center gap-2">
+                <CreditCard className="h-4 w-4" />
+                <span className="font-medium">Card</span>
+              </div>
+              <p className="text-sm text-muted-foreground">
+                Pay with your credit or debit card
+              </p>
+              <div className="flex gap-2 pt-2">
                 <VisaLogo />
                 <MastercardLogo />
                 <UnionPayLogo />
                 <LinkLogo />
               </div>
-              <div>
-                <div>Credit/Debit Card</div>
-                <div className="text-sm text-muted-foreground">Pay securely with your credit or debit card</div>
+            </div>
+          </label>
+          <label
+            className="flex cursor-pointer items-start gap-4 rounded-lg border p-4 hover:bg-accent"
+            onClick={() => onPaymentMethodChange("fpx")}
+          >
+            <input
+              type="radio"
+              name="payment-method"
+              className="mt-1"
+              checked={selectedMethod === "fpx"}
+              onChange={() => onPaymentMethodChange("fpx")}
+            />
+            <div className="grid gap-1">
+              <div className="flex items-center gap-2">
+                <Building2 className="h-4 w-4" />
+                <span className="font-medium">Online Banking (FPX)</span>
+              </div>
+              <p className="text-sm text-muted-foreground">
+                Pay directly from your bank account
+              </p>
+              <div className="flex gap-2 pt-2">
+                <FPXLogo />
               </div>
             </div>
-            <RadioGroupItem value="card" id={`${id}-card`} />
-          </div>
-        </Label>
-
-        {/* Bank Transfer (FPX) Option */}
-        <Label
-          htmlFor={`${id}-fpx`}
-          className="cursor-pointer rounded-lg border border-input data-[state=checked]:border-2 data-[state=checked]:border-primary hover:bg-accent hover:text-accent-foreground"
-          data-state={selectedMethod === "fpx" ? "checked" : "unchecked"}
-        >
-          <div className="flex items-start justify-between p-4">
-            <div className="space-y-3">
-              <FPXLogo />
-              <div>
-                <div>Bank Transfer (FPX)</div>
-                <div className="text-sm text-muted-foreground">Pay directly from your bank account</div>
-              </div>
-            </div>
-            <RadioGroupItem value="fpx" id={`${id}-fpx`} />
-          </div>
-        </Label>
-      </RadioGroup>
+          </label>
+        </div>
+      </div>
     </div>
   );
 } 

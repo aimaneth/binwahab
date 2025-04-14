@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
@@ -28,12 +28,17 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Loader2 } from "lucide-react";
 import { PaymentElement, useStripe, useElements, Elements } from '@stripe/react-stripe-js';
 import { loadStripe } from '@stripe/stripe-js';
-import type { PaymentIntent, StripeError } from '@stripe/stripe-js';
+import type { PaymentIntent, StripeError, StripeElementsOptions } from '@stripe/stripe-js';
 import { PaymentOptions } from "@/components/shop/payment-options";
 
 // Make sure to call loadStripe outside of a component's render to avoid
 // recreating the Stripe object on every render.
-const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY ?? '');
+const publishableKey = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY;
+if (!publishableKey) {
+  throw new Error('Stripe publishable key is missing. Please check your environment variables.');
+}
+
+const stripePromise = loadStripe(publishableKey);
 
 // Log Stripe initialization for debugging
 if (!process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY) {
@@ -66,18 +71,85 @@ interface PaymentIntentResponse {
   error?: StripeError;
 }
 
+function PaymentForm({ clientSecret }: { clientSecret: string }) {
+  const stripe = useStripe();
+  const elements = useElements();
+  const [error, setError] = useState<string | null>(null);
+  const [isProcessing, setIsProcessing] = useState(false);
+  const router = useRouter();
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!stripe || !elements) {
+      console.error('Stripe.js has not loaded yet.');
+      return;
+    }
+
+    setIsProcessing(true);
+
+    try {
+      const { error: submitError } = await stripe.confirmPayment({
+        elements,
+        confirmParams: {
+          return_url: `${window.location.origin}/orders`,
+        },
+      });
+
+      if (submitError) {
+        setError(submitError.message || 'An error occurred during payment.');
+        toast.error(submitError.message || 'Payment failed. Please try again.');
+      }
+    } catch (err) {
+      console.error('Payment submission error:', err);
+      setError('An unexpected error occurred. Please try again.');
+      toast.error('Payment failed. Please try again.');
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  return (
+    <form onSubmit={handleSubmit}>
+      <div className="mb-8">
+        <PaymentElement />
+      </div>
+      {error && (
+        <div className="mb-4 text-sm text-red-600">
+          {error}
+        </div>
+      )}
+      <Button
+        type="submit"
+        disabled={!stripe || isProcessing}
+        className="w-full"
+      >
+        {isProcessing ? (
+          <>
+            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            Processing...
+          </>
+        ) : (
+          'Pay Now'
+        )}
+      </Button>
+    </form>
+  );
+}
+
 export function CheckoutForm({ addresses, items }: CheckoutFormProps) {
   const router = useRouter();
   const [step, setStep] = useState(1);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [clientSecret, setClientSecret] = useState("");
+  const [clientSecret, setClientSecret] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [stripeLoadError, setStripeLoadError] = useState<string | null>(null);
 
   useEffect(() => {
-    // Log initialization status and environment variables
-    console.log('Stripe initialization check:', {
-      hasPublishableKey: !!process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY,
-      publishableKey: process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY,
+    // Verify Stripe loads correctly
+    stripePromise.catch(err => {
+      console.error('Stripe initialization error:', err);
+      setStripeLoadError('Failed to load payment system. Please refresh the page or try again later.');
     });
   }, []);
 
@@ -101,7 +173,6 @@ export function CheckoutForm({ addresses, items }: CheckoutFormProps) {
       setIsSubmitting(true);
       setError(null);
       
-      // Create payment intent with shipping info
       const response = await fetch("/api/create-payment-intent", {
         method: "POST",
         headers: {
@@ -123,21 +194,15 @@ export function CheckoutForm({ addresses, items }: CheckoutFormProps) {
         }),
       });
 
+      const data = await response.json();
+
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to create payment intent');
+        throw new Error(data.error || 'Failed to create payment intent');
       }
 
-      const data = await response.json() as PaymentIntentResponse;
-
-      if (data.error) {
-        throw new Error(data.error.message || "Failed to create payment intent");
+      if (!data.clientSecret) {
+        throw new Error('No client secret received');
       }
-
-      console.log('Payment intent created successfully:', {
-        hasClientSecret: !!data.clientSecret,
-        clientSecretLength: data.clientSecret?.length,
-      });
 
       setClientSecret(data.clientSecret);
       setStep(2);
@@ -149,6 +214,16 @@ export function CheckoutForm({ addresses, items }: CheckoutFormProps) {
     } finally {
       setIsSubmitting(false);
     }
+  };
+
+  const options: StripeElementsOptions = {
+    clientSecret: clientSecret || '',
+    appearance: {
+      theme: 'stripe',
+      variables: {
+        colorPrimary: '#0F172A',
+      },
+    },
   };
 
   return (
@@ -359,111 +434,23 @@ export function CheckoutForm({ addresses, items }: CheckoutFormProps) {
       )}
 
       {step === 2 && clientSecret && (
-        <Elements stripe={stripePromise} options={{ 
-          clientSecret,
-          appearance: {
-            theme: 'stripe',
-            variables: {
-              colorPrimary: '#0F172A',
-            },
-          },
-          loader: 'always',
-          fonts: [
-            {
-              cssSrc: 'https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap',
-            },
-          ],
-        }}>
-          <StripeCheckoutForm onBack={() => setStep(1)} />
-        </Elements>
+        <Card>
+          <CardHeader>
+            <CardTitle>Payment Information</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <Elements stripe={stripePromise} options={options}>
+              <PaymentForm clientSecret={clientSecret} />
+            </Elements>
+          </CardContent>
+        </Card>
+      )}
+
+      {stripeLoadError && (
+        <div className="text-sm text-red-500">
+          {stripeLoadError}
+        </div>
       )}
     </div>
-  );
-}
-
-function StripeCheckoutForm({ onBack }: { onBack: () => void }) {
-  const stripe = useStripe();
-  const elements = useElements();
-  const [isLoading, setIsLoading] = useState(false);
-  const [paymentMethod, setPaymentMethod] = useState<'card' | 'fpx'>('card');
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-
-    if (!stripe || !elements) {
-      console.error('Stripe.js has not loaded');
-      return;
-    }
-
-    setIsLoading(true);
-
-    try {
-      const { error } = await stripe.confirmPayment({
-        elements,
-        confirmParams: {
-          return_url: `${window.location.origin}/shop/orders`,
-        },
-      });
-
-      if (error) {
-        if (error.type === 'validation_error') {
-          toast.error('Please check your payment details');
-        } else {
-          toast.error(error.message || 'Payment failed');
-        }
-        console.error('Payment error:', error);
-      }
-    } catch (err) {
-      console.error('Payment submission error:', err);
-      toast.error('Failed to process payment');
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  return (
-    <form onSubmit={handleSubmit} className="space-y-6">
-      <div className="space-y-4">
-        <PaymentOptions 
-          onPaymentMethodChange={(method) => setPaymentMethod(method as 'card' | 'fpx')}
-          selectedMethod={paymentMethod}
-        />
-        
-        <div className="p-4 border rounded-lg">
-          <PaymentElement 
-            options={{
-              layout: {
-                type: 'tabs',
-                defaultCollapsed: false,
-              },
-              fields: {
-                billingDetails: 'never'
-              },
-              wallets: {
-                applePay: 'never',
-                googlePay: 'never'
-              },
-              paymentMethodOrder: [paymentMethod],
-            }}
-          />
-        </div>
-      </div>
-
-      <div className="flex justify-between">
-        <Button type="button" variant="outline" onClick={onBack}>
-          Back
-        </Button>
-        <Button type="submit" disabled={!stripe || isLoading}>
-          {isLoading ? (
-            <>
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              Processing...
-            </>
-          ) : (
-            'Pay Now'
-          )}
-        </Button>
-      </div>
-    </form>
   );
 } 
