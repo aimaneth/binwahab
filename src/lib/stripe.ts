@@ -9,6 +9,17 @@ export const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
   typescript: true,
 });
 
+export const getStripeInstance = () => {
+  if (!process.env.STRIPE_SECRET_KEY) {
+    throw new Error('STRIPE_SECRET_KEY is not defined');
+  }
+  
+  return new Stripe(process.env.STRIPE_SECRET_KEY, {
+    apiVersion: '2025-03-31.basil',
+    typescript: true,
+  });
+};
+
 export const formatAmountForStripe = (amount: number, currency: string): number => {
   const numberFormat = new Intl.NumberFormat(['en-US'], {
     style: 'currency',
