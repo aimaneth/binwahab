@@ -36,93 +36,51 @@ interface ProductPageProps {
 }
 
 export default async function ProductPage({ params }: ProductPageProps) {
-  if (!params.slug || params.slug === 'null') {
+  if (!params.slug) {
     notFound();
   }
+
+  // Check if the slug is in the format "product-{id}"
+  const productIdMatch = params.slug.match(/^product-(\d+)$/);
+  const productId = productIdMatch ? parseInt(productIdMatch[1]) : null;
 
   const rawProduct = await prisma.product.findFirst({
     where: {
       OR: [
         { slug: params.slug },
-        { handle: params.slug },
-        { id: parseInt(params.slug) || undefined }
-      ]
+        { id: productId || undefined },
+        { handle: params.slug }
+      ],
+      status: "ACTIVE"
     },
-    select: {
-      id: true,
-      name: true,
-      description: true,
-      image: true,
-      price: true,
-      stock: true,
-      reservedStock: true,
-      slug: true,
-      isActive: true,
-      status: true,
-      categoryId: true,
-      createdAt: true,
-      updatedAt: true,
-      sku: true,
-      inventoryTracking: true,
-      lowStockThreshold: true,
+    include: {
+      category: true,
       images: {
-        select: {
-          id: true,
-          url: true,
-          order: true,
-          productId: true,
-          createdAt: true,
-          updatedAt: true,
-        },
+        orderBy: {
+          order: 'asc'
+        }
       },
       variants: {
-        where: { isActive: true },
-        select: {
-          id: true,
-          name: true,
-          sku: true,
-          price: true,
-          compareAtPrice: true,
-          stock: true,
-          reservedStock: true,
-          options: true,
-          images: true,
-          inventoryTracking: true,
-          lowStockThreshold: true,
-          productId: true,
-          isActive: true,
-          barcode: true,
-          weight: true,
-          weightUnit: true,
-          dimensions: true,
-          attributes: true,
-        },
-      },
-      category: {
-        select: {
-          id: true,
-          name: true,
-          slug: true,
-          description: true,
-          image: true,
-          isActive: true,
-          parentId: true,
-          seoTitle: true,
-          seoDescription: true,
-          seoKeywords: true,
-          createdAt: true,
-          updatedAt: true,
-          order: true,
-        },
-      },
-    },
+        where: {
+          isActive: true
+        }
+      }
+    }
   });
 
   if (!rawProduct) {
     notFound();
   }
 
-  const product = rawProduct as unknown as Product;
+  const product = {
+    ...rawProduct,
+    variants: rawProduct.variants.map(variant => ({
+      ...variant,
+      options: variant.options as Record<string, string>,
+      dimensions: variant.dimensions as Record<string, any>,
+      attributes: variant.options as Record<string, any>
+    }))
+  } as unknown as Product;
 
   const rawRelatedProducts = await prisma.product.findMany({
     where: {

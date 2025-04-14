@@ -18,7 +18,11 @@ export function ProductCard({ product }: ProductCardProps) {
     ? product.images[0].url 
     : product.image || "/images/fallback-product.jpg";
   
-  const productUrl = `/shop/products/${product.slug}`;
+  // Ensure we have a valid slug, fallback to product ID if not
+  const productUrl = `/shop/products/${product.slug || `product-${product.id}`}`;
+
+  // Debug log to check product data
+  console.log('Product data:', { id: product.id, slug: product.slug, url: productUrl });
 
   return (
     <Card className="group overflow-hidden">
