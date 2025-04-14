@@ -55,7 +55,7 @@ export default async function CheckoutPage() {
 
   // Transform items to match the simplified CheckoutForm props type
   const checkoutItems = validItems.map((item) => ({
-    id: item.id.toString(),
+    id: item.product.id.toString(),
     quantity: item.quantity,
     product: {
       id: item.product!.id,
