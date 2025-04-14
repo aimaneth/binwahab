@@ -1,8 +1,14 @@
 "use client";
 
 import { useRouter, useSearchParams } from "next/navigation";
-import { Button } from "@/components/ui/button";
 import { useEffect, useState } from "react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 interface Category {
   id: string;
@@ -14,7 +20,7 @@ export function CategoryFilter() {
   const searchParams = useSearchParams();
   const [categories, setCategories] = useState<Category[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const currentCategory = searchParams.get("category");
+  const currentCategory = searchParams.get("category") || "";
 
   useEffect(() => {
     async function fetchCategories() {
@@ -33,49 +39,39 @@ export function CategoryFilter() {
     fetchCategories();
   }, []);
 
-  const handleCategoryClick = (categoryId: string) => {
-    const params = new URLSearchParams();
-    searchParams.forEach((value, key) => {
-      if (key !== "category") {
-        params.set(key, value);
-      }
-    });
-    
-    if (categoryId !== currentCategory) {
+  const handleCategoryChange = (categoryId: string) => {
+    const params = new URLSearchParams(searchParams.toString());
+    if (categoryId) {
       params.set("category", categoryId);
+    } else {
+      params.delete("category");
     }
-    
     router.push(`/shop?${params.toString()}`);
   };
 
   if (isLoading) {
     return (
-      <div className="space-y-4">
-        <h3 className="text-lg font-semibold">Categories</h3>
-        <div className="space-y-2">
-          {[...Array(5)].map((_, i) => (
-            <div key={i} className="h-10 w-full bg-muted animate-pulse rounded-md" />
-          ))}
-        </div>
-      </div>
+      <Select disabled>
+        <SelectTrigger className="w-[180px]">
+          <SelectValue placeholder="Loading categories..." />
+        </SelectTrigger>
+      </Select>
     );
   }
 
   return (
-    <div className="space-y-4">
-      <h3 className="text-lg font-semibold">Categories</h3>
-      <div className="space-y-2">
+    <Select value={currentCategory} onValueChange={handleCategoryChange}>
+      <SelectTrigger className="w-[180px]">
+        <SelectValue placeholder="All Categories" />
+      </SelectTrigger>
+      <SelectContent>
+        <SelectItem value="">All Categories</SelectItem>
         {categories.map((category) => (
-          <Button
-            key={category.id}
-            variant={currentCategory === category.id ? "default" : "ghost"}
-            className="w-full justify-start"
-            onClick={() => handleCategoryClick(category.id)}
-          >
+          <SelectItem key={category.id} value={category.id}>
             {category.name}
-          </Button>
+          </SelectItem>
         ))}
-      </div>
-    </div>
+      </SelectContent>
+    </Select>
   );
 } 

@@ -129,14 +129,21 @@ export default async function ShopPage({ searchParams }: ShopPageProps) {
   return (
     <main className="container mx-auto px-4 py-8">
       <div className="flex flex-col gap-8">
-        <div className="flex flex-col gap-4">
-          <h1 className="text-3xl font-bold">Shop</h1>
+        <div className="flex flex-col gap-6">
+          <div className="flex items-center justify-between">
+            <h1 className="text-3xl font-bold">Shop</h1>
+          </div>
           <ShopFilters />
         </div>
         
         {error ? (
           <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
             {error}
+          </div>
+        ) : products.length === 0 ? (
+          <div className="text-center py-12">
+            <h2 className="text-xl font-semibold text-gray-900">No products found</h2>
+            <p className="mt-2 text-gray-500">Try adjusting your search or filter criteria</p>
           </div>
         ) : (
           <ProductGrid products={products} />
