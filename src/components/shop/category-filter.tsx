@@ -20,7 +20,7 @@ export function CategoryFilter() {
   const searchParams = useSearchParams();
   const [categories, setCategories] = useState<Category[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const currentCategory = searchParams.get("category") || "";
+  const currentCategory = searchParams.get("category") || "all";
 
   useEffect(() => {
     async function fetchCategories() {
@@ -41,7 +41,7 @@ export function CategoryFilter() {
 
   const handleCategoryChange = (categoryId: string) => {
     const params = new URLSearchParams(searchParams.toString());
-    if (categoryId) {
+    if (categoryId && categoryId !== "all") {
       params.set("category", categoryId);
     } else {
       params.delete("category");
@@ -65,7 +65,7 @@ export function CategoryFilter() {
         <SelectValue placeholder="All Categories" />
       </SelectTrigger>
       <SelectContent>
-        <SelectItem value="">All Categories</SelectItem>
+        <SelectItem value="all">All Categories</SelectItem>
         {categories.map((category) => (
           <SelectItem key={category.id} value={category.id}>
             {category.name}
