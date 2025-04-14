@@ -387,51 +387,6 @@ function StripeCheckoutForm({ onBack }: { onBack: () => void }) {
   const [isLoading, setIsLoading] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState<'card' | 'fpx'>('card');
 
-  // Create a single instance of PaymentElement
-  const [paymentElement] = useState(() => elements?.create('payment', {
-    defaultValues: {
-      billingDetails: {
-        name: '',
-        email: '',
-        phone: '',
-      }
-    },
-    fields: {
-      billingDetails: 'never'
-    },
-    wallets: {
-      applePay: 'never',
-      googlePay: 'never'
-    },
-    layout: {
-      type: 'tabs',
-      defaultCollapsed: false,
-      radios: false,
-      spacedAccordionItems: false
-    },
-    paymentMethodOrder: ['card', 'fpx']
-  }));
-
-  // Mount PaymentElement when ready
-  useEffect(() => {
-    if (paymentElement) {
-      paymentElement.mount('#payment-element');
-      
-      return () => {
-        paymentElement.destroy();
-      };
-    }
-  }, [paymentElement]);
-
-  // Update payment method options when it changes
-  useEffect(() => {
-    if (paymentElement) {
-      paymentElement.update({
-        paymentMethodOrder: [paymentMethod],
-      });
-    }
-  }, [paymentMethod, paymentElement]);
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -474,8 +429,23 @@ function StripeCheckoutForm({ onBack }: { onBack: () => void }) {
           selectedMethod={paymentMethod}
         />
         
-        <div id="payment-element" className="sr-only">
-          {/* Stripe PaymentElement will mount here but be visually hidden */}
+        <div className="p-4 border rounded-lg">
+          <PaymentElement 
+            options={{
+              layout: {
+                type: 'tabs',
+                defaultCollapsed: false,
+              },
+              fields: {
+                billingDetails: 'never'
+              },
+              wallets: {
+                applePay: 'never',
+                googlePay: 'never'
+              },
+              paymentMethodOrder: [paymentMethod],
+            }}
+          />
         </div>
       </div>
 
