@@ -114,7 +114,7 @@ export function CartItems({ items }: CartItemsProps) {
                     </p>
                   )}
                   <p className="text-sm text-gray-500">
-                    {formatPrice(String(item.variant?.price ?? item.product.price))}
+                    {formatPrice(Number(item.variant?.price ?? item.product.price))}
                   </p>
                 </div>
               </div>

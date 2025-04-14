@@ -1,6 +1,6 @@
 import nodemailer from 'nodemailer';
 import { OrderStatus } from '@prisma/client';
-import { formatPrice } from "@/utils/format";
+import { formatPrice } from "@/lib/utils";
 
 interface OrderItem {
   productName: string;

@@ -4,7 +4,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { Product as PrismaProduct, Category } from "@prisma/client";
 import { Product } from "@/types/product";
-import { formatPrice } from "@/utils/format";
+import { formatPrice } from "@/lib/utils";
 import { ProductCard } from "./product-card";
 
 interface RelatedProductsProps {

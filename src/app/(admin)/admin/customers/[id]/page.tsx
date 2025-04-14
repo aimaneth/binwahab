@@ -16,7 +16,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { formatPrice } from "@/utils/format";
+import { formatPrice } from "@/lib/utils";
 
 interface Customer {
   id: string;

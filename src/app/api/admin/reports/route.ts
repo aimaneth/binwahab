@@ -3,7 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { OrderStatus } from "@prisma/client";
-import { formatPrice } from "@/utils/format";
+import { formatPrice } from "@/lib/utils";
 
 export const dynamic = 'force-dynamic';
 

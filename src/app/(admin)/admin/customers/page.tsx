@@ -20,7 +20,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { MoreHorizontal, Search, Mail, Phone, User } from "lucide-react";
-import { formatPrice } from "@/utils/format";
+import { formatPrice } from "@/lib/utils";
 
 interface Customer {
   id: string;

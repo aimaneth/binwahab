@@ -5,7 +5,7 @@ import { BarChart, Package, ShoppingCart, Users, TrendingUp, DollarSign } from "
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { format } from "date-fns";
-import { formatPrice } from "@/utils/format";
+import { formatPrice } from "@/lib/utils";
 import {
   LineChart,
   Line,

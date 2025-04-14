@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { formatPrice } from "@/utils/format";
+import { formatPrice } from "@/lib/utils";
 import { DateRangePicker } from "@/components/ui/date-range-picker";
 import { addDays, format, subDays } from "date-fns";
 import {

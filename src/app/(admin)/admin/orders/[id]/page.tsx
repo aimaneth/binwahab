@@ -29,7 +29,7 @@ import {
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Separator } from "@/components/ui/separator"
-import { formatPrice } from "@/utils/format"
+import { formatPrice } from "@/lib/utils"
 
 interface OrderItem {
   id: string

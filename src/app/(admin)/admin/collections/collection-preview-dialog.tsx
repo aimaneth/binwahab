@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { formatCurrency } from "@/lib/utils";
+import { formatPrice } from "@/lib/utils";
 import { Collection, Product } from "@prisma/client";
 import { 
   Image as ImageIcon,
@@ -137,7 +137,7 @@ export function CollectionPreviewDialog({
               <div className="flex items-center justify-between">
                 <div className="flex items-center">
                   <DollarSign className="h-4 w-4 mr-1 text-muted-foreground" />
-                  <span className="font-medium">{formatCurrency(product.price)}</span>
+                  <span className="font-medium">{formatPrice(product.price)}</span>
                 </div>
               </div>
               <div className="flex items-center mt-2 text-sm text-muted-foreground">
@@ -210,7 +210,7 @@ export function CollectionPreviewDialog({
                 </div>
               </div>
               <div className="text-right">
-                <div className="font-medium">{formatCurrency(product.price)}</div>
+                <div className="font-medium">{formatPrice(product.price)}</div>
                 <div className="flex items-center justify-end gap-4 mt-1 text-xs text-muted-foreground">
                   <div className="flex items-center">
                     <Eye className="h-3 w-3 mr-1" />
