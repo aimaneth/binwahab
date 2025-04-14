@@ -1,0 +1,73 @@
+import { NextResponse } from "next/server";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
+import { prisma } from "@/lib/prisma";
+import Stripe from "stripe";
+
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
+  apiVersion: "2025-03-31.basil",
+});
+
+export async function POST(req: Request) {
+  try {
+    const session = await getServerSession(authOptions);
+
+    if (!session?.user) {
+      return new NextResponse("Unauthorized", { status: 401 });
+    }
+
+    const body = await req.json();
+    const { items, shippingAddress } = body;
+
+    if (!items?.length || !shippingAddress) {
+      return new NextResponse("Missing required fields", { status: 400 });
+    }
+
+    // Fetch products to calculate total
+    const products = await Promise.all(
+      items.map(async (item: { id: string; quantity: number }) => {
+        const product = await prisma.product.findUnique({
+          where: { id: parseInt(item.id) },
+          include: { variants: true },
+        });
+        return { ...product, quantity: item.quantity };
+      })
+    );
+
+    // Calculate total amount
+    const amount = products.reduce((total, product) => {
+      if (!product) return total;
+      const price = product.price;
+      return total + (price * product.quantity);
+    }, 0);
+
+    // Create payment intent
+    const paymentIntent = await stripe.paymentIntents.create({
+      amount: Math.round(amount * 100), // Convert to cents
+      currency: "myr",
+      automatic_payment_methods: {
+        enabled: true,
+      },
+      metadata: {
+        userId: session.user.id,
+        items: JSON.stringify(items),
+      },
+      shipping: {
+        name: shippingAddress.name,
+        address: {
+          line1: shippingAddress.address.line1,
+          city: shippingAddress.address.city,
+          state: shippingAddress.address.state,
+          postal_code: shippingAddress.address.postal_code,
+          country: shippingAddress.address.country,
+        },
+        phone: shippingAddress.phone,
+      },
+    });
+
+    return NextResponse.json({ clientSecret: paymentIntent.client_secret });
+  } catch (error) {
+    console.error("[STRIPE_ERROR]", error);
+    return new NextResponse("Internal Error", { status: 500 });
+  }
+} 

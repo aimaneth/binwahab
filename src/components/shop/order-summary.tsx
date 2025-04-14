@@ -2,12 +2,14 @@
 
 import { useEffect, useState } from "react";
 import { formatPrice } from "@/lib/utils";
-import { CartItem, Product } from "@prisma/client";
+import { CartItem, Product, ProductVariant } from "@prisma/client";
 import { Loader2 } from "lucide-react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 interface OrderSummaryProps {
   items: (CartItem & {
     product: Product;
+    variant?: ProductVariant | null;
   })[];
   shippingState?: string;
 }
@@ -21,7 +23,7 @@ export function OrderSummary({ items, shippingState = "Selangor" }: OrderSummary
       setIsLoading(true);
       try {
         const subtotal = items.reduce(
-          (total, item) => total + Number(item.product.price) * item.quantity,
+          (sum, item) => sum + Number(item.variant?.price ?? item.product.price) * item.quantity,
           0
         );
         
@@ -55,66 +57,65 @@ export function OrderSummary({ items, shippingState = "Selangor" }: OrderSummary
     calculateShipping();
   }, [items, shippingState]);
 
+  if (items.length === 0) {
+    return null;
+  }
+
   const subtotal = items.reduce(
-    (total, item) => total + Number(item.product.price) * item.quantity,
+    (sum, item) => sum + Number(item.variant?.price ?? item.product.price) * item.quantity,
     0
   );
   const tax = subtotal * 0.06; // 6% tax
   const total = subtotal + shipping + tax;
 
   return (
-    <div className="bg-white rounded-lg shadow-sm p-6">
-      <h2 className="text-lg font-semibold mb-4">Order Summary</h2>
-      <div className="space-y-4">
-        <div className="flex justify-between">
-          <span className="text-gray-600">Subtotal</span>
-          <span className="font-medium">{formatPrice(subtotal)}</span>
-        </div>
-        <div className="flex justify-between">
-          <span className="text-gray-600">Shipping</span>
-          {isLoading ? (
-            <Loader2 className="h-4 w-4 animate-spin" />
-          ) : (
-            <span className="font-medium">{formatPrice(shipping)}</span>
-          )}
-        </div>
-        <div className="flex justify-between">
-          <span className="text-gray-600">Tax (6%)</span>
-          <span className="font-medium">{formatPrice(tax)}</span>
-        </div>
-        <div className="border-t pt-4">
-          <div className="flex justify-between">
-            <span className="text-lg font-semibold">Total</span>
-            <span className="text-lg font-semibold">{formatPrice(total)}</span>
+    <Card>
+      <CardHeader>
+        <CardTitle>Order Summary</CardTitle>
+      </CardHeader>
+      <CardContent>
+        <div className="space-y-4">
+          {/* Order Items */}
+          <div className="space-y-2">
+            {items.map((item) => (
+              <div key={item.id} className="flex justify-between text-sm">
+                <span className="text-gray-600">
+                  {item.product.name} x {item.quantity}
+                </span>
+                <span className="font-medium">
+                  {formatPrice(Number(item.variant?.price ?? item.product.price) * item.quantity)}
+                </span>
+              </div>
+            ))}
+          </div>
+
+          <div className="border-t pt-4 space-y-2">
+            <div className="flex justify-between text-sm">
+              <span className="text-gray-600">Subtotal</span>
+              <span className="font-medium">{formatPrice(subtotal)}</span>
+            </div>
+            <div className="flex justify-between text-sm">
+              <span className="text-gray-600">Shipping</span>
+              {isLoading ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <span className="font-medium">{formatPrice(shipping)}</span>
+              )}
+            </div>
+            <div className="flex justify-between text-sm">
+              <span className="text-gray-600">Tax (6%)</span>
+              <span className="font-medium">{formatPrice(tax)}</span>
+            </div>
+          </div>
+
+          <div className="border-t pt-4">
+            <div className="flex justify-between text-base font-semibold">
+              <span>Total</span>
+              <span>{formatPrice(total)}</span>
+            </div>
           </div>
         </div>
-      </div>
-
-      <div className="mt-6">
-        <h3 className="text-sm font-medium mb-3">Items in your order</h3>
-        <div className="space-y-4">
-          {items.map((item) => (
-            <div key={item.id} className="flex items-center gap-4">
-              <div className="w-16 h-16 relative">
-                <img
-                  src={item.product.image || "/placeholder.png"}
-                  alt={item.product.name}
-                  className="object-cover rounded-md"
-                />
-              </div>
-              <div className="flex-1">
-                <h4 className="text-sm font-medium">{item.product.name}</h4>
-                <p className="text-sm text-gray-500">
-                  Qty: {item.quantity}
-                </p>
-              </div>
-              <div className="text-sm font-medium">
-                {formatPrice(Number(item.product.price) * item.quantity)}
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-    </div>
+      </CardContent>
+    </Card>
   );
 } 
