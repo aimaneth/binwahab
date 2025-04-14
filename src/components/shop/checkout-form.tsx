@@ -250,7 +250,7 @@ export function CheckoutForm({ addresses, items }: CheckoutFormProps) {
                       <FormItem>
                         <FormLabel>City</FormLabel>
                         <FormControl>
-                          <Input placeholder="Kuala Lumpur" {...field} />
+                          <Input placeholder="City" {...field} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -263,7 +263,7 @@ export function CheckoutForm({ addresses, items }: CheckoutFormProps) {
                       <FormItem>
                         <FormLabel>State</FormLabel>
                         <FormControl>
-                          <Input placeholder="Selangor" {...field} />
+                          <Input placeholder="State" {...field} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -279,7 +279,7 @@ export function CheckoutForm({ addresses, items }: CheckoutFormProps) {
                       <FormItem>
                         <FormLabel>Postal Code</FormLabel>
                         <FormControl>
-                          <Input placeholder="50000" {...field} />
+                          <Input placeholder="12345" {...field} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -292,7 +292,7 @@ export function CheckoutForm({ addresses, items }: CheckoutFormProps) {
                       <FormItem>
                         <FormLabel>Country</FormLabel>
                         <FormControl>
-                          <Input placeholder="Malaysia" {...field} />
+                          <Input placeholder="Country" {...field} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -305,9 +305,9 @@ export function CheckoutForm({ addresses, items }: CheckoutFormProps) {
                   name="phone"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Phone Number</FormLabel>
+                      <FormLabel>Phone</FormLabel>
                       <FormControl>
-                        <Input placeholder="+60123456789" {...field} />
+                        <Input placeholder="+1234567890" {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -331,7 +331,15 @@ export function CheckoutForm({ addresses, items }: CheckoutFormProps) {
       )}
 
       {step === 2 && clientSecret && (
-        <Elements stripe={stripePromise} options={{ clientSecret }}>
+        <Elements stripe={stripePromise} options={{ 
+          clientSecret,
+          appearance: {
+            theme: 'stripe',
+            variables: {
+              colorPrimary: '#0F172A',
+            },
+          },
+        }}>
           <StripeCheckoutForm onBack={() => setStep(1)} />
         </Elements>
       )}
@@ -350,10 +358,12 @@ function StripeCheckoutForm({ onBack }: { onBack: () => void }) {
     e.preventDefault();
 
     if (!stripe || !elements) {
+      setError("Stripe has not been properly initialized");
       return;
     }
 
     setIsProcessing(true);
+    setError(null);
 
     try {
       const { error: submitError } = await stripe.confirmPayment({
@@ -365,7 +375,7 @@ function StripeCheckoutForm({ onBack }: { onBack: () => void }) {
 
       if (submitError) {
         setError(submitError.message || "An error occurred during payment.");
-        return;
+        console.error("Payment error:", submitError);
       }
     } catch (err) {
       console.error("Payment error:", err);
@@ -382,7 +392,9 @@ function StripeCheckoutForm({ onBack }: { onBack: () => void }) {
       </CardHeader>
       <CardContent>
         <form onSubmit={handleSubmit} className="space-y-6">
-          <PaymentElement />
+          <div className="min-h-[300px]">
+            <PaymentElement />
+          </div>
           {error && (
             <div className="text-sm text-red-500 mt-2">
               {error}
