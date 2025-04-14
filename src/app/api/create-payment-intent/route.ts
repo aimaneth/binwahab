@@ -50,7 +50,7 @@ export async function POST(req: Request) {
     const products = await Promise.all(
       items.map(async (item: { id: string; quantity: number }) => {
         const product = await prisma.product.findUnique({
-          where: { id: parseInt(item.id) },
+          where: { id: Number(item.id) },
           include: { variants: true },
         });
         if (!product) {
