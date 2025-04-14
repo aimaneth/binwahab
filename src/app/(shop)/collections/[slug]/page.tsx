@@ -4,7 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { ProductGrid } from "@/components/shop/product-grid";
 import { Breadcrumb } from "@/components/shop/breadcrumb";
 import { Category, Collection } from "@prisma/client";
-import { Product, ProductImage, ProductVariant } from "@/types/product";
+import { Product, ProductImage, ProductVariant, ProductStatus } from "@/types/product";
 
 interface CollectionPageProps {
   params: {
@@ -56,46 +56,76 @@ async function getCollection(slug: string) {
       return null;
     }
 
-    const products = collection.products.map(({ product: p }) => ({
-      id: p.id,
-      name: p.name,
-      description: p.description,
-      descriptionHtml: p.descriptionHtml,
-      handle: p.handle,
-      price: Number(p.price),
-      stock: p.stock,
-      reservedStock: p.reservedStock,
-      slug: p.slug,
-      isActive: p.isActive,
-      status: p.status,
-      image: p.image,
-      sku: p.sku,
-      inventoryTracking: p.inventoryTracking,
-      lowStockThreshold: p.lowStockThreshold,
-      category: p.category,
-      images: p.images,
-      variants: p.variants.map(v => ({
-        id: v.id,
-        name: v.name,
-        sku: v.sku,
-        price: Number(v.price),
-        compareAtPrice: v.compareAtPrice ? Number(v.compareAtPrice) : null,
-        stock: v.stock,
-        reservedStock: v.reservedStock,
-        options: v.options as Record<string, string>,
-        images: v.images,
-        inventoryTracking: v.inventoryTracking,
-        lowStockThreshold: v.lowStockThreshold,
-        productId: v.productId,
-        isActive: v.isActive,
-        attributes: (v.options || {}) as Record<string, string>,
-      })),
-      categoryId: p.categoryId,
-      createdAt: p.createdAt,
-      updatedAt: p.updatedAt,
-    })) as unknown as Product[];
+    // Convert Prisma Decimal to string for price fields and number for other numeric fields
+    const products = collection.products.map(({ product: p }) => {
+      // Helper function to safely convert Decimal to string for prices
+      const toPriceString = (val: any) => val ? val.toString() : '0';
+      
+      // Helper function to safely convert Decimal to number for quantities
+      const toNumber = (val: any) => val ? Number(val.toString()) : 0;
 
-    return { collection, products };
+      // Map Prisma ProductStatus to our ProductStatus type
+      const mapStatus = (status: string): ProductStatus => {
+        switch (status) {
+          case 'ACTIVE':
+            return 'ACTIVE';
+          case 'HIDDEN':
+            return 'DRAFT';
+          case 'ARCHIVED':
+            return 'ARCHIVED';
+          default:
+            return 'DRAFT';
+        }
+      };
+
+      return {
+        id: p.id,
+        name: p.name,
+        description: p.description || '',
+        descriptionHtml: p.descriptionHtml || '',
+        handle: p.handle || '',
+        price: toPriceString(p.price),
+        stock: toNumber(p.stock),
+        reservedStock: toNumber(p.reservedStock),
+        slug: p.slug || '',
+        isActive: p.isActive || false,
+        status: mapStatus(p.status),
+        image: p.image || null,
+        sku: p.sku || '',
+        inventoryTracking: p.inventoryTracking || false,
+        lowStockThreshold: toNumber(p.lowStockThreshold),
+        category: p.category || null,
+        images: p.images || [],
+        variants: (p.variants || []).map(v => ({
+          id: v.id,
+          name: v.name || '',
+          sku: v.sku || '',
+          price: toPriceString(v.price),
+          compareAtPrice: v.compareAtPrice ? toPriceString(v.compareAtPrice) : null,
+          stock: toNumber(v.stock),
+          reservedStock: toNumber(v.reservedStock),
+          options: v.options as Record<string, string>,
+          images: v.images || [],
+          inventoryTracking: v.inventoryTracking || false,
+          lowStockThreshold: toNumber(v.lowStockThreshold),
+          productId: v.productId,
+          isActive: v.isActive || false,
+          attributes: (v.options || {}) as Record<string, string>,
+        })),
+        categoryId: p.categoryId,
+        createdAt: p.createdAt,
+        updatedAt: p.updatedAt,
+      };
+    });
+
+    return {
+      collection: {
+        ...collection,
+        createdAt: collection.createdAt,
+        updatedAt: collection.updatedAt,
+      },
+      products
+    };
   } catch (error) {
     console.error('Error fetching collection:', error);
     return null;

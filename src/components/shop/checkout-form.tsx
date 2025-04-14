@@ -383,81 +383,95 @@ export function CheckoutForm({ addresses, items }: CheckoutFormProps) {
 function StripeCheckoutForm({ onBack }: { onBack: () => void }) {
   const stripe = useStripe();
   const elements = useElements();
-  const [error, setError] = useState<string | null>(null);
-  const [isProcessing, setIsProcessing] = useState(false);
-  const router = useRouter();
+  const [isLoading, setIsLoading] = useState(false);
+  const [paymentMethod, setPaymentMethod] = useState<'card' | 'fpx'>('card');
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     if (!stripe || !elements) {
-      setError("Stripe has not been properly initialized");
+      console.error('Stripe.js has not loaded');
       return;
     }
 
-    setIsProcessing(true);
-    setError(null);
+    setIsLoading(true);
 
     try {
-      const { error: submitError } = await stripe.confirmPayment({
+      const { error } = await stripe.confirmPayment({
         elements,
         confirmParams: {
-          return_url: `${window.location.origin}/shop/payment-confirmation`,
+          return_url: `${window.location.origin}/shop/orders`,
+          payment_method: paymentMethod,
         },
       });
 
-      if (submitError) {
-        setError(submitError.message || "An error occurred during payment.");
-        console.error("Payment error:", submitError);
+      if (error) {
+        // Log specific FPX errors
+        if (paymentMethod === 'fpx' && error.type === 'validation_error') {
+          console.error('FPX validation error:', error);
+          toast.error('Please select a bank from the list');
+        } else {
+          toast.error(error.message || 'Payment failed');
+          console.error(`${paymentMethod} payment error:`, error);
+        }
       }
     } catch (err) {
-      console.error("Payment error:", err);
-      setError("An unexpected error occurred. Please try again.");
+      console.error('Payment submission error:', err);
+      toast.error('Failed to process payment');
     } finally {
-      setIsProcessing(false);
+      setIsLoading(false);
     }
   };
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Payment Information</CardTitle>
-      </CardHeader>
-      <CardContent>
-        <form onSubmit={handleSubmit} className="space-y-6">
-          <div className="min-h-[300px]">
-            <PaymentElement />
-          </div>
-          {error && (
-            <div className="text-sm text-red-500 mt-2">
-              {error}
-            </div>
+    <form onSubmit={handleSubmit} className="space-y-6">
+      <div className="space-y-4">
+        <div className="flex gap-4 mb-4">
+          <Button
+            type="button"
+            variant={paymentMethod === 'card' ? 'default' : 'outline'}
+            onClick={() => setPaymentMethod('card')}
+          >
+            Credit/Debit Card
+          </Button>
+          <Button
+            type="button"
+            variant={paymentMethod === 'fpx' ? 'default' : 'outline'}
+            onClick={() => setPaymentMethod('fpx')}
+          >
+            FPX Bank Transfer
+          </Button>
+        </div>
+        
+        <PaymentElement 
+          options={{
+            defaultValues: {
+              billingDetails: {
+                name: '',
+                email: '',
+                phone: '',
+              }
+            },
+            paymentMethodOrder: [paymentMethod],
+          }}
+        />
+      </div>
+
+      <div className="flex justify-between">
+        <Button type="button" variant="outline" onClick={onBack}>
+          Back
+        </Button>
+        <Button type="submit" disabled={!stripe || isLoading}>
+          {isLoading ? (
+            <>
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              Processing...
+            </>
+          ) : (
+            'Pay Now'
           )}
-          <div className="flex flex-col space-y-2">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={onBack}
-              disabled={isProcessing}
-            >
-              Back to Shipping
-            </Button>
-            <Button
-              type="submit"
-              disabled={isProcessing || !stripe || !elements}
-            >
-              {isProcessing ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Processing Payment...
-                </>
-              ) : (
-                "Pay Now"
-              )}
-            </Button>
-          </div>
-        </form>
-      </CardContent>
-    </Card>
+        </Button>
+      </div>
+    </form>
   );
 } 

@@ -33,7 +33,7 @@ export interface Product {
   description: string;
   descriptionHtml: string | null;
   handle?: string | null;
-  price: Prisma.Decimal;
+  price: string;
   stock: number;
   reservedStock: number;
   slug: string | null;
@@ -69,8 +69,8 @@ export type ProductVariant = {
   id: number;
   name: string;
   sku: string;
-  price: Prisma.Decimal;
-  compareAtPrice?: Prisma.Decimal | null;
+  price: string;
+  compareAtPrice?: string | null;
   stock: number;
   reservedStock: number;
   options: Record<string, string>;
@@ -80,10 +80,9 @@ export type ProductVariant = {
   productId: number;
   isActive: boolean;
   barcode?: string | null;
-  weight?: number | null;
+  weight?: string | null;
   weightUnit?: string | null;
   dimensions?: Record<string, any> | null;
-  attributes?: Record<string, any> | null;
 };
 
 export type ProductMetafield = {

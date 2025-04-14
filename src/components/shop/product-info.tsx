@@ -154,6 +154,13 @@ export function ProductInfo({ product }: ProductInfoProps) {
     }
   };
 
+  // Helper function to convert string price to number
+  const parsePrice = (price: string | number | null | undefined): number => {
+    if (typeof price === 'number') return price;
+    if (!price) return 0;
+    return Number(price);
+  };
+
   return (
     <div className="mt-10 px-4 sm:mt-16 sm:px-0 lg:mt-0">
       <h1 className="text-3xl font-bold tracking-tight text-foreground">
@@ -164,11 +171,11 @@ export function ProductInfo({ product }: ProductInfoProps) {
         <div>
           <h2 className="sr-only">Product information</h2>
           <p className="text-3xl tracking-tight text-foreground">
-            {formatPrice(selectedVariant?.price ?? product.price)}
+            {formatPrice(parsePrice(selectedVariant?.price ?? product.price))}
           </p>
           {selectedVariant?.compareAtPrice && (
             <p className="mt-1 text-lg line-through text-muted-foreground">
-              {formatPrice(selectedVariant.compareAtPrice)}
+              {formatPrice(parsePrice(selectedVariant.compareAtPrice))}
             </p>
           )}
         </div>

@@ -107,7 +107,12 @@ export async function POST(req: Request) {
         },
         phone: shippingAddress.phone,
       },
-      payment_method_types: ['card'],
+      payment_method_types: ['card', 'fpx'],
+      payment_method_options: {
+        fpx: {
+          setup_future_usage: 'none'
+        }
+      }
     });
 
     // Log success for debugging
