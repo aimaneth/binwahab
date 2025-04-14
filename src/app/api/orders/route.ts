@@ -129,7 +129,7 @@ export async function POST(req: Request) {
       });
       
       if (shippingRate) {
-        shipping = shippingRate.price;
+        shipping = Number(shippingRate.price);
       }
     }
     

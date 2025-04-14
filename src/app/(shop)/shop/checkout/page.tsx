@@ -38,7 +38,7 @@ export default async function CheckoutPage() {
     },
   });
 
-  // Filter out items with null products
+  // Filter out items with null products and cast to the correct type
   const validItems = (cart?.items?.filter(item => item.product !== null) || []) as CartItemWithDetails[];
   const isEmpty = validItems.length === 0;
 
@@ -53,10 +53,16 @@ export default async function CheckoutPage() {
     },
   });
 
-  // Transform cart items for the checkout form
-  const checkoutItems = validItems.map(item => ({
-    id: item.productId?.toString() || '',
+  // Transform items to match the simplified CheckoutForm props type
+  const checkoutItems = validItems.map((item) => ({
+    id: item.id.toString(),
     quantity: item.quantity,
+    product: {
+      id: item.product!.id,
+      name: item.product!.name,
+      price: item.product!.price.toString(),
+      image: item.product!.image,
+    },
   }));
 
   return (

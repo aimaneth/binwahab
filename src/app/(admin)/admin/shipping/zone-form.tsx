@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { ShippingZone, ShippingZoneType } from "@prisma/client";
+import { ShippingZone } from "@prisma/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -24,9 +24,14 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 
+const ShippingZoneType = {
+  WEST_MALAYSIA: "WEST_MALAYSIA",
+  EAST_MALAYSIA: "EAST_MALAYSIA",
+} as const;
+
 const shippingZoneSchema = z.object({
   name: z.string().min(1, "Name is required"),
-  type: z.enum(["WEST_MALAYSIA", "EAST_MALAYSIA"]),
+  type: z.enum([ShippingZoneType.WEST_MALAYSIA, ShippingZoneType.EAST_MALAYSIA]),
   isActive: z.boolean().default(true),
 });
 
@@ -45,22 +50,16 @@ export function ShippingZoneForm({
 }: ShippingZoneFormProps) {
   const [isOpen, setIsOpen] = useState(true);
 
-  const {
-    register,
-    handleSubmit,
-    formState: { errors, isSubmitting },
-    setValue,
-    watch,
-  } = useForm<ShippingZoneFormData>({
+  const form = useForm<ShippingZoneFormData>({
     resolver: zodResolver(shippingZoneSchema),
     defaultValues: {
       name: zone?.name || "",
-      type: zone?.type || ShippingZoneType.WEST_MALAYSIA,
+      type: (zone?.type as keyof typeof ShippingZoneType) || ShippingZoneType.WEST_MALAYSIA,
       isActive: zone?.isActive ?? true,
     },
   });
 
-  const isActive = watch("isActive");
+  const isActive = form.watch("isActive");
 
   const handleClose = () => {
     setIsOpen(false);
@@ -75,25 +74,25 @@ export function ShippingZoneForm({
             {zone ? "Edit Shipping Zone" : "Add Shipping Zone"}
           </DialogTitle>
         </DialogHeader>
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
           <div className="space-y-2">
             <Label htmlFor="name">Name</Label>
             <Input
               id="name"
-              {...register("name")}
+              {...form.register("name")}
               placeholder="e.g., West Malaysia"
             />
-            {errors.name && (
-              <p className="text-sm text-red-500">{errors.name.message}</p>
+            {form.formState.errors.name && (
+              <p className="text-sm text-red-500">{form.formState.errors.name.message}</p>
             )}
           </div>
 
           <div className="space-y-2">
             <Label htmlFor="type">Type</Label>
             <Select
-              defaultValue={zone?.type || ShippingZoneType.WEST_MALAYSIA}
+              defaultValue={zone?.type as keyof typeof ShippingZoneType || ShippingZoneType.WEST_MALAYSIA}
               onValueChange={(value) =>
-                setValue("type", value as ShippingZoneType)
+                form.setValue("type", value as keyof typeof ShippingZoneType)
               }
             >
               <SelectTrigger>
@@ -108,8 +107,8 @@ export function ShippingZoneForm({
                 </SelectItem>
               </SelectContent>
             </Select>
-            {errors.type && (
-              <p className="text-sm text-red-500">{errors.type.message}</p>
+            {form.formState.errors.type && (
+              <p className="text-sm text-red-500">{form.formState.errors.type.message}</p>
             )}
           </div>
 
@@ -117,7 +116,7 @@ export function ShippingZoneForm({
             <Switch
               id="isActive"
               checked={isActive}
-              onCheckedChange={(checked) => setValue("isActive", checked)}
+              onCheckedChange={(checked) => form.setValue("isActive", checked)}
             />
             <Label htmlFor="isActive">Active</Label>
           </div>
@@ -127,12 +126,12 @@ export function ShippingZoneForm({
               type="button"
               variant="outline"
               onClick={handleClose}
-              disabled={isSubmitting}
+              disabled={form.formState.isSubmitting}
             >
               Cancel
             </Button>
-            <Button type="submit" disabled={isSubmitting}>
-              {isSubmitting ? "Saving..." : "Save"}
+            <Button type="submit" disabled={form.formState.isSubmitting}>
+              {form.formState.isSubmitting ? "Saving..." : "Save"}
             </Button>
           </DialogFooter>
         </form>

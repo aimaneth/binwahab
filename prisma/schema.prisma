@@ -317,28 +317,28 @@ model OrderNote {
 }
 
 model ShippingZone {
-  id        String           @id @default(cuid())
+  id        String    @id @default(cuid())
   name      String
-  type      ShippingZoneType
-  isActive  Boolean          @default(true)
-  createdAt DateTime         @default(now())
-  updatedAt DateTime         @updatedAt
+  type      String
+  isActive  Boolean   @default(true)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
   rates     ShippingRate[]
 }
 
 model ShippingRate {
-  id            String       @id @default(cuid())
+  id            String    @id @default(cuid())
+  zone          ShippingZone @relation(fields: [zoneId], references: [id])
   zoneId        String
   name          String
-  price         Float
-  minOrderValue Float?
-  maxOrderValue Float?
-  minWeight     Float?
-  maxWeight     Float?
-  isActive      Boolean      @default(true)
-  createdAt     DateTime     @default(now())
-  updatedAt     DateTime     @updatedAt
-  zone          ShippingZone @relation(fields: [zoneId], references: [id])
+  price         Decimal   @db.Decimal(10, 2)
+  minOrderValue Decimal?  @db.Decimal(10, 2)
+  maxOrderValue Decimal?  @db.Decimal(10, 2)
+  minWeight     Decimal?  @db.Decimal(10, 2)
+  maxWeight     Decimal?  @db.Decimal(10, 2)
+  isActive      Boolean   @default(true)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
 }
 
 model InventoryTransaction {

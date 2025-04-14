@@ -30,6 +30,7 @@ import { PaymentElement, useStripe, useElements, Elements } from '@stripe/react-
 import { loadStripe } from '@stripe/stripe-js';
 import type { PaymentIntent, StripeError, StripeElementsOptions } from '@stripe/stripe-js';
 import { PaymentOptions } from "@/components/shop/payment-options";
+import { CartItem } from "@/types";
 
 // Make sure to call loadStripe outside of a component's render to avoid
 // recreating the Stripe object on every render.
@@ -44,6 +45,28 @@ const stripePromise = loadStripe(publishableKey);
 if (!process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY) {
   console.error('Stripe publishable key is not defined');
 }
+
+const formatPrice = (amount: string | number) => {
+  const numericAmount = typeof amount === 'string' ? parseFloat(amount) : amount;
+  return new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency: 'USD',
+    minimumFractionDigits: 2,
+  }).format(numericAmount);
+};
+
+const calculateSubtotal = (items: CheckoutFormProps['items']) => {
+  return items.reduce((total, item) => {
+    const price = typeof item.product.price === 'string' 
+      ? parseFloat(item.product.price) 
+      : item.product.price;
+    return total + (price * item.quantity);
+  }, 0);
+};
+
+const calculateTotal = (subtotal: number, shippingCost: number = 0) => {
+  return subtotal + shippingCost;
+};
 
 // Form schemas
 const shippingSchema = z.object({
@@ -60,14 +83,23 @@ const shippingSchema = z.object({
 
 interface CheckoutFormProps {
   addresses: Address[];
-  items: Array<{
+  items: {
     id: string;
     quantity: number;
-  }>;
+    product: {
+      id: number;
+      name: string;
+      price: number | string;
+      image?: string | null;
+    };
+  }[];
 }
 
 interface PaymentIntentResponse {
   clientSecret: string;
+  paymentIntentId: string;
+  shippingCost: number;
+  totalAmount: number;
   error?: StripeError;
 }
 
@@ -144,6 +176,8 @@ export function CheckoutForm({ addresses, items }: CheckoutFormProps) {
   const [clientSecret, setClientSecret] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [stripeLoadError, setStripeLoadError] = useState<string | null>(null);
+  const [shippingCost, setShippingCost] = useState<number>(0);
+  const [totalAmount, setTotalAmount] = useState<number>(0);
 
   useEffect(() => {
     // Verify Stripe loads correctly
@@ -200,11 +234,9 @@ export function CheckoutForm({ addresses, items }: CheckoutFormProps) {
         throw new Error(data.error || 'Failed to create payment intent');
       }
 
-      if (!data.clientSecret) {
-        throw new Error('No client secret received');
-      }
-
       setClientSecret(data.clientSecret);
+      setShippingCost(data.shippingCost);
+      setTotalAmount(data.totalAmount);
       setStep(2);
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : "Failed to process shipping information";
@@ -434,16 +466,31 @@ export function CheckoutForm({ addresses, items }: CheckoutFormProps) {
       )}
 
       {step === 2 && clientSecret && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Payment Information</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <Elements stripe={stripePromise} options={options}>
-              <PaymentForm clientSecret={clientSecret} />
-            </Elements>
-          </CardContent>
-        </Card>
+        <div className="space-y-6">
+          <div className="rounded-lg border p-4">
+            <h3 className="text-lg font-medium">Order Summary</h3>
+            <div className="mt-4 space-y-2">
+              <div className="flex justify-between text-sm">
+                <span>Subtotal</span>
+                <span>{formatPrice(calculateSubtotal(items))}</span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span>Shipping</span>
+                <span>{formatPrice(shippingCost)}</span>
+              </div>
+              <div className="border-t pt-2 flex justify-between font-medium">
+                <span>Total</span>
+                <span>{formatPrice(totalAmount)}</span>
+              </div>
+            </div>
+          </div>
+
+          <Elements stripe={stripePromise} options={options}>
+            <PaymentForm
+              clientSecret={clientSecret}
+            />
+          </Elements>
+        </div>
       )}
 
       {stripeLoadError && (

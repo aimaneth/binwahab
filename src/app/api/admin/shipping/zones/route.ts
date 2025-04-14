@@ -3,14 +3,20 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { z } from "zod";
-import { ShippingZoneType } from "@prisma/client";
+
+const ShippingZoneType = {
+  WEST_MALAYSIA: 'WEST_MALAYSIA',
+  EAST_MALAYSIA: 'EAST_MALAYSIA'
+} as const;
 
 // Schema for creating/updating a shipping zone
 const shippingZoneSchema = z.object({
   name: z.string().min(1, "Name is required"),
-  type: z.nativeEnum(ShippingZoneType),
-  isActive: z.boolean().optional(),
+  type: z.enum(['WEST_MALAYSIA', 'EAST_MALAYSIA']),
+  isActive: z.boolean().optional().default(true),
 });
+
+type ShippingZoneInput = z.infer<typeof shippingZoneSchema>;
 
 export async function GET() {
   try {
@@ -64,13 +70,13 @@ export async function PATCH(req: Request) {
     }
 
     const body = await req.json();
-    const { id, ...data } = body;
+    const { id, ...updateData } = body;
 
     if (!id) {
       return new NextResponse("Zone ID is required", { status: 400 });
     }
 
-    const validatedData = shippingZoneSchema.parse(data);
+    const validatedData = shippingZoneSchema.parse(updateData);
 
     const zone = await prisma.shippingZone.update({
       where: { id },
@@ -87,27 +93,33 @@ export async function PATCH(req: Request) {
   }
 }
 
-export async function DELETE(req: Request) {
+export async function DELETE(request: Request) {
   try {
     const session = await getServerSession(authOptions);
-    if (!session?.user || session.user.role !== "ADMIN") {
-      return new NextResponse("Unauthorized", { status: 401 });
+    if (!session?.user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { searchParams } = new URL(req.url);
+    const { searchParams } = new URL(request.url);
     const id = searchParams.get("id");
 
     if (!id) {
-      return new NextResponse("Zone ID is required", { status: 400 });
+      return NextResponse.json(
+        { error: "Shipping zone ID is required" },
+        { status: 400 }
+      );
     }
 
     await prisma.shippingZone.delete({
       where: { id },
     });
 
-    return new NextResponse(null, { status: 204 });
+    return NextResponse.json({ success: true });
   } catch (error) {
-    console.error("[SHIPPING_ZONES_DELETE]", error);
-    return new NextResponse("Internal error", { status: 500 });
+    console.error("Error deleting shipping zone:", error);
+    return NextResponse.json(
+      { error: "Failed to delete shipping zone" },
+      { status: 500 }
+    );
   }
 } 

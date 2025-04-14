@@ -7,14 +7,6 @@ import { getStripeInstance } from "@/lib/stripe";
 export async function POST(req: Request) {
   try {
     const session = await getServerSession(authOptions);
-
-    if (!session?.user) {
-      return new NextResponse(
-        JSON.stringify({ error: "Unauthorized" }), 
-        { status: 401 }
-      );
-    }
-
     const body = await req.json();
     const { items, shippingAddress } = body;
 
@@ -29,7 +21,7 @@ export async function POST(req: Request) {
     console.log('Creating payment intent with:', {
       items,
       shippingAddress,
-      userId: session.user.id
+      userId: session?.user?.id || 'guest'
     });
 
     // Validate shipping address
@@ -81,20 +73,39 @@ export async function POST(req: Request) {
       );
     }
 
+    // Calculate shipping cost
+    const shippingResponse = await fetch(`${process.env.NEXTAUTH_URL}/api/shipping/calculate`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        state: shippingAddress.address.state,
+        orderValue: amount,
+      }),
+    });
+
+    const shippingData = await shippingResponse.json();
+    const shippingCost = shippingData.cost || 0;
+
+    // Add shipping cost to total amount
+    const totalAmount = amount + shippingCost;
+
     // Log amount for debugging
-    console.log('Calculated amount:', amount);
+    console.log('Calculated amount:', totalAmount);
 
     const stripe = getStripeInstance();
 
     // Create payment intent with more detailed metadata
     const paymentIntent = await stripe.paymentIntents.create({
-      amount: Math.round(amount * 100), // Convert to cents
+      amount: Math.round(totalAmount * 100), // Convert to cents
       currency: "myr",
       metadata: {
-        userId: session.user.id,
+        userId: session?.user?.id || 'guest',
         items: JSON.stringify(items),
-        orderTotal: amount.toString(),
+        orderTotal: totalAmount.toString(),
         shippingAddress: JSON.stringify(shippingAddress),
+        shippingCost: shippingCost.toString(),
       },
       shipping: {
         name: shippingAddress.name,
@@ -121,6 +132,8 @@ export async function POST(req: Request) {
     return NextResponse.json({ 
       clientSecret: paymentIntent.client_secret,
       paymentIntentId: paymentIntent.id,
+      shippingCost,
+      totalAmount,
     });
   } catch (error) {
     console.error("[STRIPE_ERROR]", error);
