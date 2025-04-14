@@ -34,6 +34,11 @@ import type { PaymentIntent, StripeError } from '@stripe/stripe-js';
 // recreating the Stripe object on every render.
 const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!);
 
+// Log Stripe initialization for debugging
+if (!process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY) {
+  console.error('Stripe publishable key is not defined');
+}
+
 // Form schemas
 const shippingSchema = z.object({
   addressId: z.string().optional(),
@@ -66,6 +71,13 @@ export function CheckoutForm({ addresses, items }: CheckoutFormProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [clientSecret, setClientSecret] = useState("");
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    // Log initialization status
+    if (!stripePromise) {
+      console.error('Stripe failed to initialize');
+    }
+  }, []);
 
   // Shipping form
   const shippingForm = useForm<z.infer<typeof shippingSchema>>({
@@ -339,6 +351,7 @@ export function CheckoutForm({ addresses, items }: CheckoutFormProps) {
               colorPrimary: '#0F172A',
             },
           },
+          loader: 'always'
         }}>
           <StripeCheckoutForm onBack={() => setStep(1)} />
         </Elements>
