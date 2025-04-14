@@ -29,6 +29,7 @@ import { Loader2 } from "lucide-react";
 import { PaymentElement, useStripe, useElements, Elements } from '@stripe/react-stripe-js';
 import { loadStripe } from '@stripe/stripe-js';
 import type { PaymentIntent, StripeError } from '@stripe/stripe-js';
+import { PaymentOptions } from "@/components/shop/payment-options";
 
 // Make sure to call loadStripe outside of a component's render to avoid
 // recreating the Stripe object on every render.
@@ -386,6 +387,51 @@ function StripeCheckoutForm({ onBack }: { onBack: () => void }) {
   const [isLoading, setIsLoading] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState<'card' | 'fpx'>('card');
 
+  // Create a single instance of PaymentElement
+  const [paymentElement] = useState(() => elements?.create('payment', {
+    defaultValues: {
+      billingDetails: {
+        name: '',
+        email: '',
+        phone: '',
+      }
+    },
+    fields: {
+      billingDetails: 'never'
+    },
+    wallets: {
+      applePay: 'never',
+      googlePay: 'never'
+    },
+    layout: {
+      type: 'tabs',
+      defaultCollapsed: false,
+      radios: false,
+      spacedAccordionItems: false
+    },
+    paymentMethodOrder: ['card', 'fpx']
+  }));
+
+  // Mount PaymentElement when ready
+  useEffect(() => {
+    if (paymentElement) {
+      paymentElement.mount('#payment-element');
+      
+      return () => {
+        paymentElement.destroy();
+      };
+    }
+  }, [paymentElement]);
+
+  // Update payment method options when it changes
+  useEffect(() => {
+    if (paymentElement) {
+      paymentElement.update({
+        paymentMethodOrder: [paymentMethod],
+      });
+    }
+  }, [paymentMethod, paymentElement]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -401,19 +447,16 @@ function StripeCheckoutForm({ onBack }: { onBack: () => void }) {
         elements,
         confirmParams: {
           return_url: `${window.location.origin}/shop/orders`,
-          payment_method: paymentMethod,
         },
       });
 
       if (error) {
-        // Log specific FPX errors
-        if (paymentMethod === 'fpx' && error.type === 'validation_error') {
-          console.error('FPX validation error:', error);
-          toast.error('Please select a bank from the list');
+        if (error.type === 'validation_error') {
+          toast.error('Please check your payment details');
         } else {
           toast.error(error.message || 'Payment failed');
-          console.error(`${paymentMethod} payment error:`, error);
         }
+        console.error('Payment error:', error);
       }
     } catch (err) {
       console.error('Payment submission error:', err);
@@ -426,35 +469,14 @@ function StripeCheckoutForm({ onBack }: { onBack: () => void }) {
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
       <div className="space-y-4">
-        <div className="flex gap-4 mb-4">
-          <Button
-            type="button"
-            variant={paymentMethod === 'card' ? 'default' : 'outline'}
-            onClick={() => setPaymentMethod('card')}
-          >
-            Credit/Debit Card
-          </Button>
-          <Button
-            type="button"
-            variant={paymentMethod === 'fpx' ? 'default' : 'outline'}
-            onClick={() => setPaymentMethod('fpx')}
-          >
-            FPX Bank Transfer
-          </Button>
-        </div>
-        
-        <PaymentElement 
-          options={{
-            defaultValues: {
-              billingDetails: {
-                name: '',
-                email: '',
-                phone: '',
-              }
-            },
-            paymentMethodOrder: [paymentMethod],
-          }}
+        <PaymentOptions 
+          onPaymentMethodChange={(method) => setPaymentMethod(method as 'card' | 'fpx')}
+          selectedMethod={paymentMethod}
         />
+        
+        <div id="payment-element" className="sr-only">
+          {/* Stripe PaymentElement will mount here but be visually hidden */}
+        </div>
       </div>
 
       <div className="flex justify-between">
