@@ -32,7 +32,7 @@ import type { PaymentIntent, StripeError } from '@stripe/stripe-js';
 
 // Make sure to call loadStripe outside of a component's render to avoid
 // recreating the Stripe object on every render.
-const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!);
+const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY ?? '');
 
 // Log Stripe initialization for debugging
 if (!process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY) {
@@ -73,10 +73,11 @@ export function CheckoutForm({ addresses, items }: CheckoutFormProps) {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    // Log initialization status
-    if (!stripePromise) {
-      console.error('Stripe failed to initialize');
-    }
+    // Log initialization status and environment variables
+    console.log('Stripe initialization check:', {
+      hasPublishableKey: !!process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY,
+      publishableKey: process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY,
+    });
   }, []);
 
   // Shipping form
@@ -97,6 +98,8 @@ export function CheckoutForm({ addresses, items }: CheckoutFormProps) {
   const onShippingSubmit = async (values: z.infer<typeof shippingSchema>) => {
     try {
       setIsSubmitting(true);
+      setError(null);
+      
       // Create payment intent with shipping info
       const response = await fetch("/api/create-payment-intent", {
         method: "POST",
@@ -119,16 +122,28 @@ export function CheckoutForm({ addresses, items }: CheckoutFormProps) {
         }),
       });
 
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to create payment intent');
+      }
+
       const data = await response.json() as PaymentIntentResponse;
 
       if (data.error) {
         throw new Error(data.error.message || "Failed to create payment intent");
       }
 
+      console.log('Payment intent created successfully:', {
+        hasClientSecret: !!data.clientSecret,
+        clientSecretLength: data.clientSecret?.length,
+      });
+
       setClientSecret(data.clientSecret);
       setStep(2);
     } catch (err) {
-      toast.error("Failed to process shipping information. Please try again.");
+      const errorMessage = err instanceof Error ? err.message : "Failed to process shipping information";
+      setError(errorMessage);
+      toast.error(errorMessage);
       console.error("Shipping submission error:", err);
     } finally {
       setIsSubmitting(false);
@@ -351,7 +366,12 @@ export function CheckoutForm({ addresses, items }: CheckoutFormProps) {
               colorPrimary: '#0F172A',
             },
           },
-          loader: 'always'
+          loader: 'always',
+          fonts: [
+            {
+              cssSrc: 'https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap',
+            },
+          ],
         }}>
           <StripeCheckoutForm onBack={() => setStep(1)} />
         </Elements>

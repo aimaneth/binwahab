@@ -9,14 +9,20 @@ export async function POST(req: Request) {
     const session = await getServerSession(authOptions);
 
     if (!session?.user) {
-      return new NextResponse("Unauthorized", { status: 401 });
+      return new NextResponse(
+        JSON.stringify({ error: "Unauthorized" }), 
+        { status: 401 }
+      );
     }
 
     const body = await req.json();
     const { items, shippingAddress } = body;
 
     if (!items?.length || !shippingAddress) {
-      return new NextResponse("Missing required fields", { status: 400 });
+      return new NextResponse(
+        JSON.stringify({ error: "Missing required fields" }), 
+        { status: 400 }
+      );
     }
 
     // Log request data for debugging
@@ -25,6 +31,28 @@ export async function POST(req: Request) {
       shippingAddress,
       userId: session.user.id
     });
+
+    // Validate shipping address
+    const requiredFields = ['name', 'address', 'phone'];
+    const addressFields = ['line1', 'city', 'state', 'postal_code', 'country'];
+    
+    for (const field of requiredFields) {
+      if (!shippingAddress[field]) {
+        return new NextResponse(
+          JSON.stringify({ error: `Missing required field: ${field}` }),
+          { status: 400 }
+        );
+      }
+    }
+
+    for (const field of addressFields) {
+      if (!shippingAddress.address[field]) {
+        return new NextResponse(
+          JSON.stringify({ error: `Missing required address field: ${field}` }),
+          { status: 400 }
+        );
+      }
+    }
 
     // Fetch products to calculate total
     const products = await Promise.all(
@@ -45,6 +73,13 @@ export async function POST(req: Request) {
       const price = product.price;
       return total + (Number(price) * product.quantity);
     }, 0);
+
+    if (amount <= 0) {
+      return new NextResponse(
+        JSON.stringify({ error: "Invalid order amount" }),
+        { status: 400 }
+      );
+    }
 
     // Log amount for debugging
     console.log('Calculated amount:', amount);
@@ -75,6 +110,7 @@ export async function POST(req: Request) {
         },
         phone: shippingAddress.phone,
       },
+      payment_method_types: ['card'],
     });
 
     // Log success for debugging
@@ -92,7 +128,7 @@ export async function POST(req: Request) {
         error: error instanceof Error ? error.message : 'Internal Error',
         details: error instanceof Error ? error.stack : undefined
       }), 
-      { status: 500 }
+      { status: 500, headers: { 'Content-Type': 'application/json' } }
     );
   }
 } 
