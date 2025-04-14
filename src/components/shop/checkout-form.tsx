@@ -121,8 +121,9 @@ function PaymentForm({ clientSecret }: { clientSecret: string }) {
     setIsProcessing(true);
 
     try {
-      const { error: submitError } = await stripe.confirmPayment({
+      const { error: submitError, paymentIntent } = await stripe.confirmPayment({
         elements,
+        redirect: "if_required",
         confirmParams: {
           return_url: `${window.location.origin}/orders`,
         },
@@ -131,6 +132,20 @@ function PaymentForm({ clientSecret }: { clientSecret: string }) {
       if (submitError) {
         setError(submitError.message || 'An error occurred during payment.');
         toast.error(submitError.message || 'Payment failed. Please try again.');
+        setIsProcessing(false);
+        return;
+      }
+
+      if (paymentIntent && paymentIntent.status === 'succeeded') {
+        toast.success('Payment successful!');
+        router.push('/orders');
+      } else if (paymentIntent && paymentIntent.status === 'requires_action') {
+        // Payment requires additional action (e.g., 3D Secure)
+        // The stripe.confirmPayment will handle the redirect automatically
+        console.log('Payment requires additional action');
+      } else {
+        setError('Something went wrong with the payment. Please try again.');
+        toast.error('Payment failed. Please try again.');
       }
     } catch (err) {
       console.error('Payment submission error:', err);
