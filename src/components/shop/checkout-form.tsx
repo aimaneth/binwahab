@@ -1,160 +1,185 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { Button } from "@/components/ui/button";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Label } from "@/components/ui/label";
+import React, { useEffect, useState } from "react";
+import {
+  PaymentElement,
+  useStripe,
+  useElements,
+  Elements,
+} from '@stripe/react-stripe-js';
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
 import { Loader2 } from "lucide-react";
-import { CartItem } from "@/types/cart";
-import * as z from "zod";
-import { Address } from "@prisma/client";
 import { Card } from "@/components/ui/card";
-import { OrderSummary } from "@/components/shop/order-summary";
-import { toast } from "sonner";
+import { useRouter } from "next/navigation";
+import { stripePromise, appearance } from "@/lib/stripe/config";
 
-const shippingSchema = z.object({
-  addressId: z.string({
-    required_error: "Please select a shipping address",
-  }),
-});
-
-type ShippingFormValues = z.infer<typeof shippingSchema>;
-
-interface CheckoutFormProps {
-  addresses: Address[];
-  items: CartItem[];
-}
-
-export function CheckoutForm({ addresses, items }: CheckoutFormProps) {
-  const [isLoading, setIsLoading] = useState(false);
+function CheckoutFormContent() {
+  const stripe = useStripe();
+  const elements = useElements();
   const router = useRouter();
 
-  const form = useForm<ShippingFormValues>({
-    resolver: zodResolver(shippingSchema),
-  });
+  const [email, setEmail] = useState('');
+  const [message, setMessage] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
 
-  const onSubmit = async (data: ShippingFormValues) => {
+  useEffect(() => {
+    if (!stripe) {
+      return;
+    }
+
+    const clientSecret = new URLSearchParams(window.location.search).get(
+      "payment_intent_client_secret"
+    );
+
+    if (!clientSecret) {
+      return;
+    }
+
+    stripe.retrievePaymentIntent(clientSecret).then(({ paymentIntent }) => {
+      switch (paymentIntent?.status) {
+        case "succeeded":
+          router.push(`/checkout/success?payment_intent=${paymentIntent.id}`);
+          break;
+        case "processing":
+          setMessage("Your payment is processing.");
+          break;
+        case "requires_payment_method":
+          setMessage("Please provide your payment information.");
+          break;
+        default:
+          setMessage("Something went wrong.");
+          break;
+      }
+    });
+  }, [stripe, router]);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!stripe || !elements) {
+      return;
+    }
+
+    setIsLoading(true);
+    setMessage(null);
+
     try {
-      setIsLoading(true);
-      
-      const selectedAddress = addresses.find(addr => addr.id === data.addressId);
-      if (!selectedAddress) {
-        throw new Error("Selected address not found");
+      const { error: submitError } = await elements.submit();
+      if (submitError) {
+        setMessage(submitError.message || "An error occurred.");
+        setIsLoading(false);
+        return;
       }
 
-      const response = await fetch("/api/create-payment-intent", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          items,
-          shippingAddress: selectedAddress,
-        }),
+      const result = await stripe.confirmPayment({
+        elements,
+        confirmParams: {
+          return_url: `${window.location.origin}/checkout/success`,
+          receipt_email: email,
+        },
       });
 
-      const result = await response.json();
-
-      if (!response.ok) {
-        throw new Error(result.error || "Failed to create checkout session");
+      if (result.error) {
+        if (result.error.type === "card_error" || result.error.type === "validation_error") {
+          setMessage(result.error.message || "An error occurred during payment.");
+        } else {
+          setMessage("An unexpected error occurred.");
+        }
+        router.push('/checkout/cancel');
       }
-
-      // Redirect to Stripe Checkout
-      window.location.href = result.url;
-    } catch (error) {
-      console.error("Checkout error:", error);
-      toast.error(error instanceof Error ? error.message : "Failed to proceed to checkout");
-    } finally {
-      setIsLoading(false);
+    } catch (e) {
+      setMessage("An unexpected error occurred.");
+      console.error("Payment error:", e);
     }
+
+    setIsLoading(false);
   };
 
-  if (items.length === 0) {
+  return (
+    <div className="max-w-4xl mx-auto">
+      <Card className="p-6">
+        <form id="payment-form" onSubmit={handleSubmit} className="space-y-6">
+          <div className="space-y-2">
+            <label className="block text-sm font-medium text-gray-700">
+              Email
+              <input
+                id="email"
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="you@example.com"
+                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm"
+                required
+              />
+            </label>
+          </div>
+          
+          <div className="space-y-4">
+            <h4 className="text-xl font-semibold">Payment Details</h4>
+            <PaymentElement id="payment-element" />
+          </div>
+
+          <Button 
+            type="submit" 
+            disabled={isLoading || !stripe || !elements}
+            className="w-full"
+          >
+            {isLoading ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Processing...
+              </>
+            ) : (
+              "Pay now"
+            )}
+          </Button>
+
+          {message && (
+            <Alert variant={message.includes("succeeded") ? "default" : "destructive"}>
+              <AlertDescription>{message}</AlertDescription>
+            </Alert>
+          )}
+        </form>
+      </Card>
+    </div>
+  );
+}
+
+export function CheckoutForm() {
+  const [clientSecret, setClientSecret] = useState<string | null>(null);
+
+  useEffect(() => {
+    // Get the client secret from the URL
+    const secret = new URLSearchParams(window.location.search).get(
+      "payment_intent_client_secret"
+    );
+    if (secret) {
+      setClientSecret(secret);
+    }
+  }, []);
+
+  if (!clientSecret) {
     return (
-      <Alert>
-        <AlertDescription>
-          Your cart is empty. Add some items before checking out.
-        </AlertDescription>
-      </Alert>
+      <div className="flex items-center justify-center p-8">
+        <Loader2 className="h-6 w-6 animate-spin" />
+        <span className="ml-2">Loading payment details...</span>
+      </div>
     );
   }
 
   return (
-    <div className="max-w-4xl mx-auto">
-      <div className="grid md:grid-cols-[1fr,380px] gap-8">
-        <Card className="p-6">
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-            <div className="space-y-4">
-              <h2 className="text-xl font-semibold">Select Shipping Address</h2>
-              
-              {addresses.length === 0 ? (
-                <Alert>
-                  <AlertDescription className="flex items-center justify-between">
-                    <span>You need to add a shipping address first</span>
-                    <Button 
-                      variant="outline" 
-                      onClick={() => router.push("/profile?add-address=true")}
-                    >
-                      Add Address
-                    </Button>
-                  </AlertDescription>
-                </Alert>
-              ) : (
-                <RadioGroup 
-                  className="space-y-4"
-                  value={form.watch("addressId")}
-                  onValueChange={(value) => form.setValue("addressId", value)}
-                >
-                  {addresses.map((address) => (
-                    <div key={address.id} className="flex items-start space-x-3">
-                      <RadioGroupItem value={address.id} id={address.id} />
-                      <Label htmlFor={address.id} className="leading-relaxed">
-                        <div className="font-medium">{address.street}</div>
-                        <div className="text-muted-foreground">
-                          {address.city}, {address.state} {address.zipCode}
-                        </div>
-                        <div className="text-sm text-muted-foreground">
-                          {address.phone}
-                        </div>
-                      </Label>
-                    </div>
-                  ))}
-                </RadioGroup>
-              )}
-
-              {form.formState.errors.addressId && (
-                <Alert variant="destructive">
-                  <AlertDescription>
-                    {form.formState.errors.addressId.message}
-                  </AlertDescription>
-                </Alert>
-              )}
-            </div>
-
-            <Button 
-              type="submit" 
-              disabled={isLoading || addresses.length === 0}
-              className="w-full"
-            >
-              {isLoading ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Processing...
-                </>
-              ) : (
-                "Proceed to Payment"
-              )}
-            </Button>
-          </form>
-        </Card>
-
-        {/* Order Summary */}
-        <div className="md:row-span-2">
-          <OrderSummary items={items} />
-        </div>
-      </div>
-    </div>
+    <Elements 
+      stripe={stripePromise} 
+      options={{
+        clientSecret,
+        appearance,
+        loader: 'auto',
+      }}
+    >
+      <CheckoutFormContent />
+    </Elements>
   );
-} 
+}
+
+export default CheckoutForm; 

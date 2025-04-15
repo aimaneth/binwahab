@@ -29,6 +29,7 @@ export function CollectionImage({ image, image2, alt, className }: CollectionIma
             src={image}
             alt={`${alt} - Primary`}
             fill
+            sizes="(max-width: 768px) 100vw, 50vw"
             className="object-cover"
           />
         </div>
@@ -37,6 +38,7 @@ export function CollectionImage({ image, image2, alt, className }: CollectionIma
             src={image2}
             alt={`${alt} - Secondary`}
             fill
+            sizes="(max-width: 768px) 100vw, 50vw"
             className="object-cover"
           />
         </div>
@@ -50,6 +52,7 @@ export function CollectionImage({ image, image2, alt, className }: CollectionIma
         src={image || image2 || ""}
         alt={alt}
         fill
+        sizes="100vw"
         className="object-cover"
       />
     </div>

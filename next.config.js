@@ -19,6 +19,14 @@ const nextConfig = {
       },
     ],
   },
+  // Remove the server configuration if it exists
+  // server: {
+  //   https: true,
+  //   certificates: {
+  //     key: './certificates/localhost-key.pem',
+  //     cert: './certificates/localhost.pem',
+  //   },
+  // },
   async headers() {
     return [
       {

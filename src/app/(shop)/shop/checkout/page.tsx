@@ -3,9 +3,10 @@ import { getServerSession } from "next-auth";
 import { redirect } from "next/navigation";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { CheckoutForm } from "@/components/shop/checkout-form";
+import { CheckoutConfig } from "@/components/stripe/checkout-config";
 import { CartItem as CartItemType } from "@/types/cart";
 import { CartItem, Product, ProductVariant } from "@prisma/client";
+import { Decimal } from "@prisma/client/runtime/library";
 
 export const metadata: Metadata = {
   title: "Checkout - BINWAHAB",
@@ -14,7 +15,7 @@ export const metadata: Metadata = {
 
 type CartItemWithDetails = CartItem & {
   product: Product;
-  variant?: ProductVariant | null;
+  variant: ProductVariant | null;
 };
 
 export default async function CheckoutPage() {
@@ -46,19 +47,24 @@ export default async function CheckoutPage() {
     redirect("/shop/cart");
   }
 
-  // Get user addresses
-  const addresses = await prisma.address.findMany({
-    where: {
-      userId: session.user.id,
-    },
-  });
-
   // Transform items to match the CartItem type from @/types/cart
   const checkoutItems: CartItemType[] = validItems.map((item) => ({
     id: item.id,
     quantity: item.quantity,
-    product: item.product,
-    variant: item.variant,
+    product: {
+      id: item.product.id,
+      name: item.product.name,
+      price: Number(item.product.price),
+      image: item.product.image || undefined,
+      description: item.product.description || undefined,
+    },
+    variant: item.variant ? {
+      id: item.variant.id,
+      sku: item.variant.sku,
+      price: Number(item.variant.price),
+      name: item.variant.name,
+      image: item.variant.images[0] || undefined,
+    } : undefined,
   }));
 
   return (
@@ -66,7 +72,7 @@ export default async function CheckoutPage() {
       <h1 className="text-3xl font-bold mb-8">Checkout</h1>
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         <div className="lg:col-span-2">
-          <CheckoutForm addresses={addresses} items={checkoutItems} />
+          <CheckoutConfig items={checkoutItems} />
         </div>
       </div>
     </main>

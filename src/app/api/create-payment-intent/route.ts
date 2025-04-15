@@ -2,39 +2,63 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { stripe } from "@/lib/stripe";
+import { createPaymentIntent, getOrCreateCustomer } from "@/lib/stripe/server";
+import { CreatePaymentIntentData } from "@/lib/stripe/config";
+import { z } from "zod";
 import Stripe from "stripe";
-import { User } from '@prisma/client';
 
-interface CartItem {
-  product: {
-    id: number | string;
-    name: string;
-    price: string | number;
-  };
-  variant?: {
-    sku: string;
-    price: string | number;
-  };
-  quantity: number;
-}
+// Validation schema for request body
+const createPaymentIntentSchema = z.object({
+  items: z.array(z.object({
+    product: z.object({
+      id: z.union([z.string(), z.number()]),
+      name: z.string(),
+      price: z.union([z.string(), z.number()]).transform(val => 
+        typeof val === 'string' ? parseFloat(val) : val
+      ),
+    }),
+    variant: z.object({
+      sku: z.string(),
+      price: z.union([z.string(), z.number()]).transform(val => 
+        typeof val === 'string' ? parseFloat(val) : val
+      ),
+    }).optional(),
+    quantity: z.number().int().positive(),
+  })),
+  shippingAddress: z.object({
+    id: z.string(),
+    street: z.string(),
+    city: z.string(),
+    state: z.string(),
+    zipCode: z.string(),
+    country: z.string(),
+    phone: z.string().optional(),
+  }),
+});
 
 export async function POST(request: Request) {
   try {
     const session = await getServerSession(authOptions);
     if (!session?.user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      return NextResponse.json(
+        { error: "Unauthorized" },
+        { status: 401 }
+      );
     }
 
-    const { items, shippingAddress } = await request.json();
-    if (!items?.length) {
-      return NextResponse.json({ error: "No items in cart" }, { status: 400 });
+    const body = await request.json();
+    
+    // Validate request body
+    const validationResult = createPaymentIntentSchema.safeParse(body);
+    if (!validationResult.success) {
+      console.error("Validation error:", validationResult.error);
+      return NextResponse.json(
+        { error: "Invalid request data", details: validationResult.error.errors },
+        { status: 400 }
+      );
     }
 
-    // Validate shipping address ID
-    if (!shippingAddress?.id) {
-      return NextResponse.json({ error: "Invalid shipping address" }, { status: 400 });
-    }
+    const { items, shippingAddress } = validationResult.data;
 
     // Verify shipping address belongs to user
     const address = await prisma.address.findUnique({
@@ -45,17 +69,24 @@ export async function POST(request: Request) {
     });
 
     if (!address) {
-      return NextResponse.json({ error: "Shipping address not found" }, { status: 404 });
+      return NextResponse.json(
+        { error: "Shipping address not found" },
+        { status: 404 }
+      );
     }
 
-    let lineItems = [];
+    // Calculate total amount
     let subtotal = 0;
+    const orderItems = [];
 
     // Process each item in the cart
     for (const item of items) {
       const productId = Number(item.product.id);
       if (isNaN(productId)) {
-        return NextResponse.json({ error: `Invalid product ID: ${item.product.id}` }, { status: 400 });
+        return NextResponse.json(
+          { error: `Invalid product ID: ${item.product.id}` },
+          { status: 400 }
+        );
       }
 
       const product = await prisma.product.findUnique({
@@ -64,132 +95,75 @@ export async function POST(request: Request) {
       });
 
       if (!product) {
-        return NextResponse.json({ error: `Product not found: ${productId}` }, { status: 404 });
+        return NextResponse.json(
+          { error: `Product not found: ${productId}` },
+          { status: 404 }
+        );
       }
 
-      const price = Number(item.variant?.price || item.product.price);
+      const price = item.variant?.price || item.product.price;
       if (isNaN(price) || price <= 0) {
-        return NextResponse.json({ error: `Invalid price for product: ${product.name}` }, { status: 400 });
+        console.error(`Invalid price for product ${product.name}:`, price);
+        return NextResponse.json(
+          { error: `Invalid price for product: ${product.name}` },
+          { status: 400 }
+        );
       }
 
       subtotal += price * item.quantity;
 
-      lineItems.push({
-        price_data: {
-          currency: 'myr',
-          product_data: {
-            name: product.name,
-            description: item.variant ? `Variant: ${item.variant.sku}` : undefined,
-            metadata: {
-              productId: productId.toString(),
-              variantSku: item.variant?.sku
-            }
-          },
-          unit_amount: Math.round(price * 100), // Convert to cents for Stripe
-        },
+      orderItems.push({
+        productId: productId.toString(),
+        variantSku: item.variant?.sku,
         quantity: item.quantity,
+        unit_price: price
       });
     }
 
     // Get or create Stripe customer
-    const existingCustomer = await prisma.user.findUnique({
-      where: { id: session.user.id },
-      select: {
-        id: true,
-        name: true,
-        email: true,
-        stripeCustomerId: true
-      }
-    });
+    const customerId = await getOrCreateCustomer(
+      session.user.id,
+      session.user.email!,
+      session.user.name || undefined
+    );
 
-    let customer: string;
-
-    if (existingCustomer?.stripeCustomerId) {
-      customer = existingCustomer.stripeCustomerId;
-      
-      // Update existing customer's shipping address
-      await stripe.customers.update(customer, {
-        shipping: {
-          name: session.user.name || 'Shipping Address',
-          address: {
-            line1: address.street,
-            city: address.city,
-            state: address.state,
-            postal_code: address.zipCode,
-            country: address.country
-          }
-        }
-      });
-    } else {
-      const stripeCustomer = await stripe.customers.create({
-        email: session.user.email || '',
-        name: session.user.name || undefined,
-        metadata: {
-          userId: session.user.id
-        },
-        shipping: {
-          name: session.user.name || 'Shipping Address',
-          address: {
-            line1: address.street,
-            city: address.city,
-            state: address.state,
-            postal_code: address.zipCode,
-            country: address.country
-          }
-        }
-      });
-
-      // Save Stripe customer ID to database
-      await prisma.user.update({
-        where: { id: session.user.id },
-        data: { 
-          stripeCustomerId: stripeCustomer.id 
-        } as Partial<User>
-      });
-
-      customer = stripeCustomer.id;
-    }
-
-    // Create order items metadata
-    const orderItems = lineItems.map(item => ({
-      productId: parseInt(item.price_data.product_data.metadata.productId),
-      variantSku: item.price_data.product_data.metadata.variantSku,
-      quantity: item.quantity,
-      unit_price: item.price_data.unit_amount / 100 // Convert back to dollars for our records
-    }));
-
-    // Create Stripe Checkout Session
-    const checkoutSession = await stripe.checkout.sessions.create({
-      customer,
-      mode: 'payment',
-      line_items: lineItems,
-      success_url: `${process.env.NEXT_PUBLIC_APP_URL}/shop/checkout/success?session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${process.env.NEXT_PUBLIC_APP_URL}/shop/cart`,
-      metadata: {
+    // Create payment intent
+    const paymentIntent = await createPaymentIntent(
+      subtotal,
+      'myr',
+      customerId,
+      {
         userId: session.user.id,
         shippingAddressId: address.id,
         orderItems: JSON.stringify(orderItems),
         subtotal: subtotal.toString()
-      },
-      currency: 'myr',
-      billing_address_collection: 'auto',
-      customer_update: {
-        address: 'auto'
-      },
-      shipping_address_collection: {
-        allowed_countries: ['MY', 'SG', 'BN']  // Malaysia, Singapore, Brunei
       }
-    });
+    );
 
-    if (!checkoutSession.url) {
-      throw new Error('Failed to create checkout session URL');
+    return NextResponse.json({
+      clientSecret: paymentIntent.client_secret,
+      publishableKey: process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY
+    });
+  } catch (error) {
+    console.error("Payment intent creation error:", error);
+    
+    // Handle specific error types
+    if (error instanceof Stripe.errors.StripeError) {
+      return NextResponse.json(
+        { error: `Stripe error: ${error.message}` },
+        { status: error.statusCode || 500 }
+      );
+    }
+    
+    if (error instanceof Error) {
+      return NextResponse.json(
+        { error: error.message },
+        { status: 500 }
+      );
     }
 
-    return NextResponse.json({ url: checkoutSession.url });
-  } catch (error) {
-    console.error("Checkout session creation error:", error);
     return NextResponse.json(
-      { error: "Failed to create checkout session" },
+      { error: "An unexpected error occurred" },
       { status: 500 }
     );
   }

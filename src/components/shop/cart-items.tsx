@@ -5,17 +5,14 @@ import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { CartItem, Product, ProductVariant } from "@prisma/client";
+import { CartItem } from "@/types/cart";
 import { formatPrice } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Trash2, ShoppingBag } from "lucide-react";
 
 interface CartItemsProps {
-  items: (CartItem & {
-    product: Product;
-    variant?: ProductVariant | null;
-  })[];
+  items: CartItem[];
 }
 
 export function CartItems({ items }: CartItemsProps) {
@@ -44,7 +41,7 @@ export function CartItems({ items }: CartItemsProps) {
     );
   }
 
-  const updateQuantity = async (itemId: number, quantity: number) => {
+  const updateQuantity = async (itemId: string | number, quantity: number) => {
     if (quantity < 1) return;
     setUpdating(itemId.toString());
     try {
@@ -67,7 +64,7 @@ export function CartItems({ items }: CartItemsProps) {
     }
   };
 
-  const removeItem = async (itemId: number) => {
+  const removeItem = async (itemId: string | number) => {
     setUpdating(itemId.toString());
     try {
       const response = await fetch(`/api/cart?itemId=${itemId}`, {
@@ -93,12 +90,12 @@ export function CartItems({ items }: CartItemsProps) {
         <div className="space-y-4">
           {items.map((item) => (
             <div
-              key={item.id}
+              key={`${item.product.id}-${item.variant?.sku || ''}`}
               className="flex items-center justify-between py-4 border-b last:border-0"
             >
               <div className="flex items-center space-x-4">
                 <img
-                  src={item.variant?.images?.[0] || item.product.image || ''}
+                  src={item.variant?.image || item.product.image || ''}
                   alt={item.product.name}
                   className="h-16 w-16 object-cover rounded"
                 />
@@ -108,13 +105,11 @@ export function CartItems({ items }: CartItemsProps) {
                   </h3>
                   {item.variant && (
                     <p className="text-sm text-gray-600">
-                      {Object.entries(item.variant.options as Record<string, string>)
-                        .map(([key, value]) => `${key}: ${value}`)
-                        .join(", ")}
+                      SKU: {item.variant.sku}
                     </p>
                   )}
                   <p className="text-sm text-gray-500">
-                    {formatPrice(Number(item.variant?.price ?? item.product.price))}
+                    {formatPrice(item.variant?.price ?? item.product.price)}
                   </p>
                 </div>
               </div>
@@ -123,8 +118,8 @@ export function CartItems({ items }: CartItemsProps) {
                   <Button
                     variant="outline"
                     size="icon"
-                    onClick={() => updateQuantity(item.id, item.quantity - 1)}
-                    disabled={updating === item.id.toString() || item.quantity <= 1}
+                    onClick={() => updateQuantity(item.product.id, item.quantity - 1)}
+                    disabled={updating === item.product.id.toString() || item.quantity <= 1}
                   >
                     -
                   </Button>
@@ -133,16 +128,16 @@ export function CartItems({ items }: CartItemsProps) {
                     min="1"
                     value={item.quantity}
                     onChange={(e) =>
-                      updateQuantity(item.id, parseInt(e.target.value))
+                      updateQuantity(item.product.id, parseInt(e.target.value))
                     }
                     className="w-16 text-center"
-                    disabled={updating === item.id.toString()}
+                    disabled={updating === item.product.id.toString()}
                   />
                   <Button
                     variant="outline"
                     size="icon"
-                    onClick={() => updateQuantity(item.id, item.quantity + 1)}
-                    disabled={updating === item.id.toString()}
+                    onClick={() => updateQuantity(item.product.id, item.quantity + 1)}
+                    disabled={updating === item.product.id.toString()}
                   >
                     +
                   </Button>
@@ -150,8 +145,8 @@ export function CartItems({ items }: CartItemsProps) {
                 <Button
                   variant="ghost"
                   size="icon"
-                  onClick={() => removeItem(item.id)}
-                  disabled={updating === item.id.toString()}
+                  onClick={() => removeItem(item.product.id)}
+                  disabled={updating === item.product.id.toString()}
                 >
                   <Trash2 className="h-4 w-4 text-red-500" />
                 </Button>

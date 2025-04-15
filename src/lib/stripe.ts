@@ -22,7 +22,7 @@ const validateEnv = () => {
 validateEnv();
 
 const stripeConfig = {
-  apiVersion: '2025-03-31.basil' as const,
+  apiVersion: '2023-10-16' as const,
   typescript: true as const,
   appInfo: {
     name: 'BINWAHAB Shop',

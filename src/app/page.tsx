@@ -107,6 +107,7 @@ export default function HomePage() {
                       height={1080}
                       className="w-full h-full object-cover"
                       type="collection"
+                      priority
                     />
                   </div>
                   {featuredCollections[0].image2 && (

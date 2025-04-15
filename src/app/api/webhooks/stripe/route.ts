@@ -1,6 +1,6 @@
 import { headers } from "next/headers";
 import { NextResponse } from "next/server";
-import { stripe } from "@/lib/stripe";
+import { stripe, constructWebhookEvent } from "@/lib/stripe/server";
 import { prisma } from "@/lib/prisma";
 import Stripe from "stripe";
 import { OrderStatus, PaymentStatus, PaymentMethod } from "@prisma/client";
@@ -28,17 +28,23 @@ async function handlePaymentIntentSucceeded(paymentIntent: Stripe.PaymentIntent)
             productId: item.productId,
             variantId: item.variantId,
             quantity: item.quantity,
-            price: item.unit_price, // Already in dollars
+            price: item.unit_price,
           })),
         },
       },
+      include: {
+        items: true,
+      },
     });
 
-    // Clear user's cart
+    // Clear user's cart after successful order
     await prisma.cart.delete({
       where: {
         userId,
       },
+    }).catch((error) => {
+      // Log but don't fail if cart deletion fails
+      console.error("Failed to clear cart:", error);
     });
 
     return order;
@@ -53,14 +59,14 @@ async function handlePaymentIntentFailed(paymentIntent: Stripe.PaymentIntent) {
   const shippingAddressId = paymentIntent.metadata.shippingAddressId;
 
   try {
-    // Create order with failed status using the existing shipping address
+    // Create order with failed status
     await prisma.order.create({
       data: {
         userId,
         status: OrderStatus.CANCELLED,
         paymentStatus: PaymentStatus.FAILED,
         paymentMethod: PaymentMethod.CREDIT_CARD,
-        total: paymentIntent.amount / 100, // Convert from cents to dollars
+        total: paymentIntent.amount / 100,
         shippingAddressId,
       },
     });
@@ -73,19 +79,25 @@ async function handlePaymentIntentFailed(paymentIntent: Stripe.PaymentIntent) {
 export async function POST(req: Request) {
   try {
     const body = await req.text();
-    const signature = headers().get("stripe-signature")!;
+    const signature = headers().get("stripe-signature");
+
+    if (!signature) {
+      return NextResponse.json(
+        { error: "No signature provided" },
+        { status: 400 }
+      );
+    }
 
     let event: Stripe.Event;
 
     try {
-      event = stripe.webhooks.constructEvent(
-        body,
-        signature,
-        webhookSecret
-      );
+      event = await constructWebhookEvent(body, signature);
     } catch (err) {
       console.error("Webhook signature verification failed:", err);
-      return NextResponse.json({ error: "Invalid signature" }, { status: 400 });
+      return NextResponse.json(
+        { error: "Invalid signature" },
+        { status: 400 }
+      );
     }
 
     switch (event.type) {

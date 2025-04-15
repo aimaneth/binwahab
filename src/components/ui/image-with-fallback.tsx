@@ -9,6 +9,7 @@ interface ImageWithFallbackProps {
   className?: string;
   type?: "banner" | "collection" | "product";
   fill?: boolean;
+  priority?: boolean;
 }
 
 export function ImageWithFallback({
@@ -19,6 +20,7 @@ export function ImageWithFallback({
   className = "",
   type = "product",
   fill = false,
+  priority = false,
 }: ImageWithFallbackProps) {
   const [error, setError] = useState(false);
 
@@ -41,6 +43,7 @@ export function ImageWithFallback({
       {...(fill ? { fill } : { width, height })}
       className={className}
       onError={() => setError(true)}
+      priority={priority}
     />
   );
 } 
