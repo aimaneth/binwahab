@@ -6,6 +6,13 @@ import { stripe } from "@/lib/stripe";
 import { CartItem } from "@/types/cart";
 import { headers } from "next/headers";
 
+interface LineItem {
+  product_id: number;
+  variant_id: number | null;
+  quantity: number;
+  unit_price: number;
+}
+
 export async function POST(req: Request) {
   try {
     const session = await getServerSession(authOptions);
@@ -26,7 +33,24 @@ export async function POST(req: Request) {
       );
     }
 
-    // Validate and fetch products
+    if (!shippingAddress) {
+      return NextResponse.json(
+        { error: "Shipping address is required" },
+        { status: 400 }
+      );
+    }
+
+    // Validate shipping address
+    const requiredFields = ['street', 'city', 'state', 'zipCode', 'country'];
+    const missingFields = requiredFields.filter(field => !shippingAddress[field]);
+    if (missingFields.length > 0) {
+      return NextResponse.json(
+        { error: `Missing required fields: ${missingFields.join(', ')}` },
+        { status: 400 }
+      );
+    }
+
+    // Validate and fetch products with stock check
     const productIds = items.map((item: CartItem) => item.product.id);
     const products = await prisma.product.findMany({
       where: {
@@ -39,14 +63,16 @@ export async function POST(req: Request) {
       }
     });
 
-    if (products.length !== items.length) {
+    if (products.length !== productIds.length) {
+      const foundIds = products.map(p => p.id);
+      const missingIds = productIds.filter((id: number) => !foundIds.includes(id));
       return NextResponse.json(
-        { error: "One or more products not found" },
+        { error: `Products not found: ${missingIds.join(', ')}` },
         { status: 400 }
       );
     }
 
-    // Calculate total amount and prepare line items
+    // Calculate total amount and validate stock
     let subtotal = 0;
     const lineItems = items.map((item: CartItem) => {
       const product = products.find(p => p.id === item.product.id);
@@ -60,11 +86,16 @@ export async function POST(req: Request) {
         if (!variant) {
           throw new Error(`Variant not found for product: ${item.product.id}`);
         }
+        // Check variant stock
+        if (variant.inventoryTracking && variant.stock < item.quantity) {
+          throw new Error(`Insufficient stock for variant of product: ${product.name}`);
+        }
       } else {
-        // If no variant is specified, use the product's base price
         variant = {
           price: product.price,
-          id: null
+          id: null,
+          stock: null,
+          inventoryTracking: false
         };
       }
 
@@ -115,7 +146,17 @@ export async function POST(req: Request) {
       
       if (shippingRate) {
         shipping = Number(shippingRate.price);
+      } else {
+        return NextResponse.json(
+          { error: "No shipping rate available for this order value" },
+          { status: 400 }
+        );
       }
+    } else {
+      return NextResponse.json(
+        { error: "Shipping zone not found" },
+        { status: 400 }
+      );
     }
 
     const total = Math.round((subtotal + tax + shipping) * 100); // Convert to cents for Stripe
@@ -126,28 +167,25 @@ export async function POST(req: Request) {
     // Create payment intent with improved metadata and error handling
     const paymentIntent = await stripe.paymentIntents.create({
       amount: total,
-      currency: "usd",
+      currency: "myr",
       automatic_payment_methods: {
         enabled: true,
       },
       metadata: {
         userId: session.user.id,
-        orderItems: JSON.stringify(lineItems.map((item: { product_id: number; variant_id: number | null; quantity: number }) => ({
-          productId: item.product_id,
-          variantId: item.variant_id,
-          quantity: item.quantity
-        }))),
-        subtotal: String(subtotal),
-        tax: String(tax),
-        shipping: String(shipping),
+        orderItems: JSON.stringify(lineItems.map((item: LineItem) => {
+          return {
+            productId: item.product_id,
+            variantId: item.variant_id,
+            quantity: item.quantity,
+            unit_price: item.unit_price
+          };
+        })),
+        subtotal,
+        tax,
+        shipping,
         shippingZone: zoneType,
-        shippingAddress: JSON.stringify({
-          street: shippingAddress.street,
-          city: shippingAddress.city,
-          state: shippingAddress.state,
-          zipCode: shippingAddress.zipCode,
-          country: shippingAddress.country
-        })
+        shippingAddress: JSON.stringify(shippingAddress)
       },
       statement_descriptor: "BINWAHAB STORE",
       statement_descriptor_suffix: "Order",
