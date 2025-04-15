@@ -91,7 +91,7 @@ export async function POST(req: Request) {
     for (const item of items) {
       console.log('Processing item:', item);
       
-      const productId = typeof item.id === 'string' ? parseInt(item.id) : item.id;
+      const productId = typeof item.product.id === 'string' ? parseInt(item.product.id) : item.product.id;
       console.log('Looking up product:', productId);
 
       const product = await prisma.product.findUnique({
@@ -132,7 +132,7 @@ export async function POST(req: Request) {
       subtotal += itemTotal;
 
       lineItems.push({
-        id: item.id.toString(),
+        id: productId.toString(),
         productId: productId,
         variantId: item.variant?.id,
         quantity: item.quantity,
