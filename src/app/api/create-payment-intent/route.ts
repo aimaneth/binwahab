@@ -3,106 +3,47 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { stripe } from "@/lib/stripe";
-import { Product, ProductVariant } from "@prisma/client";
-import { headers } from "next/headers";
 
 interface CartItem {
-  id: string | number;
   product: {
-    id?: string | number;
+    id: number | string;
     name: string;
     price: string | number;
-    inventoryTracking?: boolean;
-    stock?: number;
   };
   variant?: {
-    id?: string | number;
     sku: string;
     price: string | number;
-    inventoryTracking?: boolean;
-    stock?: number;
   };
   quantity: number;
 }
 
-interface LineItem {
-  id: string | number;
-  productId: number;
-  variantId?: number | null;
-  quantity: number;
-  total?: number;
-}
-
-interface Variant {
-  id: string | number;
-  price: string | number;
-  inventoryTracking: boolean;
-  stock: number;
-}
-
-export async function POST(req: Request) {
+export async function POST(request: Request) {
   try {
-    console.log('=== Payment Intent Creation Debug ===');
-    
     const session = await getServerSession(authOptions);
     if (!session?.user) {
-      return NextResponse.json(
-        { error: "You must be logged in to create a payment intent" },
-        { status: 401 }
-      );
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const body = await req.json();
-    console.log('Processing request:', {
-      itemCount: body.items?.length,
-      firstItem: body.items?.[0]
-    });
-
-    const { items, shippingAddress } = body;
-
-    if (!Array.isArray(items) || items.length === 0) {
-      return NextResponse.json(
-        { error: "Invalid or empty items array" },
-        { status: 400 }
-      );
+    const { items, shippingAddress } = await request.json();
+    if (!items?.length) {
+      return NextResponse.json({ error: "No items in cart" }, { status: 400 });
     }
 
     // Validate shipping address
-    if (!shippingAddress || typeof shippingAddress !== 'object') {
-      return NextResponse.json(
-        { error: "Invalid shipping address structure" },
-        { status: 400 }
-      );
+    if (!shippingAddress?.street || !shippingAddress?.city || !shippingAddress?.state || 
+        !shippingAddress?.zipCode || !shippingAddress?.country) {
+      return NextResponse.json({ error: "Invalid shipping address" }, { status: 400 });
     }
 
-    const requiredFields = ['street', 'city', 'state', 'zipCode', 'country'];
-    const missingFields = requiredFields.filter(field => !shippingAddress[field]);
-    if (missingFields.length > 0) {
-      return NextResponse.json(
-        { error: `Missing required shipping address fields: ${missingFields.join(', ')}` },
-        { status: 400 }
-      );
-    }
+    let total = 0;
+    const lineItems = [];
 
-    // Calculate total amount and validate stock
-    let subtotal = 0;
-    const lineItems: LineItem[] = [];
-
+    // Process each item in the cart
     for (const item of items) {
-      if (!item.product?.id) {
-        console.log('Invalid item - missing product ID:', item);
-        return NextResponse.json(
-          { error: "Invalid item structure - missing product ID" },
-          { status: 400 }
-        );
+      const productId = Number(item.product.id);
+      if (isNaN(productId)) {
+        return NextResponse.json({ error: `Invalid product ID: ${item.product.id}` }, { status: 400 });
       }
-
-      const productId = typeof item.product.id === 'string' ? parseInt(item.product.id) : item.product.id;
-      console.log('Processing product:', {
-        cartItemId: item.id,
-        actualProductId: productId,
-        variantSku: item.variant?.sku
-      });
 
       const product = await prisma.product.findUnique({
         where: { id: productId },
@@ -110,154 +51,56 @@ export async function POST(req: Request) {
       });
 
       if (!product) {
-        console.log('Product not found:', { searchId: productId, item });
-        return NextResponse.json(
-          { error: `Product not found: ${productId}` },
-          { status: 400 }
-        );
+        return NextResponse.json({ error: `Product not found: ${productId}` }, { status: 404 });
       }
 
-      let price: number;
-      let variantId: number | null = null;
+      const price = item.variant?.price || item.product.price;
+      const itemTotal = Number(price) * item.quantity;
 
-      if (item.variant?.sku) {
-        const variant = product.variants.find(v => v.sku === item.variant?.sku);
-        if (!variant) {
-          return NextResponse.json(
-            { error: `Variant with SKU ${item.variant.sku} not found for product: ${product.name}` },
-            { status: 400 }
-          );
-        }
-        price = Number(variant.price);
-        variantId = variant.id;
-      } else {
-        price = Number(product.price);
+      if (isNaN(itemTotal) || itemTotal <= 0) {
+        return NextResponse.json({ error: `Invalid price for product: ${product.name}` }, { status: 400 });
       }
 
-      if (isNaN(price) || price <= 0) {
-        return NextResponse.json(
-          { error: `Invalid price for product: ${product.name}` },
-          { status: 400 }
-        );
-      }
-
-      const itemTotal = price * item.quantity;
-      subtotal += itemTotal;
-
+      total += itemTotal;
       lineItems.push({
-        id: productId,
-        productId: productId,
-        variantId: variantId,
+        productId,
+        name: product.name,
+        price: Number(price),
         quantity: item.quantity,
-        total: itemTotal
+        total: itemTotal,
+        variantSku: item.variant?.sku
       });
     }
 
-    // Calculate tax and shipping
-    const tax = subtotal * 0.06; // 6% tax
-    
-    // Get shipping cost based on address
-    const zoneType = shippingAddress.state.toLowerCase().includes('sabah') || 
-                    shippingAddress.state.toLowerCase().includes('sarawak') ? 
-                    'EAST_MALAYSIA' : 'WEST_MALAYSIA';
-                    
-    const shippingZone = await prisma.shippingZone.findFirst({
-      where: {
-        type: zoneType,
-        isActive: true
-      },
-    });
-    
-    if (!shippingZone) {
-      return NextResponse.json(
-        { error: "Shipping zone not found for the provided address" },
-        { status: 400 }
-      );
-    }
-
-    const shippingRate = await prisma.shippingRate.findFirst({
-      where: {
-        zoneId: shippingZone.id,
-        minOrderValue: {
-          lte: subtotal,
-        },
-        maxOrderValue: {
-          gte: subtotal,
-        },
-        isActive: true
-      },
-      orderBy: {
-        minOrderValue: 'desc',
-      },
-    });
-    
-    if (!shippingRate) {
-      return NextResponse.json(
-        { error: "No shipping rate available for this order value" },
-        { status: 400 }
-      );
-    }
-
-    const shipping = Number(shippingRate.price);
-    const total = Math.round((subtotal + tax + shipping) * 100); // Convert to cents for Stripe
-
     if (total <= 0) {
-      return NextResponse.json(
-        { error: "Total amount must be greater than 0" },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "Total amount must be greater than 0" }, { status: 400 });
     }
 
     // Create payment intent
-    const idempotencyKey = headers().get("Idempotency-Key") || `pi_${session.user.id}_${Date.now()}`;
+    const paymentIntent = await stripe.paymentIntents.create({
+      amount: Math.round(total * 100), // Convert to cents
+      currency: "usd",
+      customer: session.user.id,
+      metadata: {
+        userId: session.user.id,
+        orderItems: JSON.stringify(lineItems.map(item => ({
+          productId: item.productId,
+          name: item.name,
+          price: item.price.toString(),
+          quantity: item.quantity,
+          total: item.total.toString(),
+          variantSku: item.variantSku
+        }))),
+        shippingAddress: JSON.stringify(shippingAddress)
+      }
+    });
 
-    try {
-      const paymentIntent = await stripe.paymentIntents.create({
-        amount: total,
-        currency: "myr",
-        automatic_payment_methods: {
-          enabled: true,
-        },
-        metadata: {
-          userId: session.user.id,
-          orderItems: JSON.stringify(lineItems.map(item => ({
-            productId: item.productId,
-            variantId: item.variantId,
-            quantity: item.quantity,
-            unit_price: item.total ? item.total / item.quantity : undefined
-          }))),
-          subtotal: subtotal.toString(),
-          tax: tax.toString(),
-          shipping: shipping.toString(),
-          shippingZone: zoneType,
-          shippingAddress: JSON.stringify(shippingAddress)
-        },
-        statement_descriptor: "BINWAHAB STORE",
-        statement_descriptor_suffix: "Order",
-        description: `Order for ${session.user.email}`,
-      }, {
-        idempotencyKey
-      });
-
-      return NextResponse.json({ 
-        clientSecret: paymentIntent.client_secret,
-        amount: total,
-        subtotal,
-        tax,
-        shipping
-      });
-    } catch (stripeError: any) {
-      console.error('Stripe error:', stripeError);
-      return NextResponse.json(
-        { error: stripeError.message || "Failed to create payment intent" },
-        { status: stripeError.statusCode || 500 }
-      );
-    }
-  } catch (error: any) {
-    console.error('Error in payment intent creation:', error);
+    return NextResponse.json({ clientSecret: paymentIntent.client_secret });
+  } catch (error) {
+    console.error("Payment intent creation error:", error);
     return NextResponse.json(
-      { error: error.message || "Failed to create payment intent" },
-      { status: 400 }
+      { error: "Failed to create payment intent" },
+      { status: 500 }
     );
   }
 }
