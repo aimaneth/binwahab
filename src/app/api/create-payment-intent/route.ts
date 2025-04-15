@@ -3,8 +3,15 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { stripe } from "@/lib/stripe";
-import { CartItem } from "@/types/cart";
+import { Product, ProductVariant } from "@prisma/client";
 import { headers } from "next/headers";
+
+interface CartItem {
+  id: string;
+  quantity: number;
+  product: Product;
+  variant?: ProductVariant | null;
+}
 
 interface LineItem {
   product_id: number;
@@ -91,7 +98,6 @@ export async function POST(req: Request) {
     if (products.length !== productIds.length) {
       const foundIds = products.map(p => p.id);
       const missingIds = productIds.filter((id: number) => !foundIds.includes(id));
-      console.log('Missing products:', missingIds);
       return NextResponse.json(
         { error: `Products not found: ${missingIds.join(', ')}` },
         { status: 400 }
