@@ -4,7 +4,7 @@ import { redirect } from "next/navigation";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { CheckoutForm } from "@/components/shop/checkout-form";
-import { OrderSummary } from "@/components/shop/order-summary";
+import { CartItem as CartItemType } from "@/types/cart";
 import { CartItem, Product, ProductVariant } from "@prisma/client";
 
 export const metadata: Metadata = {
@@ -53,16 +53,12 @@ export default async function CheckoutPage() {
     },
   });
 
-  // Transform items to match the simplified CheckoutForm props type
-  const checkoutItems = validItems.map((item) => ({
-    id: item.product.id.toString(),
+  // Transform items to match the CartItem type from @/types/cart
+  const checkoutItems: CartItemType[] = validItems.map((item) => ({
+    id: item.id,
     quantity: item.quantity,
-    product: {
-      id: item.product!.id,
-      name: item.product!.name,
-      price: item.product!.price.toString(),
-      image: item.product!.image,
-    },
+    product: item.product,
+    variant: item.variant,
   }));
 
   return (
@@ -70,10 +66,7 @@ export default async function CheckoutPage() {
       <h1 className="text-3xl font-bold mb-8">Checkout</h1>
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         <div className="lg:col-span-2">
-          <CheckoutForm addresses={addresses} items={checkoutItems} orderSummaryItems={validItems} />
-        </div>
-        <div className="lg:col-span-1">
-          <OrderSummary items={validItems} />
+          <CheckoutForm addresses={addresses} items={checkoutItems} />
         </div>
       </div>
     </main>
