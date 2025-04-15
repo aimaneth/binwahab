@@ -148,18 +148,22 @@ export async function GET(req: Request) {
     }
 
     // Transform to match CartItem type
-    const items: CartItem[] = cart.items
+    const items = cart.items
       .filter(item => item.product !== null)
       .map(item => ({
+        id: item.id.toString(),
         product: {
-          id: item.product!.id,
+          id: item.product!.id.toString(),
           name: item.product!.name,
-          price: Number(item.product!.price),
+          price: item.product!.price.toString(),
           image: item.product!.image || undefined,
+          description: item.product!.description || undefined,
         },
         variant: item.variant ? {
+          id: item.variant.id.toString(),
           sku: item.variant.sku,
-          price: Number(item.variant.price),
+          name: item.variant.name,
+          price: item.variant.price.toString(),
           image: item.variant.images[0] || undefined,
         } : undefined,
         quantity: item.quantity,

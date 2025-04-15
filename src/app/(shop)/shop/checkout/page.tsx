@@ -4,16 +4,14 @@ import { redirect } from "next/navigation";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { CheckoutConfig } from "@/components/stripe/checkout-config";
-import { CartItem as CartItemType } from "@/types/cart";
-import { CartItem, Product, ProductVariant } from "@prisma/client";
-import { Decimal } from "@prisma/client/runtime/library";
+import { CartItem as PrismaCartItem, Product, ProductVariant } from "@prisma/client";
 
 export const metadata: Metadata = {
   title: "Checkout - BINWAHAB",
   description: "Complete your purchase",
 };
 
-type CartItemWithDetails = CartItem & {
+type CartItemWithDetails = PrismaCartItem & {
   product: Product;
   variant: ProductVariant | null;
 };
@@ -47,21 +45,21 @@ export default async function CheckoutPage() {
     redirect("/shop/cart");
   }
 
-  // Transform items to match the CartItem type from @/types/cart
-  const checkoutItems: CartItemType[] = validItems.map((item) => ({
-    id: item.id,
+  // Transform items to match the CheckoutConfig component's expected type
+  const checkoutItems = validItems.map((item) => ({
+    id: item.id.toString(),
     quantity: item.quantity,
     product: {
-      id: item.product.id,
+      id: item.product.id.toString(),
       name: item.product.name,
-      price: Number(item.product.price),
+      price: item.product.price.toString(),
       image: item.product.image || undefined,
       description: item.product.description || undefined,
     },
     variant: item.variant ? {
-      id: item.variant.id,
+      id: item.variant.id.toString(),
       sku: item.variant.sku,
-      price: Number(item.variant.price),
+      price: item.variant.price.toString(),
       name: item.variant.name,
       image: item.variant.images[0] || undefined,
     } : undefined,

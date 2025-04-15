@@ -1,4 +1,4 @@
-import { clsx, type ClassValue } from "clsx"
+import { type ClassValue, clsx } from "clsx"
 import { twMerge } from "tailwind-merge"
 import { Decimal } from "@prisma/client/runtime/library"
 
@@ -11,12 +11,20 @@ function isDecimal(value: any): boolean {
   return value && typeof value === 'object' && 'toNumber' in value;
 }
 
-export const formatPrice = (price: number, currency: string = 'MYR') => {
+export function formatPrice(price: number | string | { toString: () => string }) {
+  // Handle various price types
+  const numericPrice = typeof price === 'number' 
+    ? price 
+    : typeof price === 'string' 
+      ? parseFloat(price)
+      : parseFloat(price.toString());
+
   return new Intl.NumberFormat('en-MY', {
     style: 'currency',
-    currency: currency,
-  }).format(price);
-};
+    currency: 'MYR',
+    minimumFractionDigits: 2,
+  }).format(numericPrice);
+}
 
 export function formatDate(date: Date): string {
   return new Intl.DateTimeFormat("en-MY", {

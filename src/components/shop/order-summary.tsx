@@ -21,7 +21,8 @@ export function OrderSummary({ items }: OrderSummaryProps) {
       setIsCalculating(true);
       const newSubtotal = items.reduce((sum, item) => {
         const price = item.variant?.price || item.product.price;
-        return sum + (price * item.quantity);
+        const numericPrice = typeof price === 'string' ? parseFloat(price) : price;
+        return sum + (numericPrice * item.quantity);
       }, 0);
       
       setSubtotal(newSubtotal);
