@@ -76,7 +76,7 @@ export async function POST(request: Request) {
 
       lineItems.push({
         price_data: {
-          currency: 'usd',
+          currency: 'myr',
           product_data: {
             name: product.name,
             description: item.variant ? `Variant: ${item.variant.sku}` : undefined,
@@ -85,18 +85,24 @@ export async function POST(request: Request) {
               variantSku: item.variant?.sku
             }
           },
-          unit_amount: Math.round(price * 100), // Convert to cents
+          unit_amount: Math.round(price * 100), // Convert to cents for Stripe
         },
         quantity: item.quantity,
       });
     }
 
     // Get or create Stripe customer
-    let customer: string;
     const existingCustomer = await prisma.user.findUnique({
       where: { id: session.user.id },
-      select: { id: true, stripeCustomerId: true }
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        stripeCustomerId: true
+      }
     });
+
+    let customer: string;
 
     if (existingCustomer?.stripeCustomerId) {
       customer = existingCustomer.stripeCustomerId;
@@ -165,7 +171,14 @@ export async function POST(request: Request) {
         orderItems: JSON.stringify(orderItems),
         subtotal: subtotal.toString()
       },
-      billing_address_collection: 'required', // Still collect billing address
+      currency: 'myr',
+      billing_address_collection: 'auto',
+      customer_update: {
+        address: 'auto'
+      },
+      shipping_address_collection: {
+        allowed_countries: ['MY', 'SG', 'BN']  // Malaysia, Singapore, Brunei
+      }
     });
 
     if (!checkoutSession.url) {
