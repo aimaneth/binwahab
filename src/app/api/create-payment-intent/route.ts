@@ -11,6 +11,7 @@ interface LineItem {
   variant_id: number | null;
   quantity: number;
   unit_price: number;
+  total: number;
 }
 
 export async function POST(req: Request) {
@@ -80,7 +81,13 @@ export async function POST(req: Request) {
         throw new Error(`Product not found: ${item.product.id}`);
       }
 
+      // Check product stock if no variant
+      if (!item.variant?.id && product.inventoryTracking && product.stock < item.quantity) {
+        throw new Error(`Insufficient stock for product: ${product.name}`);
+      }
+
       let variant;
+      let price;
       if (item.variant?.id) {
         variant = product.variants.find(v => v.id === item.variant!.id);
         if (!variant) {
@@ -90,23 +97,26 @@ export async function POST(req: Request) {
         if (variant.inventoryTracking && variant.stock < item.quantity) {
           throw new Error(`Insufficient stock for variant of product: ${product.name}`);
         }
+        price = Number(variant.price);
       } else {
+        price = Number(product.price);
         variant = {
-          price: product.price,
           id: null,
-          stock: null,
-          inventoryTracking: false
         };
       }
 
-      const itemTotal = Number(variant.price) * item.quantity;
+      if (isNaN(price) || price <= 0) {
+        throw new Error(`Invalid price for product: ${product.name}`);
+      }
+
+      const itemTotal = price * item.quantity;
       subtotal += itemTotal;
       
       return {
         product_id: product.id,
         variant_id: variant.id,
         quantity: item.quantity,
-        unit_price: variant.price,
+        unit_price: price,
         total: itemTotal
       };
     });
@@ -126,103 +136,104 @@ export async function POST(req: Request) {
       },
     });
     
-    let shipping = 0;
-    if (shippingZone) {
-      const shippingRate = await prisma.shippingRate.findFirst({
-        where: {
-          zoneId: shippingZone.id,
-          minOrderValue: {
-            lte: subtotal,
-          },
-          maxOrderValue: {
-            gte: subtotal,
-          },
-          isActive: true
-        },
-        orderBy: {
-          minOrderValue: 'desc',
-        },
-      });
-      
-      if (shippingRate) {
-        shipping = Number(shippingRate.price);
-      } else {
-        return NextResponse.json(
-          { error: "No shipping rate available for this order value" },
-          { status: 400 }
-        );
-      }
-    } else {
+    if (!shippingZone) {
       return NextResponse.json(
-        { error: "Shipping zone not found" },
+        { error: "Shipping zone not found for the provided address" },
+        { status: 400 }
+      );
+    }
+
+    const shippingRate = await prisma.shippingRate.findFirst({
+      where: {
+        zoneId: shippingZone.id,
+        minOrderValue: {
+          lte: subtotal,
+        },
+        maxOrderValue: {
+          gte: subtotal,
+        },
+        isActive: true
+      },
+      orderBy: {
+        minOrderValue: 'desc',
+      },
+    });
+    
+    if (!shippingRate) {
+      return NextResponse.json(
+        { error: "No shipping rate available for this order value" },
+        { status: 400 }
+      );
+    }
+
+    const shipping = Number(shippingRate.price);
+    if (isNaN(shipping)) {
+      return NextResponse.json(
+        { error: "Invalid shipping rate" },
         { status: 400 }
       );
     }
 
     const total = Math.round((subtotal + tax + shipping) * 100); // Convert to cents for Stripe
 
+    if (total <= 0) {
+      return NextResponse.json(
+        { error: "Total amount must be greater than 0" },
+        { status: 400 }
+      );
+    }
+
     // Get idempotency key from headers or generate one
     const idempotencyKey = headers().get("Idempotency-Key") || `pi_${session.user.id}_${Date.now()}`;
 
-    // Create payment intent with improved metadata and error handling
-    const paymentIntent = await stripe.paymentIntents.create({
-      amount: total,
-      currency: "myr",
-      automatic_payment_methods: {
-        enabled: true,
-      },
-      metadata: {
-        userId: session.user.id,
-        orderItems: JSON.stringify(lineItems.map((item: LineItem) => {
-          return {
+    try {
+      // Create payment intent with improved metadata and error handling
+      const paymentIntent = await stripe.paymentIntents.create({
+        amount: total,
+        currency: "myr",
+        automatic_payment_methods: {
+          enabled: true,
+        },
+        metadata: {
+          userId: session.user.id,
+          orderItems: JSON.stringify(lineItems.map((item: LineItem) => ({
             productId: item.product_id,
             variantId: item.variant_id,
             quantity: item.quantity,
             unit_price: item.unit_price
-          };
-        })),
+          }))),
+          subtotal: subtotal.toString(),
+          tax: tax.toString(),
+          shipping: shipping.toString(),
+          shippingZone: zoneType,
+          shippingAddress: JSON.stringify(shippingAddress)
+        },
+        statement_descriptor: "BINWAHAB STORE",
+        statement_descriptor_suffix: "Order",
+        description: `Order for ${session.user.email}`,
+      }, {
+        idempotencyKey
+      });
+
+      return NextResponse.json({ 
+        clientSecret: paymentIntent.client_secret,
+        amount: total,
         subtotal,
         tax,
-        shipping,
-        shippingZone: zoneType,
-        shippingAddress: JSON.stringify(shippingAddress)
-      },
-      statement_descriptor: "BINWAHAB STORE",
-      statement_descriptor_suffix: "Order",
-      description: `Order for ${session.user.email}`,
-    }, {
-      idempotencyKey
-    });
-
-    return NextResponse.json({ 
-      clientSecret: paymentIntent.client_secret,
-      amount: total,
-      subtotal,
-      tax,
-      shipping
-    });
-  } catch (error) {
-    console.error("Payment intent creation error:", error);
-    
-    // Handle specific Stripe errors
-    if (error instanceof stripe.errors.StripeError) {
+        shipping
+      });
+    } catch (stripeError: any) {
+      console.error('Stripe error:', stripeError);
       return NextResponse.json(
-        { 
-          error: error.message,
-          type: error.type,
-          code: error.code 
-        },
-        { status: error.statusCode || 400 }
+        { error: stripeError.message || "Failed to create payment intent" },
+        { status: stripeError.statusCode || 500 }
       );
     }
-
-    // Handle other errors
+  } catch (error: any) {
+    console.error('Error creating payment intent:', error);
     return NextResponse.json(
-      { 
-        error: error instanceof Error ? error.message : "Failed to create payment intent",
-        type: "internal_error"
-      },
-      { status: 500 }
+      { error: error.message || "Failed to create payment intent" },
+      { status: 400 }
     );
   }
 }
