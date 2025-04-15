@@ -19,6 +19,7 @@ model User {
   image           String?
   updatedAt       DateTime         @default(now())
   role            UserRole         @default(USER)
+  stripeCustomerId String?         @unique
   accounts        Account[]
   addToCartEvents AddToCartEvent[]
   addresses       Address[]

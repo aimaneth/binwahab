@@ -64,6 +64,10 @@ export async function POST(request: Request) {
           product_data: {
             name: product.name,
             description: item.variant ? `Variant: ${item.variant.sku}` : undefined,
+            metadata: {
+              productId: productId.toString(),
+              variantSku: item.variant?.sku
+            }
           },
           unit_amount: Math.round(price * 100), // Convert to cents
         },
@@ -71,13 +75,40 @@ export async function POST(request: Request) {
       });
     }
 
+    // Get or create Stripe customer
+    let customer;
+    const existingCustomer = await prisma.user.findUnique({
+      where: { id: session.user.id },
+      select: { stripeCustomerId: true }
+    });
+
+    if (existingCustomer?.stripeCustomerId) {
+      customer = existingCustomer.stripeCustomerId;
+    } else {
+      const stripeCustomer = await stripe.customers.create({
+        email: session.user.email,
+        name: session.user.name || undefined,
+        metadata: {
+          userId: session.user.id
+        }
+      });
+
+      // Save Stripe customer ID to database
+      await prisma.user.update({
+        where: { id: session.user.id },
+        data: { stripeCustomerId: stripeCustomer.id }
+      });
+
+      customer = stripeCustomer.id;
+    }
+
     // Create Stripe Checkout Session
     const checkoutSession = await stripe.checkout.sessions.create({
-      customer: session.user.id,
+      customer: customer,
       mode: 'payment',
       line_items: lineItems,
-      success_url: `${process.env.NEXT_PUBLIC_APP_URL}/checkout/success?session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${process.env.NEXT_PUBLIC_APP_URL}/cart`,
+      success_url: `${process.env.NEXT_PUBLIC_APP_URL}/shop/checkout/success?session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${process.env.NEXT_PUBLIC_APP_URL}/shop/cart`,
       metadata: {
         userId: session.user.id,
         shippingAddress: JSON.stringify(shippingAddress)

@@ -47,7 +47,7 @@ export function ImageUpload({
         throw new Error('Upload failed');
       }
 
-      const imageUrl = uploadResponse[0].url;
+      const imageUrl = uploadResponse[0].ufsUrl;
       console.log("Upload successful, URL:", imageUrl);
       onChange(imageUrl);
       setPreviewUrl(imageUrl);
