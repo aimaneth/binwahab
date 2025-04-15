@@ -12,12 +12,14 @@ import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 
 const addressSchema = z.object({
-  street: z.string().min(5, "Address must be at least 5 characters"),
+  fullName: z.string().min(2, "Full name must be at least 2 characters"),
+  addressLine1: z.string().min(5, "Address must be at least 5 characters"),
+  addressLine2: z.string().optional(),
   city: z.string().min(2, "City must be at least 2 characters"),
   state: z.string().min(2, "State must be at least 2 characters"),
-  zipCode: z.string().min(5, "Postal code must be at least 5 characters"),
+  postalCode: z.string().min(5, "Postal code must be at least 5 characters"),
   country: z.string().min(2, "Country must be at least 2 characters"),
-  phone: z.string().min(10, "Phone number must be at least 10 characters"),
+  phoneNumber: z.string().min(10, "Phone number must be at least 10 characters"),
   isDefault: z.boolean().default(false),
 });
 
@@ -68,15 +70,41 @@ export function AddressForm() {
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
       <div>
-        <Label htmlFor="street">Street Address</Label>
+        <Label htmlFor="fullName">Full Name</Label>
         <Input
-          {...register("street")}
-          id="street"
+          {...register("fullName")}
+          id="fullName"
           type="text"
-          placeholder="123 Main St, Apt 4B"
+          placeholder="John Doe"
         />
-        {errors.street && (
-          <p className="mt-1 text-sm text-red-600">{errors.street.message}</p>
+        {errors.fullName && (
+          <p className="mt-1 text-sm text-red-600">{errors.fullName.message}</p>
+        )}
+      </div>
+
+      <div>
+        <Label htmlFor="addressLine1">Street Address</Label>
+        <Input
+          {...register("addressLine1")}
+          id="addressLine1"
+          type="text"
+          placeholder="123 Main St"
+        />
+        {errors.addressLine1 && (
+          <p className="mt-1 text-sm text-red-600">{errors.addressLine1.message}</p>
+        )}
+      </div>
+
+      <div>
+        <Label htmlFor="addressLine2">Apartment, Suite, etc. (optional)</Label>
+        <Input
+          {...register("addressLine2")}
+          id="addressLine2"
+          type="text"
+          placeholder="Apt 4B"
+        />
+        {errors.addressLine2 && (
+          <p className="mt-1 text-sm text-red-600">{errors.addressLine2.message}</p>
         )}
       </div>
 
@@ -110,15 +138,15 @@ export function AddressForm() {
 
       <div className="grid grid-cols-2 gap-4">
         <div>
-          <Label htmlFor="zipCode">Postal Code</Label>
+          <Label htmlFor="postalCode">Postal Code</Label>
           <Input
-            {...register("zipCode")}
-            id="zipCode"
+            {...register("postalCode")}
+            id="postalCode"
             type="text"
             placeholder="50000"
           />
-          {errors.zipCode && (
-            <p className="mt-1 text-sm text-red-600">{errors.zipCode.message}</p>
+          {errors.postalCode && (
+            <p className="mt-1 text-sm text-red-600">{errors.postalCode.message}</p>
           )}
         </div>
 
@@ -138,15 +166,15 @@ export function AddressForm() {
       </div>
 
       <div>
-        <Label htmlFor="phone">Phone Number</Label>
+        <Label htmlFor="phoneNumber">Phone Number</Label>
         <Input
-          {...register("phone")}
-          id="phone"
+          {...register("phoneNumber")}
+          id="phoneNumber"
           type="tel"
           placeholder="+60123456789"
         />
-        {errors.phone && (
-          <p className="mt-1 text-sm text-red-600">{errors.phone.message}</p>
+        {errors.phoneNumber && (
+          <p className="mt-1 text-sm text-red-600">{errors.phoneNumber.message}</p>
         )}
       </div>
 
