@@ -115,6 +115,9 @@ export function CheckoutForm({ addresses, items }: CheckoutFormProps) {
                         <div className="text-muted-foreground">
                           {address.city}, {address.state} {address.zipCode}
                         </div>
+                        <div className="text-sm text-muted-foreground">
+                          {address.phone}
+                        </div>
                       </Label>
                     </div>
                   ))}
@@ -141,7 +144,7 @@ export function CheckoutForm({ addresses, items }: CheckoutFormProps) {
                   Processing...
                 </>
               ) : (
-                "Proceed to Checkout"
+                "Proceed to Payment"
               )}
             </Button>
           </form>

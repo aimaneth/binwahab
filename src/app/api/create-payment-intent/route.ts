@@ -3,6 +3,8 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { stripe } from "@/lib/stripe";
+import Stripe from "stripe";
+import { User } from '@prisma/client';
 
 interface CartItem {
   product: {
@@ -29,13 +31,25 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "No items in cart" }, { status: 400 });
     }
 
-    // Validate shipping address
-    if (!shippingAddress?.street || !shippingAddress?.city || !shippingAddress?.state || 
-        !shippingAddress?.zipCode || !shippingAddress?.country) {
+    // Validate shipping address ID
+    if (!shippingAddress?.id) {
       return NextResponse.json({ error: "Invalid shipping address" }, { status: 400 });
     }
 
+    // Verify shipping address belongs to user
+    const address = await prisma.address.findUnique({
+      where: {
+        id: shippingAddress.id,
+        userId: session.user.id
+      }
+    });
+
+    if (!address) {
+      return NextResponse.json({ error: "Shipping address not found" }, { status: 404 });
+    }
+
     let lineItems = [];
+    let subtotal = 0;
 
     // Process each item in the cart
     for (const item of items) {
@@ -58,6 +72,8 @@ export async function POST(request: Request) {
         return NextResponse.json({ error: `Invalid price for product: ${product.name}` }, { status: 400 });
       }
 
+      subtotal += price * item.quantity;
+
       lineItems.push({
         price_data: {
           currency: 'usd',
@@ -76,47 +92,80 @@ export async function POST(request: Request) {
     }
 
     // Get or create Stripe customer
-    let customer;
+    let customer: string;
     const existingCustomer = await prisma.user.findUnique({
       where: { id: session.user.id },
-      select: { stripeCustomerId: true }
+      select: { id: true, stripeCustomerId: true }
     });
 
     if (existingCustomer?.stripeCustomerId) {
       customer = existingCustomer.stripeCustomerId;
+      
+      // Update existing customer's shipping address
+      await stripe.customers.update(customer, {
+        shipping: {
+          name: session.user.name || 'Shipping Address',
+          address: {
+            line1: address.street,
+            city: address.city,
+            state: address.state,
+            postal_code: address.zipCode,
+            country: address.country
+          }
+        }
+      });
     } else {
       const stripeCustomer = await stripe.customers.create({
-        email: session.user.email,
+        email: session.user.email || '',
         name: session.user.name || undefined,
         metadata: {
           userId: session.user.id
+        },
+        shipping: {
+          name: session.user.name || 'Shipping Address',
+          address: {
+            line1: address.street,
+            city: address.city,
+            state: address.state,
+            postal_code: address.zipCode,
+            country: address.country
+          }
         }
       });
 
       // Save Stripe customer ID to database
       await prisma.user.update({
         where: { id: session.user.id },
-        data: { stripeCustomerId: stripeCustomer.id }
+        data: { 
+          stripeCustomerId: stripeCustomer.id 
+        } as Partial<User>
       });
 
       customer = stripeCustomer.id;
     }
 
+    // Create order items metadata
+    const orderItems = lineItems.map(item => ({
+      productId: parseInt(item.price_data.product_data.metadata.productId),
+      variantSku: item.price_data.product_data.metadata.variantSku,
+      quantity: item.quantity,
+      unit_price: item.price_data.unit_amount / 100 // Convert back to dollars for our records
+    }));
+
     // Create Stripe Checkout Session
     const checkoutSession = await stripe.checkout.sessions.create({
-      customer: customer,
+      customer,
       mode: 'payment',
       line_items: lineItems,
       success_url: `${process.env.NEXT_PUBLIC_APP_URL}/shop/checkout/success?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${process.env.NEXT_PUBLIC_APP_URL}/shop/cart`,
       metadata: {
         userId: session.user.id,
-        shippingAddress: JSON.stringify(shippingAddress)
+        shippingAddressId: address.id,
+        orderItems: JSON.stringify(orderItems),
+        subtotal: subtotal.toString()
       },
-      shipping_address_collection: {
-        allowed_countries: ['US'], // Adjust based on your supported countries
-      },
-      billing_address_collection: 'required',
+      billing_address_collection: 'required', // Still collect billing address
     });
 
     if (!checkoutSession.url) {

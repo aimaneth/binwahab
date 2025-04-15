@@ -11,23 +11,10 @@ async function handlePaymentIntentSucceeded(paymentIntent: Stripe.PaymentIntent)
   const metadata = paymentIntent.metadata;
   const userId = metadata.userId;
   const orderItems = JSON.parse(metadata.orderItems);
-  const shippingAddress = JSON.parse(metadata.shippingAddress);
+  const shippingAddressId = metadata.shippingAddressId;
 
   try {
-    // First create the shipping address
-    const address = await prisma.address.create({
-      data: {
-        userId,
-        street: shippingAddress.street,
-        city: shippingAddress.city,
-        state: shippingAddress.state,
-        zipCode: shippingAddress.zipCode,
-        country: shippingAddress.country,
-        phone: shippingAddress.phone || "",
-      },
-    });
-
-    // Create order
+    // Create order using the existing shipping address
     const order = await prisma.order.create({
       data: {
         userId,
@@ -35,7 +22,7 @@ async function handlePaymentIntentSucceeded(paymentIntent: Stripe.PaymentIntent)
         paymentStatus: PaymentStatus.PAID,
         paymentMethod: PaymentMethod.CREDIT_CARD,
         total: paymentIntent.amount / 100, // Convert from cents to dollars
-        shippingAddressId: address.id,
+        shippingAddressId,
         items: {
           create: orderItems.map((item: any) => ({
             productId: item.productId,
@@ -63,31 +50,24 @@ async function handlePaymentIntentSucceeded(paymentIntent: Stripe.PaymentIntent)
 
 async function handlePaymentIntentFailed(paymentIntent: Stripe.PaymentIntent) {
   const userId = paymentIntent.metadata.userId;
+  const shippingAddressId = paymentIntent.metadata.shippingAddressId;
 
-  // First create a dummy address for the failed order
-  const address = await prisma.address.create({
-    data: {
-      userId,
-      street: "Failed Payment",
-      city: "Failed Payment",
-      state: "Failed Payment",
-      zipCode: "00000",
-      country: "Failed Payment",
-      phone: "0000000000",
-    },
-  });
-
-  // Create order with failed status
-  await prisma.order.create({
-    data: {
-      userId,
-      status: OrderStatus.CANCELLED,
-      paymentStatus: PaymentStatus.FAILED,
-      paymentMethod: PaymentMethod.CREDIT_CARD,
-      total: paymentIntent.amount / 100, // Convert from cents to dollars
-      shippingAddressId: address.id,
-    },
-  });
+  try {
+    // Create order with failed status using the existing shipping address
+    await prisma.order.create({
+      data: {
+        userId,
+        status: OrderStatus.CANCELLED,
+        paymentStatus: PaymentStatus.FAILED,
+        paymentMethod: PaymentMethod.CREDIT_CARD,
+        total: paymentIntent.amount / 100, // Convert from cents to dollars
+        shippingAddressId,
+      },
+    });
+  } catch (error) {
+    console.error("Error creating failed order:", error);
+    throw error;
+  }
 }
 
 export async function POST(req: Request) {
