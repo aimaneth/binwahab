@@ -27,6 +27,8 @@ export async function POST(req: Request) {
     const body = await req.json();
     const { items, shippingAddress } = body;
 
+    console.log('Request body:', { items, shippingAddress });
+
     if (!items?.length) {
       return NextResponse.json(
         { error: "No items provided in the cart" },
@@ -45,6 +47,7 @@ export async function POST(req: Request) {
     const requiredFields = ['street', 'city', 'state', 'zipCode', 'country'];
     const missingFields = requiredFields.filter(field => !shippingAddress[field]);
     if (missingFields.length > 0) {
+      console.log('Missing shipping address fields:', missingFields);
       return NextResponse.json(
         { error: `Missing required fields: ${missingFields.join(', ')}` },
         { status: 400 }
@@ -52,7 +55,18 @@ export async function POST(req: Request) {
     }
 
     // Validate and fetch products with stock check
-    const productIds = items.map((item: CartItem) => item.product.id);
+    const productIds = items.map((item: CartItem) => {
+      console.log('Processing item:', item);
+      const id = typeof item.product.id === 'string' ? parseInt(item.product.id) : item.product.id;
+      if (isNaN(id)) {
+        console.log('Invalid product ID:', item.product.id);
+        throw new Error(`Invalid product ID: ${item.product.id}`);
+      }
+      return id;
+    });
+    
+    console.log('Product IDs to fetch:', productIds);
+    
     const products = await prisma.product.findMany({
       where: {
         id: {
@@ -64,9 +78,12 @@ export async function POST(req: Request) {
       }
     });
 
+    console.log('Found products:', products.map(p => ({ id: p.id, name: p.name })));
+
     if (products.length !== productIds.length) {
       const foundIds = products.map(p => p.id);
       const missingIds = productIds.filter((id: number) => !foundIds.includes(id));
+      console.log('Missing products:', { productIds, foundIds, missingIds });
       return NextResponse.json(
         { error: `Products not found: ${missingIds.join(', ')}` },
         { status: 400 }
@@ -76,9 +93,10 @@ export async function POST(req: Request) {
     // Calculate total amount and validate stock
     let subtotal = 0;
     const lineItems = items.map((item: CartItem) => {
-      const product = products.find(p => p.id === item.product.id);
+      const productId = typeof item.product.id === 'string' ? parseInt(item.product.id) : item.product.id;
+      const product = products.find(p => p.id === productId);
       if (!product) {
-        throw new Error(`Product not found: ${item.product.id}`);
+        throw new Error(`Product not found: ${productId}`);
       }
 
       // Check product stock if no variant
