@@ -2,19 +2,15 @@
 
 import { useEffect, useState } from "react";
 import { formatPrice } from "@/lib/utils";
-import { CartItem, Product, ProductVariant } from "@prisma/client";
+import { CartItem } from "@/types/cart";
 import { Loader2 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 interface OrderSummaryProps {
-  items: (CartItem & {
-    product: Product;
-    variant?: ProductVariant | null;
-  })[];
-  shippingState?: string;
+  items: CartItem[];
 }
 
-export function OrderSummary({ items, shippingState = "Selangor" }: OrderSummaryProps) {
+export function OrderSummary({ items }: OrderSummaryProps) {
   const [shipping, setShipping] = useState<number>(0);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -22,10 +18,10 @@ export function OrderSummary({ items, shippingState = "Selangor" }: OrderSummary
     const calculateShipping = async () => {
       setIsLoading(true);
       try {
-        const subtotal = items.reduce(
-          (sum, item) => sum + Number(item.variant?.price ?? item.product.price) * item.quantity,
-          0
-        );
+        const subtotal = items.reduce((total, item) => {
+          const price = item.variant?.price || item.product.price;
+          return total + (Number(price) * item.quantity);
+        }, 0);
         
         // Calculate shipping cost using the API
         const response = await fetch('/api/shipping/calculate', {
@@ -34,7 +30,7 @@ export function OrderSummary({ items, shippingState = "Selangor" }: OrderSummary
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
-            state: shippingState,
+            state: "Selangor",
             orderValue: subtotal,
             orderWeight: 0, // You can add weight calculation if needed
           }),
@@ -55,17 +51,22 @@ export function OrderSummary({ items, shippingState = "Selangor" }: OrderSummary
     };
 
     calculateShipping();
-  }, [items, shippingState]);
+  }, [items]);
 
   if (items.length === 0) {
     return null;
   }
 
-  const subtotal = items.reduce(
-    (sum, item) => sum + Number(item.variant?.price ?? item.product.price) * item.quantity,
-    0
-  );
-  const tax = subtotal * 0.06; // 6% tax
+  // Calculate subtotal
+  const subtotal = items.reduce((total, item) => {
+    const price = item.variant?.price || item.product.price;
+    return total + (Number(price) * item.quantity);
+  }, 0);
+
+  // Calculate tax (6%)
+  const tax = subtotal * 0.06;
+
+  // Calculate total
   const total = subtotal + shipping + tax;
 
   return (
@@ -83,7 +84,7 @@ export function OrderSummary({ items, shippingState = "Selangor" }: OrderSummary
                   {item.product.name} x {item.quantity}
                 </span>
                 <span className="font-medium">
-                  {formatPrice(Number(item.variant?.price ?? item.product.price) * item.quantity)}
+                  {formatPrice(Number(item.variant?.price || item.product.price) * item.quantity)}
                 </span>
               </div>
             ))}

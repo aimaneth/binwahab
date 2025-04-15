@@ -12,10 +12,10 @@ export const metadata: Metadata = {
   description: "Complete your purchase",
 };
 
-interface CartItemWithDetails extends CartItem {
+type CartItemWithDetails = CartItem & {
   product: Product;
-  variant: ProductVariant | null;
-}
+  variant?: ProductVariant | null;
+};
 
 export default async function CheckoutPage() {
   const session = await getServerSession(authOptions);
@@ -70,7 +70,7 @@ export default async function CheckoutPage() {
       <h1 className="text-3xl font-bold mb-8">Checkout</h1>
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         <div className="lg:col-span-2">
-          <CheckoutForm addresses={addresses} items={checkoutItems} />
+          <CheckoutForm addresses={addresses} items={checkoutItems} orderSummaryItems={validItems} />
         </div>
         <div className="lg:col-span-1">
           <OrderSummary items={validItems} />

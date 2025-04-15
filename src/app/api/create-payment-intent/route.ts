@@ -2,148 +2,189 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { getStripeInstance } from "@/lib/stripe";
+import { stripe } from "@/lib/stripe";
+import { CartItem } from "@/types/cart";
+import { headers } from "next/headers";
 
 export async function POST(req: Request) {
   try {
     const session = await getServerSession(authOptions);
+    if (!session?.user) {
+      return NextResponse.json(
+        { error: "You must be logged in to create a payment intent" },
+        { status: 401 }
+      );
+    }
+
     const body = await req.json();
     const { items, shippingAddress } = body;
 
-    if (!items?.length || !shippingAddress) {
-      return new NextResponse(
-        JSON.stringify({ error: "Missing required fields" }), 
+    if (!items?.length) {
+      return NextResponse.json(
+        { error: "No items provided in the cart" },
         { status: 400 }
       );
     }
 
-    // Log request data for debugging
-    console.log('Creating payment intent with:', {
-      items,
-      shippingAddress,
-      userId: session?.user?.id || 'guest'
+    // Validate and fetch products
+    const productIds = items.map((item: CartItem) => item.product.id);
+    const products = await prisma.product.findMany({
+      where: {
+        id: {
+          in: productIds
+        }
+      },
+      include: {
+        variants: true
+      }
     });
 
-    // Validate shipping address
-    const requiredFields = ['name', 'address', 'phone'];
-    const addressFields = ['line1', 'city', 'state', 'postal_code', 'country'];
+    if (products.length !== items.length) {
+      return NextResponse.json(
+        { error: "One or more products not found" },
+        { status: 400 }
+      );
+    }
+
+    // Calculate total amount and prepare line items
+    let subtotal = 0;
+    const lineItems = items.map((item: CartItem) => {
+      const product = products.find(p => p.id === item.product.id);
+      if (!product) {
+        throw new Error(`Product not found: ${item.product.id}`);
+      }
+
+      let variant;
+      if (item.variant?.id) {
+        variant = product.variants.find(v => v.id === item.variant!.id);
+        if (!variant) {
+          throw new Error(`Variant not found for product: ${item.product.id}`);
+        }
+      } else {
+        // If no variant is specified, use the product's base price
+        variant = {
+          price: product.price,
+          id: null
+        };
+      }
+
+      const itemTotal = Number(variant.price) * item.quantity;
+      subtotal += itemTotal;
+      
+      return {
+        product_id: product.id,
+        variant_id: variant.id,
+        quantity: item.quantity,
+        unit_price: variant.price,
+        total: itemTotal
+      };
+    });
+
+    // Calculate tax and shipping
+    const tax = subtotal * 0.06; // 6% tax
     
-    for (const field of requiredFields) {
-      if (!shippingAddress[field]) {
-        return new NextResponse(
-          JSON.stringify({ error: `Missing required field: ${field}` }),
-          { status: 400 }
-        );
-      }
-    }
-
-    for (const field of addressFields) {
-      if (!shippingAddress.address[field]) {
-        return new NextResponse(
-          JSON.stringify({ error: `Missing required address field: ${field}` }),
-          { status: 400 }
-        );
-      }
-    }
-
-    // Fetch products to calculate total
-    const products = await Promise.all(
-      items.map(async (item: { id: string; quantity: number }) => {
-        const product = await prisma.product.findUnique({
-          where: { id: Number(item.id) },
-          include: { variants: true },
-        });
-        if (!product) {
-          throw new Error(`Product not found: ${item.id}`);
-        }
-        return { ...product, quantity: item.quantity };
-      })
-    );
-
-    // Calculate total amount
-    const amount = products.reduce((total, product) => {
-      const price = product.price;
-      return total + (Number(price) * product.quantity);
-    }, 0);
-
-    if (amount <= 0) {
-      return new NextResponse(
-        JSON.stringify({ error: "Invalid order amount" }),
-        { status: 400 }
-      );
-    }
-
-    // Calculate shipping cost
-    const shippingResponse = await fetch(`${process.env.NEXTAUTH_URL}/api/shipping/calculate`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
+    // Get shipping cost based on address
+    const zoneType = shippingAddress.state.toLowerCase().includes('sabah') || 
+                    shippingAddress.state.toLowerCase().includes('sarawak') ? 
+                    'EAST_MALAYSIA' : 'WEST_MALAYSIA';
+                    
+    const shippingZone = await prisma.shippingZone.findFirst({
+      where: {
+        type: zoneType,
+        isActive: true
       },
-      body: JSON.stringify({
-        state: shippingAddress.address.state,
-        orderValue: amount,
-      }),
     });
-
-    const shippingData = await shippingResponse.json();
-    const shippingCost = shippingData.cost || 0;
-
-    // Add shipping cost to total amount
-    const totalAmount = amount + shippingCost;
-
-    // Log amount for debugging
-    console.log('Calculated amount:', totalAmount);
-
-    const stripe = getStripeInstance();
-
-    // Create payment intent with more detailed metadata
-    const paymentIntent = await stripe.paymentIntents.create({
-      amount: Math.round(totalAmount * 100), // Convert to cents
-      currency: "myr",
-      metadata: {
-        userId: session?.user?.id || 'guest',
-        items: JSON.stringify(items),
-        orderTotal: totalAmount.toString(),
-        shippingAddress: JSON.stringify(shippingAddress),
-        shippingCost: shippingCost.toString(),
-      },
-      shipping: {
-        name: shippingAddress.name,
-        address: {
-          line1: shippingAddress.address.line1,
-          city: shippingAddress.address.city,
-          state: shippingAddress.address.state,
-          postal_code: shippingAddress.address.postal_code,
-          country: shippingAddress.address.country,
+    
+    let shipping = 0;
+    if (shippingZone) {
+      const shippingRate = await prisma.shippingRate.findFirst({
+        where: {
+          zoneId: shippingZone.id,
+          minOrderValue: {
+            lte: subtotal,
+          },
+          maxOrderValue: {
+            gte: subtotal,
+          },
+          isActive: true
         },
-        phone: shippingAddress.phone,
-      },
-      payment_method_types: ['card', 'fpx'],
-      payment_method_options: {
-        fpx: {
-          setup_future_usage: 'none'
-        }
+        orderBy: {
+          minOrderValue: 'desc',
+        },
+      });
+      
+      if (shippingRate) {
+        shipping = Number(shippingRate.price);
       }
-    });
+    }
 
-    // Log success for debugging
-    console.log('Payment intent created:', paymentIntent.id);
+    const total = Math.round((subtotal + tax + shipping) * 100); // Convert to cents for Stripe
+
+    // Get idempotency key from headers or generate one
+    const idempotencyKey = headers().get("Idempotency-Key") || `pi_${session.user.id}_${Date.now()}`;
+
+    // Create payment intent with improved metadata and error handling
+    const paymentIntent = await stripe.paymentIntents.create({
+      amount: total,
+      currency: "usd",
+      automatic_payment_methods: {
+        enabled: true,
+      },
+      metadata: {
+        userId: session.user.id,
+        orderItems: JSON.stringify(lineItems.map((item: { product_id: number; variant_id: number | null; quantity: number }) => ({
+          productId: item.product_id,
+          variantId: item.variant_id,
+          quantity: item.quantity
+        }))),
+        subtotal: String(subtotal),
+        tax: String(tax),
+        shipping: String(shipping),
+        shippingZone: zoneType,
+        shippingAddress: JSON.stringify({
+          street: shippingAddress.street,
+          city: shippingAddress.city,
+          state: shippingAddress.state,
+          zipCode: shippingAddress.zipCode,
+          country: shippingAddress.country
+        })
+      },
+      statement_descriptor: "BINWAHAB STORE",
+      statement_descriptor_suffix: "Order",
+      description: `Order for ${session.user.email}`,
+    }, {
+      idempotencyKey
+    });
 
     return NextResponse.json({ 
       clientSecret: paymentIntent.client_secret,
-      paymentIntentId: paymentIntent.id,
-      shippingCost,
-      totalAmount,
+      amount: total,
+      subtotal,
+      tax,
+      shipping
     });
   } catch (error) {
-    console.error("[STRIPE_ERROR]", error);
-    // Return more detailed error information
-    return new NextResponse(
-      JSON.stringify({ 
-        error: error instanceof Error ? error.message : 'Internal Error',
-        details: error instanceof Error ? error.stack : undefined
-      }), 
-      { status: 500, headers: { 'Content-Type': 'application/json' } }
+    console.error("Payment intent creation error:", error);
+    
+    // Handle specific Stripe errors
+    if (error instanceof stripe.errors.StripeError) {
+      return NextResponse.json(
+        { 
+          error: error.message,
+          type: error.type,
+          code: error.code 
+        },
+        { status: error.statusCode || 400 }
+      );
+    }
+
+    // Handle other errors
+    return NextResponse.json(
+      { 
+        error: error instanceof Error ? error.message : "Failed to create payment intent",
+        type: "internal_error"
+      },
+      { status: 500 }
     );
   }
-} 
+}

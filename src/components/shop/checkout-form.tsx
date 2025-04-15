@@ -1,22 +1,34 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { Elements } from "@stripe/react-stripe-js";
+import { loadStripe } from "@stripe/stripe-js";
+import { PaymentForm } from "@/components/shop/payment-form";
+import { OrderSummary } from "@/components/shop/order-summary";
+import { Button } from "@/components/ui/button";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Loader2 } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { CartItem } from "@/types/cart";
 import * as z from "zod";
 import { toast } from "sonner";
 import { Address } from "@prisma/client";
-import { Button } from "@/components/ui/button";
 import {
   Form,
   FormControl,
+  FormDescription,
   FormField,
   FormItem,
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
-import { Input } from "@/components/ui/input";
 import {
   Select,
   SelectContent,
@@ -25,26 +37,18 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Loader2 } from "lucide-react";
-import { PaymentElement, useStripe, useElements, Elements } from '@stripe/react-stripe-js';
-import { loadStripe } from '@stripe/stripe-js';
+import { PaymentElement, useStripe, useElements } from '@stripe/react-stripe-js';
 import type { PaymentIntent, StripeError, StripeElementsOptions } from '@stripe/stripe-js';
 import { PaymentOptions } from "@/components/shop/payment-options";
-import { CartItem } from "@/types";
 
-// Make sure to call loadStripe outside of a component's render to avoid
-// recreating the Stripe object on every render.
-const publishableKey = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY;
-if (!publishableKey) {
-  throw new Error('Stripe publishable key is missing. Please check your environment variables.');
-}
+// Import shipping schema
+const shippingSchema = z.object({
+  addressId: z.string(),
+});
 
-const stripePromise = loadStripe(publishableKey);
+type ShippingFormValues = z.infer<typeof shippingSchema>;
 
-// Log Stripe initialization for debugging
-if (!process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY) {
-  console.error('Stripe publishable key is not defined');
-}
+const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!);
 
 const formatPrice = (amount: string | number) => {
   const numericAmount = typeof amount === 'string' ? parseFloat(amount) : amount;
@@ -68,19 +72,6 @@ const calculateTotal = (subtotal: number, shippingCost: number = 0) => {
   return subtotal + shippingCost;
 };
 
-// Form schemas
-const shippingSchema = z.object({
-  addressId: z.string().optional(),
-  firstName: z.string().min(2, "First name must be at least 2 characters"),
-  lastName: z.string().min(2, "Last name must be at least 2 characters"),
-  address: z.string().min(5, "Address must be at least 5 characters"),
-  city: z.string().min(2, "City must be at least 2 characters"),
-  state: z.string().min(2, "State must be at least 2 characters"),
-  postalCode: z.string().min(5, "Postal code must be at least 5 characters"),
-  country: z.string().min(2, "Country must be at least 2 characters"),
-  phone: z.string().min(10, "Phone number must be at least 10 characters"),
-});
-
 interface CheckoutFormProps {
   addresses: Address[];
   items: {
@@ -89,10 +80,11 @@ interface CheckoutFormProps {
     product: {
       id: number;
       name: string;
-      price: number | string;
-      image?: string | null;
+      price: string;
+      image: string | null;
     };
   }[];
+  orderSummaryItems: CartItem[];
 }
 
 interface PaymentIntentResponse {
@@ -103,416 +95,97 @@ interface PaymentIntentResponse {
   error?: StripeError;
 }
 
-function PaymentForm({ clientSecret }: { clientSecret: string }) {
-  const stripe = useStripe();
-  const elements = useElements();
-  const [error, setError] = useState<string | null>(null);
-  const [isProcessing, setIsProcessing] = useState(false);
+export function CheckoutForm({ addresses, items, orderSummaryItems }: CheckoutFormProps) {
+  const [clientSecret, setClientSecret] = useState<string>();
+  const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-
-    if (!stripe || !elements) {
-      console.error('Stripe.js has not loaded yet.');
-      return;
-    }
-
-    setIsProcessing(true);
-
-    try {
-      const { error: submitError, paymentIntent } = await stripe.confirmPayment({
-        elements,
-        redirect: "if_required",
-        confirmParams: {
-          return_url: `${window.location.origin}/orders`,
-        },
-      });
-
-      if (submitError) {
-        setError(submitError.message || 'An error occurred during payment.');
-        toast.error(submitError.message || 'Payment failed. Please try again.');
-        setIsProcessing(false);
-        return;
-      }
-
-      if (paymentIntent && paymentIntent.status === 'succeeded') {
-        toast.success('Payment successful!');
-        router.push('/orders');
-      } else if (paymentIntent && paymentIntent.status === 'requires_action') {
-        // Payment requires additional action (e.g., 3D Secure)
-        // The stripe.confirmPayment will handle the redirect automatically
-        console.log('Payment requires additional action');
-      } else {
-        setError('Something went wrong with the payment. Please try again.');
-        toast.error('Payment failed. Please try again.');
-      }
-    } catch (err) {
-      console.error('Payment submission error:', err);
-      setError('An unexpected error occurred. Please try again.');
-      toast.error('Payment failed. Please try again.');
-    } finally {
-      setIsProcessing(false);
-    }
-  };
-
-  return (
-    <form onSubmit={handleSubmit}>
-      <div className="mb-8">
-        <PaymentElement />
-      </div>
-      {error && (
-        <div className="mb-4 text-sm text-red-600">
-          {error}
-        </div>
-      )}
-      <Button
-        type="submit"
-        disabled={!stripe || isProcessing}
-        className="w-full"
-      >
-        {isProcessing ? (
-          <>
-            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-            Processing...
-          </>
-        ) : (
-          'Pay Now'
-        )}
-      </Button>
-    </form>
-  );
-}
-
-export function CheckoutForm({ addresses, items }: CheckoutFormProps) {
-  const router = useRouter();
-  const [step, setStep] = useState(1);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [clientSecret, setClientSecret] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [stripeLoadError, setStripeLoadError] = useState<string | null>(null);
-  const [shippingCost, setShippingCost] = useState<number>(0);
-  const [totalAmount, setTotalAmount] = useState<number>(0);
-
-  useEffect(() => {
-    // Verify Stripe loads correctly
-    stripePromise.catch(err => {
-      console.error('Stripe initialization error:', err);
-      setStripeLoadError('Failed to load payment system. Please refresh the page or try again later.');
-    });
-  }, []);
-
-  // Shipping form
-  const shippingForm = useForm<z.infer<typeof shippingSchema>>({
+  const {
+    handleSubmit,
+    register,
+    formState: { errors },
+  } = useForm<ShippingFormValues>({
     resolver: zodResolver(shippingSchema),
-    defaultValues: {
-      firstName: "",
-      lastName: "",
-      address: "",
-      city: "",
-      state: "",
-      postalCode: "",
-      country: "Malaysia",
-      phone: "",
-    },
   });
 
-  const onShippingSubmit = async (values: z.infer<typeof shippingSchema>) => {
+  const onSubmit = async (data: ShippingFormValues) => {
+    setIsLoading(true);
     try {
-      setIsSubmitting(true);
-      setError(null);
-      
       const response = await fetch("/api/create-payment-intent", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          items,
-          shippingAddress: {
-            name: `${values.firstName} ${values.lastName}`,
-            address: {
-              line1: values.address,
-              city: values.city,
-              state: values.state,
-              postal_code: values.postalCode,
-              country: values.country,
-            },
-            phone: values.phone,
-          },
+          items: orderSummaryItems,
+          addressId: data.addressId,
         }),
       });
 
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || 'Failed to create payment intent');
-      }
-
-      setClientSecret(data.clientSecret);
-      setShippingCost(data.shippingCost);
-      setTotalAmount(data.totalAmount);
-      setStep(2);
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : "Failed to process shipping information";
-      setError(errorMessage);
-      toast.error(errorMessage);
-      console.error("Shipping submission error:", err);
+      const result = await response.json();
+      setClientSecret(result.clientSecret);
+    } catch (error) {
+      console.error("Error:", error);
     } finally {
-      setIsSubmitting(false);
+      setIsLoading(false);
     }
   };
 
   const options: StripeElementsOptions = {
-    clientSecret: clientSecret || '',
+    clientSecret,
     appearance: {
-      theme: 'stripe',
-      variables: {
-        colorPrimary: '#0F172A',
-      },
+      theme: "stripe" as const,
     },
   };
 
   return (
-    <div className="space-y-8">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center">
-          <div className={`flex h-8 w-8 items-center justify-center rounded-full ${step >= 1 ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"}`}>
-            1
+    <div className="grid gap-8 md:grid-cols-2">
+      <div>
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+          <div className="space-y-4">
+            <h2 className="text-xl font-semibold">Shipping Address</h2>
+            {addresses.length === 0 ? (
+              <Alert>
+                <AlertDescription>
+                  Please add a shipping address to continue.
+                </AlertDescription>
+              </Alert>
+            ) : (
+              <RadioGroup className="space-y-4">
+                {addresses.map((address) => (
+                  <div key={address.id} className="flex items-start space-x-3">
+                    <RadioGroupItem
+                      value={address.id}
+                      id={address.id}
+                      {...register("addressId")}
+                    />
+                    <Label htmlFor={address.id} className="leading-relaxed">
+                      {address.street}, {address.city}, {address.state}{" "}
+                      {address.zipCode}
+                    </Label>
+                  </div>
+                ))}
+              </RadioGroup>
+            )}
+            {errors.addressId && (
+              <Alert variant="destructive">
+                <AlertDescription>
+                  Please select a shipping address.
+                </AlertDescription>
+              </Alert>
+            )}
           </div>
-          <div className="ml-4">
-            <p className="text-sm font-medium">Shipping</p>
-            <p className="text-xs text-muted-foreground">Enter your shipping details</p>
-          </div>
-        </div>
-        <div className="flex items-center">
-          <div className={`flex h-8 w-8 items-center justify-center rounded-full ${step >= 2 ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"}`}>
-            2
-          </div>
-          <div className="ml-4">
-            <p className="text-sm font-medium">Payment</p>
-            <p className="text-xs text-muted-foreground">Complete your purchase</p>
-          </div>
-        </div>
+          <Button type="submit" disabled={isLoading || addresses.length === 0}>
+            Continue to Payment
+          </Button>
+        </form>
       </div>
-
-      {step === 1 && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Shipping Information</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <Form {...shippingForm}>
-              <form onSubmit={shippingForm.handleSubmit(onShippingSubmit)} className="space-y-6">
-                {addresses.length > 0 && (
-                  <FormField
-                    control={shippingForm.control}
-                    name="addressId"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Saved Addresses</FormLabel>
-                        <Select
-                          onValueChange={(value) => {
-                            const address = addresses.find((a) => a.id === value);
-                            if (address) {
-                              shippingForm.reset({
-                                firstName: address.street.split(' ')[0] || '',
-                                lastName: address.street.split(' ').slice(1).join(' ').split(',')[0] || '',
-                                address: address.street,
-                                city: address.city,
-                                state: address.state,
-                                postalCode: address.zipCode,
-                                country: address.country,
-                                phone: address.phone,
-                              });
-                            }
-                            field.onChange(value);
-                          }}
-                          value={field.value}
-                        >
-                          <FormControl>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select a saved address" />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            {addresses.map((address) => (
-                              <SelectItem key={address.id} value={address.id}>
-                                {address.street}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                )}
-
-                <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
-                  <FormField
-                    control={shippingForm.control}
-                    name="firstName"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>First Name</FormLabel>
-                        <FormControl>
-                          <Input placeholder="John" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={shippingForm.control}
-                    name="lastName"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Last Name</FormLabel>
-                        <FormControl>
-                          <Input placeholder="Doe" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
-
-                <FormField
-                  control={shippingForm.control}
-                  name="address"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Address</FormLabel>
-                      <FormControl>
-                        <Input placeholder="123 Main St" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
-                  <FormField
-                    control={shippingForm.control}
-                    name="city"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>City</FormLabel>
-                        <FormControl>
-                          <Input placeholder="City" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={shippingForm.control}
-                    name="state"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>State</FormLabel>
-                        <FormControl>
-                          <Input placeholder="State" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
-
-                <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
-                  <FormField
-                    control={shippingForm.control}
-                    name="postalCode"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Postal Code</FormLabel>
-                        <FormControl>
-                          <Input placeholder="12345" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={shippingForm.control}
-                    name="country"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Country</FormLabel>
-                        <FormControl>
-                          <Input placeholder="Country" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
-
-                <FormField
-                  control={shippingForm.control}
-                  name="phone"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Phone</FormLabel>
-                      <FormControl>
-                        <Input placeholder="+1234567890" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <Button type="submit" className="w-full" disabled={isSubmitting}>
-                  {isSubmitting ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Processing...
-                    </>
-                  ) : (
-                    "Continue to Payment"
-                  )}
-                </Button>
-              </form>
-            </Form>
-          </CardContent>
-        </Card>
-      )}
-
-      {step === 2 && clientSecret && (
-        <div className="space-y-6">
-          <div className="rounded-lg border p-4">
-            <h3 className="text-lg font-medium">Order Summary</h3>
-            <div className="mt-4 space-y-2">
-              <div className="flex justify-between text-sm">
-                <span>Subtotal</span>
-                <span>{formatPrice(calculateSubtotal(items))}</span>
-              </div>
-              <div className="flex justify-between text-sm">
-                <span>Shipping</span>
-                <span>{formatPrice(shippingCost)}</span>
-              </div>
-              <div className="border-t pt-2 flex justify-between font-medium">
-                <span>Total</span>
-                <span>{formatPrice(totalAmount)}</span>
-              </div>
-            </div>
-          </div>
-
-          <Elements stripe={stripePromise} options={options}>
-            <PaymentForm
-              clientSecret={clientSecret}
-            />
+      <div className="space-y-6">
+        <OrderSummary items={orderSummaryItems} />
+        {clientSecret && (
+          <Elements options={options} stripe={stripePromise}>
+            <PaymentForm clientSecret={clientSecret} />
           </Elements>
-        </div>
-      )}
-
-      {stripeLoadError && (
-        <div className="text-sm text-red-500">
-          {stripeLoadError}
-        </div>
-      )}
+        )}
+      </div>
     </div>
   );
 } 
