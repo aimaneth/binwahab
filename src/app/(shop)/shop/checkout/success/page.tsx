@@ -5,17 +5,96 @@ import { redirect } from "next/navigation";
 import { authOptions } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
 import { CheckCircle } from "lucide-react";
+import { stripe } from "@/lib/stripe";
+import { prisma } from "@/lib/prisma";
 
 export const metadata: Metadata = {
   title: "Payment Successful - BINWAHAB",
   description: "Your payment has been processed successfully",
 };
 
-export default async function PaymentSuccessPage() {
+async function createOrder(session: any, checkoutSession: any) {
+  try {
+    // Parse shipping address from metadata
+    const shippingAddress = JSON.parse(checkoutSession.metadata.shippingAddress);
+
+    // Create address record
+    const address = await prisma.address.create({
+      data: {
+        userId: session.user.id,
+        street: shippingAddress.street,
+        city: shippingAddress.city,
+        state: shippingAddress.state,
+        zipCode: shippingAddress.zipCode,
+        country: shippingAddress.country,
+        phone: shippingAddress.phone || "",
+      },
+    });
+
+    // Create order
+    const order = await prisma.order.create({
+      data: {
+        userId: session.user.id,
+        total: checkoutSession.amount_total / 100, // Convert from cents to dollars
+        status: "PROCESSING",
+        paymentStatus: "PAID",
+        paymentMethod: checkoutSession.payment_method_types[0].toUpperCase(),
+        shippingAddressId: address.id,
+        items: {
+          create: checkoutSession.line_items.data.map((item: any) => ({
+            name: item.description || item.price.product.name,
+            price: item.price.unit_amount / 100,
+            quantity: item.quantity,
+            productId: parseInt(item.price.product.metadata.productId || "0"),
+            variantSku: item.price.product.metadata.variantSku,
+          })),
+        },
+      },
+      include: {
+        items: true,
+      },
+    });
+
+    return order;
+  } catch (error) {
+    console.error("Error creating order:", error);
+    throw error;
+  }
+}
+
+export default async function PaymentSuccessPage({
+  searchParams,
+}: {
+  searchParams: { session_id?: string };
+}) {
   const session = await getServerSession(authOptions);
 
   if (!session?.user) {
     redirect("/login");
+  }
+
+  if (!searchParams.session_id) {
+    redirect("/shop");
+  }
+
+  try {
+    // Retrieve the checkout session
+    const checkoutSession = await stripe.checkout.sessions.retrieve(
+      searchParams.session_id,
+      {
+        expand: ['line_items', 'line_items.data.price.product'],
+      }
+    );
+
+    if (checkoutSession.payment_status !== "paid") {
+      throw new Error("Payment not completed");
+    }
+
+    // Create the order in our database
+    await createOrder(session, checkoutSession);
+  } catch (error) {
+    console.error("Error processing successful payment:", error);
+    redirect("/shop");
   }
 
   return (

@@ -35,8 +35,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Invalid shipping address" }, { status: 400 });
     }
 
-    let total = 0;
-    const lineItems = [];
+    let lineItems = [];
 
     // Process each item in the cart
     for (const item of items) {
@@ -54,52 +53,50 @@ export async function POST(request: Request) {
         return NextResponse.json({ error: `Product not found: ${productId}` }, { status: 404 });
       }
 
-      const price = item.variant?.price || item.product.price;
-      const itemTotal = Number(price) * item.quantity;
-
-      if (isNaN(itemTotal) || itemTotal <= 0) {
+      const price = Number(item.variant?.price || item.product.price);
+      if (isNaN(price) || price <= 0) {
         return NextResponse.json({ error: `Invalid price for product: ${product.name}` }, { status: 400 });
       }
 
-      total += itemTotal;
       lineItems.push({
-        productId,
-        name: product.name,
-        price: Number(price),
+        price_data: {
+          currency: 'usd',
+          product_data: {
+            name: product.name,
+            description: item.variant ? `Variant: ${item.variant.sku}` : undefined,
+          },
+          unit_amount: Math.round(price * 100), // Convert to cents
+        },
         quantity: item.quantity,
-        total: itemTotal,
-        variantSku: item.variant?.sku
       });
     }
 
-    if (total <= 0) {
-      return NextResponse.json({ error: "Total amount must be greater than 0" }, { status: 400 });
-    }
-
-    // Create payment intent
-    const paymentIntent = await stripe.paymentIntents.create({
-      amount: Math.round(total * 100), // Convert to cents
-      currency: "usd",
+    // Create Stripe Checkout Session
+    const checkoutSession = await stripe.checkout.sessions.create({
       customer: session.user.id,
+      mode: 'payment',
+      line_items: lineItems,
+      success_url: `${process.env.NEXT_PUBLIC_APP_URL}/checkout/success?session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${process.env.NEXT_PUBLIC_APP_URL}/cart`,
       metadata: {
         userId: session.user.id,
-        orderItems: JSON.stringify(lineItems.map(item => ({
-          productId: item.productId,
-          name: item.name,
-          price: item.price.toString(),
-          quantity: item.quantity,
-          total: item.total.toString(),
-          variantSku: item.variantSku
-        }))),
         shippingAddress: JSON.stringify(shippingAddress)
-      }
+      },
+      shipping_address_collection: {
+        allowed_countries: ['US'], // Adjust based on your supported countries
+      },
+      billing_address_collection: 'required',
     });
 
-    return NextResponse.json({ clientSecret: paymentIntent.client_secret });
+    if (!checkoutSession.url) {
+      throw new Error('Failed to create checkout session URL');
+    }
+
+    return NextResponse.json({ url: checkoutSession.url });
   } catch (error) {
-    console.error("Payment intent creation error:", error);
+    console.error("Checkout session creation error:", error);
     return NextResponse.json(
-      { error: "Failed to create payment intent" },
+      { error: "Failed to create checkout session" },
       { status: 500 }
     );
   }

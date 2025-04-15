@@ -14,6 +14,7 @@ import * as z from "zod";
 import { Address } from "@prisma/client";
 import { Card } from "@/components/ui/card";
 import { OrderSummary } from "@/components/shop/order-summary";
+import { toast } from "sonner";
 
 const shippingSchema = z.object({
   addressId: z.string({
@@ -37,10 +38,13 @@ export function CheckoutForm({ addresses, items }: CheckoutFormProps) {
   });
 
   const onSubmit = async (data: ShippingFormValues) => {
-    setIsLoading(true);
     try {
+      setIsLoading(true);
+      
       const selectedAddress = addresses.find(addr => addr.id === data.addressId);
-      if (!selectedAddress) throw new Error("Selected address not found");
+      if (!selectedAddress) {
+        throw new Error("Selected address not found");
+      }
 
       const response = await fetch("/api/create-payment-intent", {
         method: "POST",
@@ -51,24 +55,31 @@ export function CheckoutForm({ addresses, items }: CheckoutFormProps) {
         }),
       });
 
+      const result = await response.json();
+
       if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.message || "Failed to create checkout session");
+        throw new Error(result.error || "Failed to create checkout session");
       }
 
-      const { url } = await response.json();
-      
       // Redirect to Stripe Checkout
-      window.location.href = url;
+      window.location.href = result.url;
     } catch (error) {
-      console.error("Error:", error);
-      form.setError("root", {
-        message: error instanceof Error ? error.message : "Something went wrong",
-      });
+      console.error("Checkout error:", error);
+      toast.error(error instanceof Error ? error.message : "Failed to proceed to checkout");
     } finally {
       setIsLoading(false);
     }
   };
+
+  if (items.length === 0) {
+    return (
+      <Alert>
+        <AlertDescription>
+          Your cart is empty. Add some items before checking out.
+        </AlertDescription>
+      </Alert>
+    );
+  }
 
   return (
     <div className="max-w-4xl mx-auto">
@@ -114,14 +125,6 @@ export function CheckoutForm({ addresses, items }: CheckoutFormProps) {
                 <Alert variant="destructive">
                   <AlertDescription>
                     {form.formState.errors.addressId.message}
-                  </AlertDescription>
-                </Alert>
-              )}
-
-              {form.formState.errors.root && (
-                <Alert variant="destructive">
-                  <AlertDescription>
-                    {form.formState.errors.root.message}
                   </AlertDescription>
                 </Alert>
               )}
