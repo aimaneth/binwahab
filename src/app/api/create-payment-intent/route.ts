@@ -16,8 +16,12 @@ interface LineItem {
 
 export async function POST(req: Request) {
   try {
+    // Log the start of the request
+    console.log('Starting payment intent creation...');
+
     const session = await getServerSession(authOptions);
     if (!session?.user) {
+      console.log('Authentication failed: No session found');
       return NextResponse.json(
         { error: "You must be logged in to create a payment intent" },
         { status: 401 }
@@ -25,11 +29,12 @@ export async function POST(req: Request) {
     }
 
     const body = await req.json();
+    console.log('Request body:', JSON.stringify(body, null, 2));
+
     const { items, shippingAddress } = body;
 
-    console.log('Request body:', { items, shippingAddress });
-
     if (!items?.length) {
+      console.log('No items provided in cart');
       return NextResponse.json(
         { error: "No items provided in the cart" },
         { status: 400 }
@@ -37,6 +42,7 @@ export async function POST(req: Request) {
     }
 
     if (!shippingAddress) {
+      console.log('No shipping address provided');
       return NextResponse.json(
         { error: "Shipping address is required" },
         { status: 400 }
@@ -54,19 +60,21 @@ export async function POST(req: Request) {
       );
     }
 
+    // Log shipping address validation success
+    console.log('Shipping address validated successfully');
+
     // Validate and fetch products with stock check
     const productIds = items.map((item: CartItem) => {
       console.log('Processing item:', item);
-      const id = typeof item.product.id === 'string' ? parseInt(item.product.id) : item.product.id;
+      const id = typeof item.product.id === 'string' ? parseInt(item.product.id, 10) : item.product.id;
       if (isNaN(id)) {
-        console.log('Invalid product ID:', item.product.id);
         throw new Error(`Invalid product ID: ${item.product.id}`);
       }
       return id;
     });
-    
+
     console.log('Product IDs to fetch:', productIds);
-    
+
     const products = await prisma.product.findMany({
       where: {
         id: {
@@ -83,7 +91,7 @@ export async function POST(req: Request) {
     if (products.length !== productIds.length) {
       const foundIds = products.map(p => p.id);
       const missingIds = productIds.filter((id: number) => !foundIds.includes(id));
-      console.log('Missing products:', { productIds, foundIds, missingIds });
+      console.log('Missing products:', missingIds);
       return NextResponse.json(
         { error: `Products not found: ${missingIds.join(', ')}` },
         { status: 400 }
@@ -93,7 +101,7 @@ export async function POST(req: Request) {
     // Calculate total amount and validate stock
     let subtotal = 0;
     const lineItems = items.map((item: CartItem) => {
-      const productId = typeof item.product.id === 'string' ? parseInt(item.product.id) : item.product.id;
+      const productId = typeof item.product.id === 'string' ? parseInt(item.product.id, 10) : item.product.id;
       const product = products.find(p => p.id === productId);
       if (!product) {
         throw new Error(`Product not found: ${productId}`);
@@ -107,9 +115,10 @@ export async function POST(req: Request) {
       let variant;
       let price;
       if (item.variant?.id) {
-        variant = product.variants.find(v => v.id === item.variant!.id);
+        const variantId = typeof item.variant.id === 'string' ? parseInt(item.variant.id, 10) : item.variant.id;
+        variant = product.variants.find(v => v.id === variantId);
         if (!variant) {
-          throw new Error(`Variant not found for product: ${item.product.id}`);
+          throw new Error(`Variant not found for product: ${product.name}`);
         }
         // Check variant stock
         if (variant.inventoryTracking && variant.stock < item.quantity) {
@@ -131,7 +140,7 @@ export async function POST(req: Request) {
       subtotal += itemTotal;
       
       return {
-        product_id: product.id,
+        product_id: productId,
         variant_id: variant.id,
         quantity: item.quantity,
         unit_price: price,
@@ -248,7 +257,11 @@ export async function POST(req: Request) {
       );
     }
   } catch (error: any) {
-    console.error('Error creating payment intent:', error);
+    console.error('Detailed error in payment intent creation:', {
+      message: error.message,
+      stack: error.stack,
+      cause: error.cause
+    });
     return NextResponse.json(
       { error: error.message || "Failed to create payment intent" },
       { status: 400 }
