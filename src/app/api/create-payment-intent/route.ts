@@ -26,9 +26,9 @@ interface CartItem {
 }
 
 interface LineItem {
-  id: string;
-  productId: string | number;
-  variantId?: string | number;
+  id: string | number;
+  productId: number;
+  variantId?: number | null;
   quantity: number;
   total?: number;
 }
@@ -53,9 +53,9 @@ export async function POST(req: Request) {
     }
 
     const body = await req.json();
-    console.log('Request body:', {
-      items: body.items,
-      shippingAddress: body.shippingAddress
+    console.log('Processing request:', {
+      itemCount: body.items?.length,
+      firstItem: body.items?.[0]
     });
 
     const { items, shippingAddress } = body;
@@ -89,10 +89,20 @@ export async function POST(req: Request) {
     const lineItems: LineItem[] = [];
 
     for (const item of items) {
-      console.log('Processing item:', item);
-      
+      if (!item.product?.id) {
+        console.log('Invalid item - missing product ID:', item);
+        return NextResponse.json(
+          { error: "Invalid item structure - missing product ID" },
+          { status: 400 }
+        );
+      }
+
       const productId = typeof item.product.id === 'string' ? parseInt(item.product.id) : item.product.id;
-      console.log('Looking up product:', productId);
+      console.log('Processing product:', {
+        cartItemId: item.id,
+        actualProductId: productId,
+        variantSku: item.variant?.sku
+      });
 
       const product = await prisma.product.findUnique({
         where: { id: productId },
@@ -100,7 +110,7 @@ export async function POST(req: Request) {
       });
 
       if (!product) {
-        console.log('Product not found:', productId);
+        console.log('Product not found:', { searchId: productId, item });
         return NextResponse.json(
           { error: `Product not found: ${productId}` },
           { status: 400 }
@@ -108,15 +118,18 @@ export async function POST(req: Request) {
       }
 
       let price: number;
-      if (item.variant) {
+      let variantId: number | null = null;
+
+      if (item.variant?.sku) {
         const variant = product.variants.find(v => v.sku === item.variant?.sku);
         if (!variant) {
           return NextResponse.json(
-            { error: `Variant not found for product: ${product.name}` },
+            { error: `Variant with SKU ${item.variant.sku} not found for product: ${product.name}` },
             { status: 400 }
           );
         }
         price = Number(variant.price);
+        variantId = variant.id;
       } else {
         price = Number(product.price);
       }
@@ -132,9 +145,9 @@ export async function POST(req: Request) {
       subtotal += itemTotal;
 
       lineItems.push({
-        id: productId.toString(),
+        id: productId,
         productId: productId,
-        variantId: item.variant?.id,
+        variantId: variantId,
         quantity: item.quantity,
         total: itemTotal
       });
