@@ -7,18 +7,35 @@ import { Product, ProductVariant } from "@prisma/client";
 import { headers } from "next/headers";
 
 interface CartItem {
-  id: string;
+  product: {
+    id: string | number;
+    name: string;
+    price: string | number;
+    inventoryTracking: boolean;
+    stock: number;
+  };
+  variant?: {
+    id: string | number;
+    price: string | number;
+    inventoryTracking: boolean;
+    stock: number;
+  };
   quantity: number;
-  product: Product;
-  variant?: ProductVariant | null;
 }
 
 interface LineItem {
-  product_id: number;
-  variant_id: number | null;
+  id: string;
+  productId: string | number;
+  variantId?: string | number;
   quantity: number;
-  unit_price: number;
-  total: number;
+  total?: number;
+}
+
+interface Variant {
+  id: string | number;
+  price: string | number;
+  inventoryTracking: boolean;
+  stock: number;
 }
 
 export async function POST(req: Request) {
@@ -70,88 +87,80 @@ export async function POST(req: Request) {
     // Log shipping address validation success
     console.log('Shipping address validated successfully');
 
-    // Validate and fetch products with stock check
-    const productIds = items.map((item: CartItem) => {
-      console.log('Processing item:', item);
-      const id = typeof item.product.id === 'string' ? parseInt(item.product.id, 10) : item.product.id;
-      if (isNaN(id)) {
-        throw new Error(`Invalid product ID: ${item.product.id}`);
-      }
-      return id;
-    });
+    // Get products from database
+    const products = await Promise.all(
+      items.map(async (item: CartItem) => {
+        const productId = typeof item.product.id === 'string' ? parseInt(item.product.id) : item.product.id;
+        const variantId = item.variant?.id ? (typeof item.variant.id === 'string' ? parseInt(item.variant.id) : item.variant.id) : undefined;
+        
+        console.log(`Fetching product: ${productId}, variant: ${variantId}`);
+        
+        const product = await prisma.product.findUnique({
+          where: { id: productId },
+          include: { variants: true }
+        });
 
-    console.log('Product IDs to fetch:', productIds);
-
-    const products = await prisma.product.findMany({
-      where: {
-        id: {
-          in: productIds
+        if (!product) {
+          console.error(`Product not found: ${productId}`);
+          throw new Error(`Product not found: ${productId}`);
         }
-      },
-      include: {
-        variants: true
-      }
-    });
 
-    console.log('Found products:', products.map(p => ({ id: p.id, name: p.name })));
-
-    if (products.length !== productIds.length) {
-      const foundIds = products.map(p => p.id);
-      const missingIds = productIds.filter((id: number) => !foundIds.includes(id));
-      return NextResponse.json(
-        { error: `Products not found: ${missingIds.join(', ')}` },
-        { status: 400 }
-      );
-    }
+        return { product, variantId };
+      })
+    );
 
     // Calculate total amount and validate stock
     let subtotal = 0;
     const lineItems = items.map((item: CartItem) => {
-      const productId = typeof item.product.id === 'string' ? parseInt(item.product.id, 10) : item.product.id;
-      const product = products.find(p => p.id === productId);
+      const productId = typeof item.product.id === 'string' ? parseInt(item.product.id) : item.product.id;
+      const product = products.find(p => p.product.id === productId);
       if (!product) {
+        console.log('Product not found:', productId);
         throw new Error(`Product not found: ${productId}`);
       }
 
       // Check product stock if no variant
-      if (!item.variant?.id && product.inventoryTracking && product.stock < item.quantity) {
-        throw new Error(`Insufficient stock for product: ${product.name}`);
+      if (!item.variant?.id && product.product.inventoryTracking && product.product.stock < item.quantity) {
+        console.log('Insufficient stock for product:', product.product.name);
+        throw new Error(`Insufficient stock for product: ${product.product.name}`);
       }
 
       let variant;
       let price;
       if (item.variant?.id) {
-        const variantId = typeof item.variant.id === 'string' ? parseInt(item.variant.id, 10) : item.variant.id;
-        variant = product.variants.find(v => v.id === variantId);
+        const variantId = typeof item.variant.id === 'string' ? parseInt(item.variant.id) : item.variant.id;
+        variant = product.variants.find((v: Variant) => v.id === variantId);
         if (!variant) {
-          throw new Error(`Variant not found for product: ${product.name}`);
+          console.log('Variant not found for product:', product.product.name);
+          throw new Error(`Variant not found for product: ${product.product.name}`);
         }
         // Check variant stock
         if (variant.inventoryTracking && variant.stock < item.quantity) {
-          throw new Error(`Insufficient stock for variant of product: ${product.name}`);
+          console.log('Insufficient stock for variant of product:', product.product.name);
+          throw new Error(`Insufficient stock for variant of product: ${product.product.name}`);
         }
         price = Number(variant.price);
       } else {
-        price = Number(product.price);
+        price = Number(product.product.price);
         variant = {
           id: null,
         };
       }
 
       if (isNaN(price) || price <= 0) {
-        throw new Error(`Invalid price for product: ${product.name}`);
+        console.log('Invalid price for product:', product.product.name, 'Price:', price);
+        throw new Error(`Invalid price for product: ${product.product.name}`);
       }
 
       const itemTotal = price * item.quantity;
       subtotal += itemTotal;
       
       return {
-        product_id: productId,
-        variant_id: variant.id,
+        productId: item.product.id,
+        variantId: item.variant?.id || null,
         quantity: item.quantity,
-        unit_price: price,
         total: itemTotal
-      };
+      } as LineItem;
     });
 
     // Calculate tax and shipping
@@ -230,10 +239,10 @@ export async function POST(req: Request) {
         metadata: {
           userId: session.user.id,
           orderItems: JSON.stringify(lineItems.map((item: LineItem) => ({
-            productId: item.product_id,
-            variantId: item.variant_id,
+            productId: item.productId,
+            variantId: item.variantId,
             quantity: item.quantity,
-            unit_price: item.unit_price
+            unit_price: item.total ? item.total / item.quantity : undefined
           }))),
           subtotal: subtotal.toString(),
           tax: tax.toString(),
