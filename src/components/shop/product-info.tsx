@@ -136,6 +136,7 @@ export function ProductInfo({ product }: ProductInfoProps) {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
+          productId: product.id,
           variantId: selectedVariant.id,
           quantity,
         }),

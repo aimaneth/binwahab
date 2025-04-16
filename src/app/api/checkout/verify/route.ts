@@ -36,8 +36,37 @@ export async function GET(request: Request) {
       );
     }
 
+    // Check payment status first
+    if (checkoutSession.payment_status !== "paid") {
+      return NextResponse.json({
+        success: false,
+        status: "unpaid",
+        message: "Payment has not been completed"
+      });
+    }
+
     // Get the payment intent ID from the session
     const paymentIntentId = checkoutSession.payment_intent as string;
+
+    // Check if order already exists
+    const existingOrder = await prisma.order.findFirst({
+      where: {
+        userId: session.user.id,
+        OR: [
+          { stripeSessionId: sessionId },
+          { stripePaymentIntentId: paymentIntentId }
+        ]
+      },
+    });
+
+    if (existingOrder) {
+      return NextResponse.json({
+        success: true,
+        status: "paid",
+        orderId: existingOrder.id,
+        message: "Order already processed"
+      });
+    }
 
     // Get user's cart
     const cart = await prisma.cart.findUnique({
@@ -53,10 +82,11 @@ export async function GET(request: Request) {
     });
 
     if (!cart || cart.items.length === 0) {
-      return NextResponse.json(
-        { error: "Cart not found or empty" },
-        { status: 400 }
-      );
+      return NextResponse.json({
+        success: true,
+        status: "paid",
+        message: "Payment successful but cart is already cleared"
+      });
     }
 
     // Get user's default address
@@ -74,44 +104,19 @@ export async function GET(request: Request) {
       );
     }
 
-    // Calculate total
-    const total = cart.items.reduce((acc, item) => {
-      const price = item.variant?.price || item.product?.price || 0;
-      return acc + (Number(price) * item.quantity);
-    }, 0);
-
-    // Check if order already exists with either the session ID or payment intent ID
-    const existingOrder = await prisma.order.findFirst({
-      where: {
-        userId: session.user.id,
-        OR: [
-          { stripeSessionId: sessionId },
-          { stripePaymentIntentId: paymentIntentId }
-        ]
-      },
-    });
-
-    if (existingOrder) {
-      return NextResponse.json({
-        success: true,
-        status: checkoutSession.payment_status === "paid" ? "paid" : "unpaid",
-        orderId: existingOrder.id,
-      });
-    }
-
     // Create a new order
     const order = await prisma.order.create({
       data: {
         userId: session.user.id,
         total: checkoutSession.amount_total ? checkoutSession.amount_total / 100 : 0,
-        status: "PENDING",
+        status: "PROCESSING",
         paymentMethod: "CREDIT_CARD",
-        paymentStatus: checkoutSession.payment_status === "paid" ? "PAID" : "PENDING",
+        paymentStatus: "PAID",
         stripePaymentIntentId: paymentIntentId,
         stripeSessionId: sessionId,
         amountSubtotal: checkoutSession.amount_subtotal,
         amountTotal: checkoutSession.amount_total,
-        currency: checkoutSession.currency,
+        currency: checkoutSession.currency || "myr",
         shippingAddressId: address.id,
         items: {
           create: cart.items.map(item => ({
@@ -119,7 +124,7 @@ export async function GET(request: Request) {
             variantId: item.variantId || undefined,
             quantity: item.quantity,
             price: Number(item.variant?.price || item.product?.price || 0),
-            currency: checkoutSession.currency
+            currency: checkoutSession.currency || "myr"
           }))
         }
       },
@@ -144,20 +149,24 @@ export async function GET(request: Request) {
       }
     }));
 
-    // Clear cart
+    // Clear cart only after everything else is successful
     await prisma.cartItem.deleteMany({
       where: { cartId: cart.id }
     });
 
     return NextResponse.json({
       success: true,
+      status: "paid",
       orderId: order.id,
-      status: checkoutSession.payment_status === "paid" ? "paid" : "unpaid"
+      message: "Payment successful and order created"
     });
   } catch (error) {
     console.error("Verify payment error:", error);
     return NextResponse.json(
-      { error: "Failed to verify payment status" },
+      { 
+        error: "Failed to verify payment status",
+        message: error instanceof Error ? error.message : "Unknown error occurred"
+      },
       { status: 500 }
     );
   }

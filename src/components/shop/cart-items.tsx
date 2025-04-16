@@ -50,7 +50,7 @@ export function CartItems({ items }: CartItemsProps) {
       const response = await fetch("/api/cart", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ itemId: itemId.toString(), quantity }),
+        body: JSON.stringify({ productId: itemId.toString(), quantity }),
       });
 
       if (!response.ok) {
