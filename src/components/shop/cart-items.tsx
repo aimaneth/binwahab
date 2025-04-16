@@ -9,7 +9,14 @@ import { CartItem } from "@/types/cart";
 import { formatPrice } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Trash2, ShoppingBag } from "lucide-react";
+import { Separator } from "@/components/ui/separator";
+import { 
+  Bookmark,
+  Heart,
+  Loader2,
+  ShoppingBag, 
+  Trash2 
+} from "lucide-react";
 import { useCart } from "@/hooks/use-cart";
 
 interface CartItemsProps {
@@ -19,6 +26,7 @@ interface CartItemsProps {
 export function CartItems({ items }: CartItemsProps) {
   const router = useRouter();
   const [updating, setUpdating] = useState<string | null>(null);
+  const [savedItems, setSavedItems] = useState<string[]>([]);
   const { updateQuantity: updateCartQuantity, removeItem: removeCartItem } = useCart();
 
   if (items.length === 0) {
@@ -58,7 +66,6 @@ export function CartItems({ items }: CartItemsProps) {
         throw new Error(error.message || "Failed to update quantity");
       }
       
-      // Update client-side cart state
       updateCartQuantity(itemId, quantity);
       router.refresh();
     } catch (error) {
@@ -77,7 +84,6 @@ export function CartItems({ items }: CartItemsProps) {
 
       if (!response.ok) throw new Error("Failed to remove item");
       
-      // Update client-side cart state
       removeCartItem(itemId);
       router.refresh();
       toast.success("Item removed from cart");
@@ -88,78 +94,136 @@ export function CartItems({ items }: CartItemsProps) {
     }
   };
 
+  const toggleSaveForLater = (itemId: string | number) => {
+    const id = itemId.toString();
+    if (savedItems.includes(id)) {
+      setSavedItems(savedItems.filter(i => i !== id));
+      toast.success("Item removed from saved items");
+    } else {
+      setSavedItems([...savedItems, id]);
+      toast.success("Item saved for later");
+    }
+  };
+
   return (
     <div className="bg-white rounded-lg shadow overflow-hidden">
       <div className="p-6">
-        <h2 className="text-lg font-medium text-gray-900 mb-4">
-          Cart Items ({items.length})
-        </h2>
-        <div className="space-y-4">
-          {items.map((item) => (
-            <div
-              key={`${item.product.id}-${item.variant?.sku || ''}`}
-              className="flex items-center justify-between py-4 border-b last:border-0"
-            >
-              <div className="flex items-center space-x-4">
-                <img
-                  src={item.variant?.image || item.product.image || ''}
-                  alt={item.product.name}
-                  className="h-16 w-16 object-cover rounded"
-                />
-                <div>
-                  <h3 className="text-sm font-medium text-gray-900">
-                    {item.product.name}
-                  </h3>
-                  {item.variant && (
-                    <p className="text-sm text-gray-600">
-                      SKU: {item.variant.sku}
-                    </p>
-                  )}
-                  <p className="text-sm text-gray-500">
-                    {formatPrice(item.variant?.price ?? item.product.price)}
-                  </p>
+        <div className="flex items-center justify-between mb-6">
+          <h2 className="text-xl font-semibold text-gray-900">
+            Shopping Cart ({items.length})
+          </h2>
+          <Link href="/shop" className="text-sm text-blue-600 hover:text-blue-800">
+            Continue Shopping
+          </Link>
+        </div>
+        <div className="space-y-6">
+          {items.map((item) => {
+            const itemId = item.product.id.toString();
+            const isSaved = savedItems.includes(itemId);
+            const isUpdating = updating === itemId;
+
+            const itemPrice = Number(item.variant?.price ?? item.product.price);
+            const itemTotal = itemPrice * item.quantity;
+
+            return (
+              <div key={`${item.product.id}-${item.variant?.sku || ''}`}>
+                <div className="flex gap-6">
+                  {/* Product Image */}
+                  <div className="relative w-24 h-24 flex-shrink-0">
+                    <img
+                      src={item.variant?.image || item.product.image || ''}
+                      alt={item.product.name}
+                      className="w-full h-full object-cover rounded-md"
+                    />
+                  </div>
+
+                  {/* Product Details */}
+                  <div className="flex-1 min-w-0">
+                    <div className="flex justify-between">
+                      <div>
+                        <h3 className="text-sm font-medium text-gray-900 truncate">
+                          {item.product.name}
+                        </h3>
+                        {item.variant && (
+                          <p className="mt-1 text-sm text-gray-500">
+                            SKU: {item.variant.sku}
+                          </p>
+                        )}
+                        <p className="mt-1 text-sm font-medium text-gray-900">
+                          {formatPrice(itemTotal)}
+                        </p>
+                      </div>
+                      <div className="flex items-start space-x-2">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="text-gray-400 hover:text-gray-500"
+                          onClick={() => toggleSaveForLater(item.product.id)}
+                        >
+                          {isSaved ? (
+                            <Heart className="h-5 w-5 fill-red-500 text-red-500" />
+                          ) : (
+                            <Heart className="h-5 w-5" />
+                          )}
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="text-gray-400 hover:text-gray-500"
+                          onClick={() => removeItem(item.product.id)}
+                          disabled={isUpdating}
+                        >
+                          {isUpdating ? (
+                            <Loader2 className="h-5 w-5 animate-spin" />
+                          ) : (
+                            <Trash2 className="h-5 w-5" />
+                          )}
+                        </Button>
+                      </div>
+                    </div>
+
+                    {/* Quantity Controls */}
+                    <div className="mt-4 flex items-center">
+                      <div className="flex items-center space-x-2">
+                        <Button
+                          variant="outline"
+                          size="icon"
+                          className="h-8 w-8"
+                          onClick={() => updateQuantity(item.product.id, item.quantity - 1)}
+                          disabled={isUpdating || item.quantity <= 1}
+                        >
+                          -
+                        </Button>
+                        <Input
+                          type="number"
+                          min="1"
+                          value={item.quantity}
+                          onChange={(e) =>
+                            updateQuantity(item.product.id, parseInt(e.target.value))
+                          }
+                          className="w-16 h-8 text-center"
+                          disabled={isUpdating}
+                        />
+                        <Button
+                          variant="outline"
+                          size="icon"
+                          className="h-8 w-8"
+                          onClick={() => updateQuantity(item.product.id, item.quantity + 1)}
+                          disabled={isUpdating}
+                        >
+                          +
+                        </Button>
+                      </div>
+                      <div className="ml-4 text-sm text-gray-500">
+                        Total: {formatPrice(itemTotal)}
+                      </div>
+                    </div>
+                  </div>
                 </div>
+                <Separator className="mt-6" />
               </div>
-              <div className="flex items-center space-x-4">
-                <div className="flex items-center space-x-2">
-                  <Button
-                    variant="outline"
-                    size="icon"
-                    onClick={() => updateQuantity(item.product.id, item.quantity - 1)}
-                    disabled={updating === item.product.id.toString() || item.quantity <= 1}
-                  >
-                    -
-                  </Button>
-                  <Input
-                    type="number"
-                    min="1"
-                    value={item.quantity}
-                    onChange={(e) =>
-                      updateQuantity(item.product.id, parseInt(e.target.value))
-                    }
-                    className="w-16 text-center"
-                    disabled={updating === item.product.id.toString()}
-                  />
-                  <Button
-                    variant="outline"
-                    size="icon"
-                    onClick={() => updateQuantity(item.product.id, item.quantity + 1)}
-                    disabled={updating === item.product.id.toString()}
-                  >
-                    +
-                  </Button>
-                </div>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => removeItem(item.product.id)}
-                  disabled={updating === item.product.id.toString()}
-                >
-                  <Trash2 className="h-4 w-4 text-red-500" />
-                </Button>
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </div>
     </div>

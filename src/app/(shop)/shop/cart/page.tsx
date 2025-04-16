@@ -11,6 +11,7 @@ import { CartItem } from "@/types/cart";
 import { CartInitializer } from "@/components/shop/cart-initializer";
 import { Decimal } from "decimal.js";
 import { Product, ProductVariant } from "@prisma/client";
+import { ShoppingBag } from "lucide-react";
 
 export const metadata: Metadata = {
   title: "Shopping Cart - BINWAHAB",
@@ -81,32 +82,52 @@ export default async function CartPage() {
   const isEmpty = validPrismaItems.length === 0;
 
   return (
-    <main className="container mx-auto px-4 py-8">
-      {/* Initialize client-side cart state */}
-      <CartInitializer items={validCartItems} />
-      
-      <h1 className="text-3xl font-bold mb-8">Shopping Cart</h1>
-      
-      {/* Progress Steps */}
-      <div className="max-w-3xl mx-auto mb-12">
-        <Steps
-          steps={[
-            { title: "Cart", href: "/shop/cart", status: "current" },
-            { title: "Payment", href: "#", status: "upcoming" }
-          ]}
-        />
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        <div className={isEmpty ? "col-span-3" : "lg:col-span-2"}>
-          <CartItems items={validCartItems} />
-        </div>
-        {!isEmpty && (
-          <div className="lg:col-span-1">
-            <CartSummary items={validPrismaItems} />
+    <div className="min-h-screen bg-gray-50">
+      <div className="container mx-auto px-4 py-8">
+        {/* Initialize client-side cart state */}
+        <CartInitializer items={validCartItems} />
+        
+        <div className="max-w-7xl mx-auto">
+          {/* Header */}
+          <div className="flex items-center justify-between mb-8">
+            <h1 className="text-3xl font-bold text-gray-900">Shopping Cart</h1>
+            <div className="flex items-center text-sm text-gray-500">
+              <ShoppingBag className="h-5 w-5 mr-2" />
+              <span>{validCartItems.length} items</span>
+            </div>
           </div>
-        )}
+          
+          {/* Progress Steps */}
+          <div className="max-w-3xl mx-auto mb-8">
+            <Steps
+              steps={[
+                { title: "Cart", href: "/shop/cart", status: "current" },
+                { title: "Payment", href: "#", status: "upcoming" }
+              ]}
+            />
+          </div>
+
+          {/* Cart Content */}
+          <div className="mt-8">
+            {isEmpty ? (
+              <div className="max-w-3xl mx-auto">
+                <CartItems items={validCartItems} />
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+                <div className="lg:col-span-8">
+                  <CartItems items={validCartItems} />
+                </div>
+                <div className="lg:col-span-4">
+                  <div className="sticky top-8">
+                    <CartSummary items={validPrismaItems} />
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
       </div>
-    </main>
+    </div>
   );
 } 
