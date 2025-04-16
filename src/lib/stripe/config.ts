@@ -1,28 +1,27 @@
-import { loadStripe, Stripe } from '@stripe/stripe-js';
+import { loadStripe } from '@stripe/stripe-js';
 
-// Environment validation
-const publishableKey = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY;
-if (!publishableKey) {
-  throw new Error('NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY is not defined');
+const PUBLISHABLE_KEY = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY;
+
+if (!PUBLISHABLE_KEY) {
+  console.error('⚠️ Stripe publishable key is missing. Make sure NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY is set in your environment.');
+  throw new Error('Stripe publishable key is required');
 }
 
-// Initialize Stripe
-let stripePromise: Promise<Stripe | null>;
-const getStripe = () => {
+console.log('🔑 Stripe environment check:', {
+  hasPublishableKey: !!PUBLISHABLE_KEY,
+  keyPrefix: PUBLISHABLE_KEY.startsWith('pk_test_') ? 'test' : 'live',
+  environment: process.env.NODE_ENV
+});
+
+let stripePromise: Promise<any> | null = null;
+
+export const getStripe = () => {
   if (!stripePromise) {
-    console.log('Initializing Stripe with key:', publishableKey);
-    stripePromise = loadStripe(publishableKey).then(stripe => {
-      console.log('Stripe loaded:', stripe ? 'success' : 'failed');
-      return stripe;
-    }).catch(err => {
-      console.error('Error loading Stripe:', err);
-      return null;
-    });
+    stripePromise = loadStripe(PUBLISHABLE_KEY);
+    console.log('🔄 Initializing Stripe...');
   }
   return stripePromise;
 };
-
-export { getStripe };
 
 // Stripe appearance configuration
 export const appearance = {

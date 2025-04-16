@@ -92,8 +92,7 @@ export default async function CartPage() {
         <Steps
           steps={[
             { title: "Cart", href: "/shop/cart", status: "current" },
-            { title: "Checkout", href: "#", status: "upcoming" },
-            { title: "Confirmation", href: "#", status: "upcoming" },
+            { title: "Payment", href: "#", status: "upcoming" }
           ]}
         />
       </div>

@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { cn } from "@/lib/utils";
+import { CheckIcon } from "lucide-react";
 
 interface Step {
   title: string;
@@ -30,20 +31,9 @@ export function Steps({ steps }: StepsProps) {
                 </div>
                 <Link
                   href={step.href}
-                  className="relative flex h-8 w-8 items-center justify-center rounded-full bg-primary hover:bg-primary/90"
+                  className="relative flex h-8 w-8 items-center justify-center rounded-full bg-primary hover:bg-primary/80"
                 >
-                  <svg
-                    className="h-5 w-5 text-white"
-                    viewBox="0 0 20 20"
-                    fill="currentColor"
-                    aria-hidden="true"
-                  >
-                    <path
-                      fillRule="evenodd"
-                      d="M16.704 4.153a.75.75 0 01.143 1.052l-8 10.5a.75.75 0 01-1.127.075l-4.5-4.5a.75.75 0 011.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 011.05-.143z"
-                      clipRule="evenodd"
-                    />
-                  </svg>
+                  <CheckIcon className="h-5 w-5 text-white" aria-hidden="true" />
                   <span className="sr-only">{step.title}</span>
                 </Link>
               </>
@@ -56,7 +46,10 @@ export function Steps({ steps }: StepsProps) {
                   className="relative flex h-8 w-8 items-center justify-center rounded-full border-2 border-primary bg-white"
                   aria-current="step"
                 >
-                  <span className="h-2.5 w-2.5 rounded-full bg-primary" aria-hidden="true" />
+                  <span
+                    className="h-2.5 w-2.5 rounded-full bg-primary"
+                    aria-hidden="true"
+                  />
                   <span className="sr-only">{step.title}</span>
                 </div>
               </>
@@ -74,7 +67,7 @@ export function Steps({ steps }: StepsProps) {
                 </div>
               </>
             )}
-            <span className="absolute left-0 top-10 text-center text-sm font-medium">
+            <span className="absolute left-1/2 -translate-x-1/2 whitespace-nowrap text-sm font-medium text-gray-900 top-10">
               {step.title}
             </span>
           </li>

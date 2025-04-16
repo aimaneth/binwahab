@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { formatPrice } from "@/lib/utils";
 import { CartItem, Product, ProductVariant } from "@prisma/client";
@@ -16,9 +15,9 @@ interface CartSummaryProps {
 }
 
 export function CartSummary({ items, shippingState = "Selangor" }: CartSummaryProps) {
-  const router = useRouter();
   const [shipping, setShipping] = useState<number>(0);
   const [isLoading, setIsLoading] = useState(true);
+  const [isProcessing, setIsProcessing] = useState(false);
 
   useEffect(() => {
     const calculateShipping = async () => {
@@ -62,6 +61,45 @@ export function CartSummary({ items, shippingState = "Selangor" }: CartSummaryPr
     calculateShipping();
   }, [items, shippingState]);
 
+  const handleCheckout = async () => {
+    try {
+      setIsProcessing(true);
+
+      // Format items for Stripe Checkout
+      const checkoutItems = items.map(item => ({
+        name: item.variant?.name || item.product.name,
+        description: `${item.product.name}${item.variant ? ` - ${item.variant.name}` : ''}`,
+        price: Number(item.variant?.price || item.product.price),
+        quantity: item.quantity,
+        images: item.product.image ? [item.product.image] : []
+      }));
+
+      // Create Checkout Session
+      const response = await fetch("/api/checkout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ items: checkoutItems })
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || "Failed to create checkout session");
+      }
+
+      // Redirect to Stripe Checkout
+      if (data.url) {
+        window.location.href = data.url;
+      } else {
+        throw new Error("No checkout URL received");
+      }
+    } catch (err) {
+      console.error("Checkout error:", err);
+      // You might want to add a toast notification here
+      setIsProcessing(false);
+    }
+  };
+
   if (items.length === 0) {
     return null;
   }
@@ -73,7 +111,6 @@ export function CartSummary({ items, shippingState = "Selangor" }: CartSummaryPr
     },
     0
   );
-  // Remove tax calculation
   const total = subtotal + shipping;
 
   return (
@@ -102,16 +139,21 @@ export function CartSummary({ items, shippingState = "Selangor" }: CartSummaryPr
         <Button
           className="w-full"
           size="lg"
-          onClick={() => router.push("/shop/checkout")}
-          disabled={isLoading}
+          onClick={handleCheckout}
+          disabled={isLoading || isProcessing}
         >
-          {isLoading ? (
+          {isProcessing ? (
+            <>
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              Processing...
+            </>
+          ) : isLoading ? (
             <>
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
               Calculating...
             </>
           ) : (
-            "Proceed to Checkout"
+            "Proceed to Payment"
           )}
         </Button>
       </div>
