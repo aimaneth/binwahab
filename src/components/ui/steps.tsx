@@ -15,13 +15,13 @@ interface StepsProps {
 export function Steps({ steps }: StepsProps) {
   return (
     <nav aria-label="Progress">
-      <ol role="list" className="flex items-center">
+      <ol role="list" className="flex items-center justify-center">
         {steps.map((step, stepIdx) => (
           <li
             key={step.title}
             className={cn(
               stepIdx !== steps.length - 1 ? "pr-8 sm:pr-20" : "",
-              "relative"
+              "relative flex flex-col items-center"
             )}
           >
             {step.status === "complete" ? (
@@ -67,7 +67,7 @@ export function Steps({ steps }: StepsProps) {
                 </div>
               </>
             )}
-            <span className="absolute left-1/2 -translate-x-1/2 whitespace-nowrap text-sm font-medium text-gray-900 top-10">
+            <span className="mt-4 text-sm font-medium text-gray-900">
               {step.title}
             </span>
           </li>

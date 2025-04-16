@@ -129,7 +129,12 @@ export async function GET(request: Request) {
         }
       },
       include: {
-        items: true,
+        items: {
+          include: {
+            product: true,
+            variant: true,
+          }
+        },
         shippingAddress: true
       }
     });
@@ -149,7 +154,7 @@ export async function GET(request: Request) {
       }
     }));
 
-    // Clear cart only after everything else is successful
+    // Clear the cart after successful order creation
     await prisma.cartItem.deleteMany({
       where: { cartId: cart.id }
     });
@@ -158,7 +163,13 @@ export async function GET(request: Request) {
       success: true,
       status: "paid",
       orderId: order.id,
-      message: "Payment successful and order created"
+      total: order.total,
+      items: order.items.map(item => ({
+        name: item.variant?.name || item.product?.name || 'Unknown Product',
+        quantity: item.quantity,
+        price: Number(item.price)
+      })),
+      shippingAddress: order.shippingAddress
     });
   } catch (error) {
     console.error("Verify payment error:", error);

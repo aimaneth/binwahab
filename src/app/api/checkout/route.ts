@@ -45,48 +45,29 @@ export async function POST(request: Request) {
       );
     }
 
-    // Log the items we're processing
-    console.log('Processing items:', items.map(item => ({
-      name: item.name,
-      price: item.price,
-      quantity: item.quantity,
-      hasImages: !!item.images?.length
-    })));
-
-    // Validate item structure
-    const validItems = items.every(item => 
-      item.name && 
-      typeof item.price === 'number' && 
-      item.price > 0
-    );
-
-    if (!validItems) {
-      console.log('Invalid item structure detected');
-      return NextResponse.json(
-        { error: 'Invalid item data structure' },
-        { status: 400 }
-      );
-    }
-
-    // Log base URL
-    console.log('Base URL:', process.env.NEXT_PUBLIC_BASE_URL);
+    // Calculate subtotal and tax
+    const subtotal = items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+    const tax = subtotal * 0.06; // 6% Malaysian GST
+    
+    // Create line items with tax included in the price
+    const lineItems = items.map((item: CheckoutItem) => ({
+      price_data: {
+        currency: 'myr',
+        product_data: {
+          name: item.name || 'Unknown Product',
+          description: `${item.description || ''} (Includes 6% GST)`,
+          images: item.images?.length ? [item.images[0]] : [],
+        },
+        unit_amount: Math.round((item.price * 1.06) * 100), // Price with 6% tax, converted to cents
+      },
+      quantity: item.quantity || 1,
+    }));
 
     // Create Stripe checkout session
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ['card', 'fpx'],
       locale: 'en',
-      line_items: items.map((item: CheckoutItem) => ({
-        price_data: {
-          currency: 'myr',
-          product_data: {
-            name: item.name || 'Unknown Product',
-            description: item.description || '',
-            images: item.images?.length ? [item.images[0]] : [],
-          },
-          unit_amount: Math.round(item.price * 100), // Convert to cents and ensure integer
-        },
-        quantity: item.quantity || 1,
-      })),
+      line_items: lineItems,
       mode: 'payment',
       success_url: `https://binwahab.vercel.app/checkout/success?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `https://binwahab.vercel.app/shop/cart`,
