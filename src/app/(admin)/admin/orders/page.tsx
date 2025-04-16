@@ -12,7 +12,9 @@ import {
   Truck,
   CheckCircle2,
   XCircle,
-  Clock
+  Clock,
+  RotateCcw,
+  AlertCircle
 } from "lucide-react"
 import { toast } from "sonner"
 
@@ -34,6 +36,7 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { formatPrice } from "@/lib/utils"
 
 interface Order {
@@ -63,9 +66,13 @@ interface Order {
   createdAt: string
   shippingAddress: {
     fullName: string
-    street: string
+    addressLine1: string
+    addressLine2?: string
     city: string
+    state: string
+    postalCode: string
     country: string
+    phone: string
   }
 }
 
@@ -81,12 +88,61 @@ interface PaginatedResponse {
   }
 }
 
+type OrderTab = "all" | "unpaid" | "to-ship" | "shipping" | "completed" | "returns"
+
+interface OrderStatusTab {
+  id: OrderTab
+  label: string
+  icon: React.ReactNode
+  filter: (order: Order) => boolean
+}
+
+const ORDER_STATUS_TABS: OrderStatusTab[] = [
+  {
+    id: "all",
+    label: "All Orders",
+    icon: <Package className="h-4 w-4" />,
+    filter: () => true
+  },
+  {
+    id: "unpaid",
+    label: "Unpaid",
+    icon: <AlertCircle className="h-4 w-4" />,
+    filter: (order) => order.paymentStatus === "PENDING"
+  },
+  {
+    id: "to-ship",
+    label: "To Ship",
+    icon: <Package className="h-4 w-4" />,
+    filter: (order) => order.paymentStatus === "PAID" && order.status === "PROCESSING"
+  },
+  {
+    id: "shipping",
+    label: "Shipping",
+    icon: <Truck className="h-4 w-4" />,
+    filter: (order) => order.status === "SHIPPED"
+  },
+  {
+    id: "completed",
+    label: "Completed",
+    icon: <CheckCircle2 className="h-4 w-4" />,
+    filter: (order) => order.status === "DELIVERED"
+  },
+  {
+    id: "returns",
+    label: "Returns/Refunds",
+    icon: <RotateCcw className="h-4 w-4" />,
+    filter: (order) => order.status === "CANCELLED" || order.paymentStatus === "REFUNDED"
+  }
+]
+
 export default function OrdersPage() {
   const { data: session } = useSession()
   const router = useRouter()
   const [orders, setOrders] = useState<Order[]>([])
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState("")
+  const [activeTab, setActiveTab] = useState<OrderTab>("all")
   const [pagination, setPagination] = useState<PaginatedResponse["pagination"]>({
     total: 0,
     totalPages: 0,
@@ -103,11 +159,18 @@ export default function OrdersPage() {
     }
 
     fetchOrders()
-  }, [session, router])
+  }, [session, router, activeTab, pagination.currentPage, pagination.limit])
 
   const fetchOrders = async () => {
     try {
-      const response = await fetch("/api/admin/orders")
+      const searchParams = new URLSearchParams()
+      if (activeTab !== "all") {
+        searchParams.append("status", activeTab.toUpperCase())
+      }
+      searchParams.append("page", pagination.currentPage.toString())
+      searchParams.append("limit", pagination.limit.toString())
+      
+      const response = await fetch(`/api/admin/orders?${searchParams.toString()}`)
       if (!response.ok) throw new Error("Failed to fetch orders")
       const data: PaginatedResponse = await response.json()
       setOrders(data.orders)
@@ -169,15 +232,24 @@ export default function OrdersPage() {
     }
   }
 
-  const filteredOrders = orders.filter((order) => {
-    const searchLower = searchQuery.toLowerCase()
-    return (
-      order.id.toLowerCase().includes(searchLower) ||
-      order.user.name?.toLowerCase().includes(searchLower) ||
-      order.user.email?.toLowerCase().includes(searchLower) ||
-      order.shippingAddress.fullName.toLowerCase().includes(searchLower)
-    )
-  })
+  const filteredOrders = orders
+    .filter((order) => {
+      if (!searchQuery) return true
+      const searchLower = searchQuery.toLowerCase()
+      return (
+        order.id.toLowerCase().includes(searchLower) ||
+        order.user.name?.toLowerCase().includes(searchLower) ||
+        order.user.email?.toLowerCase().includes(searchLower) ||
+        order.shippingAddress.fullName.toLowerCase().includes(searchLower)
+      )
+    })
+    .filter(ORDER_STATUS_TABS.find(tab => tab.id === activeTab)?.filter || (() => true))
+
+  const getTabCount = (tabId: OrderTab) => {
+    const tab = ORDER_STATUS_TABS.find(t => t.id === tabId)
+    if (!tab) return 0
+    return orders.filter(tab.filter).length
+  }
 
   if (loading) {
     return (
@@ -198,109 +270,140 @@ export default function OrdersPage() {
         </div>
       </div>
 
-      <Card>
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <CardTitle>All Orders</CardTitle>
-            <div className="relative w-72">
+      <div className="space-y-4">
+        <div className="flex items-center gap-4">
+          <div className="flex-1">
+            <div className="relative">
               <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
               <Input
-                placeholder="Search orders..."
+                placeholder="Search orders by ID, customer name, or email..."
+                className="pl-8"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-8"
               />
             </div>
           </div>
-        </CardHeader>
-        <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Order ID</TableHead>
-                <TableHead>Customer</TableHead>
-                <TableHead>Items</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Payment</TableHead>
-                <TableHead>Total</TableHead>
-                <TableHead>Date</TableHead>
-                <TableHead></TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filteredOrders.map((order) => (
-                <TableRow key={order.id}>
-                  <TableCell className="font-medium">{order.id}</TableCell>
-                  <TableCell>
-                    <div>
-                      <p className="font-medium">{order.shippingAddress.fullName}</p>
-                      <p className="text-sm text-muted-foreground">{order.user.email}</p>
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <div className="space-y-1">
-                      {order.items.map((item) => (
-                        <div key={item.id}>
-                          <p className="text-sm">{item.product.name}</p>
-                          {item.variant && (
-                            <p className="text-xs text-muted-foreground">
-                              {Object.entries(item.variant.options)
-                                .map(([key, value]) => `${key}: ${value}`)
-                                .join(", ")}
-                            </p>
-                          )}
-                          <p className="text-xs text-muted-foreground">
-                            Qty: {item.quantity} × {formatPrice(item.price)}
-                          </p>
-                        </div>
-                      ))}
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <Badge
-                      variant="secondary"
-                      className={`${getStatusColor(order.status)} flex items-center gap-1`}
-                    >
-                      {getStatusIcon(order.status)}
-                      {order.status}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>
-                    <Badge
-                      variant="secondary"
-                      className={getPaymentStatusColor(order.paymentStatus)}
-                    >
-                      {order.paymentStatus}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>{formatPrice(order.total)}</TableCell>
-                  <TableCell>
-                    {format(new Date(order.createdAt), "MMM d, yyyy")}
-                  </TableCell>
-                  <TableCell>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" className="h-8 w-8 p-0">
-                          <span className="sr-only">Open menu</span>
-                          <MoreHorizontal className="h-4 w-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem
-                          onClick={() => router.push(`/admin/orders/${order.id}`)}
-                        >
-                          <Eye className="mr-2 h-4 w-4" />
-                          View details
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
+        </div>
+
+        <Tabs defaultValue="all" className="w-full" value={activeTab} onValueChange={(value) => setActiveTab(value as OrderTab)}>
+          <TabsList className="w-full justify-start">
+            {ORDER_STATUS_TABS.map((tab) => (
+              <TabsTrigger
+                key={tab.id}
+                value={tab.id}
+                className="flex items-center gap-2"
+              >
+                {tab.icon}
+                {tab.label}
+                <Badge variant="secondary" className="ml-2">
+                  {getTabCount(tab.id)}
+                </Badge>
+              </TabsTrigger>
+            ))}
+          </TabsList>
+
+          {ORDER_STATUS_TABS.map((tab) => (
+            <TabsContent key={tab.id} value={tab.id}>
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    {tab.icon}
+                    {tab.label}
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="rounded-md border">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Order ID</TableHead>
+                          <TableHead>Customer</TableHead>
+                          <TableHead>Date</TableHead>
+                          <TableHead>Status</TableHead>
+                          <TableHead>Payment</TableHead>
+                          <TableHead>Total</TableHead>
+                          <TableHead className="text-right">Actions</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {filteredOrders.length === 0 ? (
+                          <TableRow>
+                            <TableCell colSpan={7} className="text-center py-4">
+                              No orders found
+                            </TableCell>
+                          </TableRow>
+                        ) : (
+                          filteredOrders.map((order) => (
+                            <TableRow key={order.id}>
+                              <TableCell className="font-medium">
+                                #{order.id}
+                              </TableCell>
+                              <TableCell>
+                                <div>
+                                  <p className="font-medium">{order.shippingAddress.fullName}</p>
+                                  <p className="text-sm text-muted-foreground">
+                                    {order.user.email}
+                                  </p>
+                                </div>
+                              </TableCell>
+                              <TableCell>
+                                {format(new Date(order.createdAt), "MMM d, yyyy")}
+                              </TableCell>
+                              <TableCell>
+                                <Badge
+                                  className={`flex w-fit items-center gap-1 ${getStatusColor(
+                                    order.status
+                                  )}`}
+                                >
+                                  {getStatusIcon(order.status)}
+                                  {order.status}
+                                </Badge>
+                              </TableCell>
+                              <TableCell>
+                                <Badge
+                                  className={getPaymentStatusColor(
+                                    order.paymentStatus
+                                  )}
+                                >
+                                  {order.paymentStatus}
+                                </Badge>
+                              </TableCell>
+                              <TableCell>{formatPrice(order.total)}</TableCell>
+                              <TableCell className="text-right">
+                                <DropdownMenu>
+                                  <DropdownMenuTrigger asChild>
+                                    <Button
+                                      variant="ghost"
+                                      className="h-8 w-8 p-0"
+                                    >
+                                      <span className="sr-only">Open menu</span>
+                                      <MoreHorizontal className="h-4 w-4" />
+                                    </Button>
+                                  </DropdownMenuTrigger>
+                                  <DropdownMenuContent align="end">
+                                    <DropdownMenuItem
+                                      onClick={() =>
+                                        router.push(`/admin/orders/${order.id}`)
+                                      }
+                                    >
+                                      <Eye className="mr-2 h-4 w-4" />
+                                      View details
+                                    </DropdownMenuItem>
+                                  </DropdownMenuContent>
+                                </DropdownMenu>
+                              </TableCell>
+                            </TableRow>
+                          ))
+                        )}
+                      </TableBody>
+                    </Table>
+                  </div>
+                </CardContent>
+              </Card>
+            </TabsContent>
+          ))}
+        </Tabs>
+      </div>
     </div>
   )
 } 

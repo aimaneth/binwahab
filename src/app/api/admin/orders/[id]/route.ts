@@ -3,7 +3,8 @@ import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
 import { sendOrderStatusEmail } from "@/lib/mail"
-import { OrderStatus } from "@prisma/client"
+import { OrderStatus, PaymentStatus } from "@prisma/client"
+import { z } from "zod"
 
 export async function GET(
   req: Request,
@@ -64,165 +65,188 @@ export async function PATCH(
     }
 
     const body = await req.json()
-    const { status } = body
+    const { status, paymentStatus } = body
 
-    const order = await prisma.order.findUnique({
-      where: {
-        id: params.id,
-      },
-      include: {
-        user: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-          },
+    // Validate status if provided
+    if (status) {
+      const statusSchema = z.enum([
+        "PENDING",
+        "PROCESSING",
+        "SHIPPED",
+        "DELIVERED",
+        "CANCELLED",
+      ])
+      statusSchema.parse(status)
+    }
+
+    // Validate payment status if provided
+    if (paymentStatus) {
+      const paymentStatusSchema = z.enum([
+        "PENDING",
+        "PAID",
+        "FAILED",
+        "REFUNDED",
+      ])
+      paymentStatusSchema.parse(paymentStatus)
+    }
+
+    // Start transaction
+    const result = await prisma.$transaction(async (tx) => {
+      const order = await tx.order.findUnique({
+        where: {
+          id: params.id,
         },
-        items: {
-          include: {
-            product: {
-              select: {
-                id: true,
-                name: true,
+        include: {
+          user: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+            },
+          },
+          items: {
+            include: {
+              product: {
+                select: {
+                  id: true,
+                  name: true,
+                },
               },
             },
           },
+          shippingAddress: true,
         },
-        shippingAddress: true,
-      },
-    })
+      })
 
-    if (!order) {
-      return new NextResponse("Order not found", { status: 404 })
-    }
+      if (!order) {
+        throw new Error("Order not found")
+      }
 
-    // Handle stock updates based on status change
-    if (status === "CANCELLED" && order.status !== "CANCELLED") {
-      // Restore stock for cancelled orders
-      for (const item of order.items) {
-        if (item.variantId) {
-          // Update variant stock
-          await prisma.productVariant.update({
-            where: { id: item.variantId },
-            data: {
-              stock: {
-                increment: item.quantity
+      // Handle stock updates based on status change
+      if (status === "CANCELLED" && order.status !== "CANCELLED") {
+        // Restore stock for cancelled orders
+        for (const item of order.items) {
+          if (item.variantId) {
+            await tx.productVariant.update({
+              where: { id: item.variantId },
+              data: {
+                stock: {
+                  increment: item.quantity
+                }
               }
-            }
-          });
-        } else if (item.productId) {
-          // Update product stock if no variant
-          await prisma.product.update({
-            where: { id: item.productId },
-            data: {
-              stock: {
-                increment: item.quantity
+            })
+          } else if (item.productId) {
+            await tx.product.update({
+              where: { id: item.productId },
+              data: {
+                stock: {
+                  increment: item.quantity
+                }
               }
+            })
+          }
+        }
+      } else if (order.status === "CANCELLED" && status !== "CANCELLED") {
+        // Check and deduct stock when uncancelling
+        for (const item of order.items) {
+          if (item.variantId) {
+            const variant = await tx.productVariant.findUnique({
+              where: { id: item.variantId }
+            })
+            if (!variant || variant.stock < item.quantity) {
+              throw new Error(`Insufficient stock for variant ${variant?.id}`)
             }
-          });
+            await tx.productVariant.update({
+              where: { id: item.variantId },
+              data: {
+                stock: {
+                  decrement: item.quantity
+                }
+              }
+            })
+          } else if (item.productId) {
+            const product = await tx.product.findUnique({
+              where: { id: item.productId }
+            })
+            if (!product || (product.stock !== null && product.stock < item.quantity)) {
+              throw new Error(`Insufficient stock for product ${product?.id}`)
+            }
+            await tx.product.update({
+              where: { id: item.productId },
+              data: {
+                stock: {
+                  decrement: item.quantity
+                }
+              }
+            })
+          }
         }
       }
-    } else if (order.status === "CANCELLED" && status !== "CANCELLED") {
-      // Deduct stock when uncancelling an order
-      for (const item of order.items) {
-        if (item.variantId) {
-          // Check variant stock
-          const variant = await prisma.productVariant.findUnique({
-            where: { id: item.variantId }
-          });
-          if (!variant || variant.stock < item.quantity) {
-            return new NextResponse(
-              `Insufficient stock for variant ${variant?.id}`,
-              { status: 400 }
-            );
-          }
-          // Update variant stock
-          await prisma.productVariant.update({
-            where: { id: item.variantId },
-            data: {
-              stock: {
-                decrement: item.quantity
-              }
-            }
-          });
-        } else if (item.productId) {
-          // Check product stock
-          const product = await prisma.product.findUnique({
-            where: { id: item.productId }
-          });
-          if (!product || (product.stock !== null && product.stock < item.quantity)) {
-            return new NextResponse(
-              `Insufficient stock for product ${product?.id}`,
-              { status: 400 }
-            );
-          }
-          // Update product stock
-          await prisma.product.update({
-            where: { id: item.productId },
-            data: {
-              stock: {
-                decrement: item.quantity
-              }
-            }
-          });
-        }
-      }
-    }
 
-    // Update order status
-    const updatedOrder = await prisma.order.update({
-      where: {
-        id: params.id,
-      },
-      data: {
-        status,
-      },
-      include: {
-        user: {
-          select: {
-            name: true,
-            email: true,
+      // Update order
+      const updatedOrder = await tx.order.update({
+        where: {
+          id: params.id,
+        },
+        data: {
+          ...(status && { status }),
+          ...(paymentStatus && { paymentStatus }),
+        },
+        include: {
+          user: {
+            select: {
+              name: true,
+              email: true,
+            },
           },
-        },
-        items: {
-          include: {
-            product: {
-              select: {
-                name: true,
+          items: {
+            include: {
+              product: {
+                select: {
+                  name: true,
+                },
               },
             },
           },
+          shippingAddress: true,
         },
-        shippingAddress: true,
-      },
+      })
+
+      return updatedOrder
     })
 
-    // Send email notification to customer
-    if (order.user.email) {
+    // Send email notification to customer outside transaction
+    if (result.user.email && status) {
       await sendOrderStatusEmail({
-        orderId: order.id,
+        orderId: result.id,
         status: status as OrderStatus,
-        items: order.items.map((item) => ({
+        items: result.items.map((item) => ({
           productName: item.product?.name || "Unknown Product",
           quantity: item.quantity,
           price: item.price,
         })),
-        total: order.total,
+        total: result.total,
         shippingAddress: {
-          street: order.shippingAddress.street,
-          city: order.shippingAddress.city,
-          state: order.shippingAddress.state,
-          postalCode: order.shippingAddress.zipCode,
-          country: order.shippingAddress.country,
+          street: result.shippingAddress.street,
+          city: result.shippingAddress.city,
+          state: result.shippingAddress.state,
+          postalCode: result.shippingAddress.zipCode,
+          country: result.shippingAddress.country,
         },
-        customerEmail: order.user.email,
-        customerName: order.user.name || "Customer",
+        customerEmail: result.user.email,
+        customerName: result.user.name || "Customer",
       })
     }
 
-    return NextResponse.json(updatedOrder)
+    return NextResponse.json(result)
   } catch (error) {
+    if (error instanceof z.ZodError) {
+      return new NextResponse(JSON.stringify(error.errors), { status: 400 })
+    }
     console.error("[ORDER_PATCH]", error)
+    if (error instanceof Error) {
+      return new NextResponse(error.message, { status: 400 })
+    }
     return new NextResponse("Internal error", { status: 500 })
   }
 } 
