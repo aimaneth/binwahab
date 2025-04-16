@@ -35,7 +35,7 @@ export function OrderSummary({ items }: OrderSummaryProps) {
   const [shipping, setShipping] = useState(0);
 
   useEffect(() => {
-    const calculateTotals = () => {
+    const calculateTotals = async () => {
       setIsCalculating(true);
       try {
         const newSubtotal = items.reduce((sum, item) => {
@@ -47,15 +47,32 @@ export function OrderSummary({ items }: OrderSummaryProps) {
           }
           return sum + (numericPrice * item.quantity);
         }, 0);
-        
-        // Calculate shipping based on subtotal
-        const shippingCost = newSubtotal >= 300 ? 0 : 20; // Free shipping over RM300
+
+        // Calculate shipping using the API
+        const response = await fetch('/api/shipping/calculate', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            state: "Selangor", // Default state
+            orderValue: newSubtotal,
+            orderWeight: 0,
+          }),
+        });
+
+        if (!response.ok) {
+          throw new Error('Failed to calculate shipping');
+        }
+
+        const { cost } = await response.json();
         
         setSubtotal(newSubtotal);
-        setShipping(shippingCost);
-        setTotal(newSubtotal + shippingCost);
+        setShipping(cost);
+        setTotal(newSubtotal + cost);
       } catch (error) {
         console.error('Error calculating totals:', error);
+        setShipping(0);
       } finally {
         setIsCalculating(false);
       }
@@ -96,29 +113,27 @@ export function OrderSummary({ items }: OrderSummaryProps) {
               ))}
             </div>
 
-            <div className="border-t pt-4 space-y-3">
-              <div className="flex justify-between text-sm">
-                <span>Subtotal</span>
-                <span>{formatPrice(subtotal)}</span>
+            <div className="flex justify-between text-sm">
+              <span>Subtotal</span>
+              <span>{formatPrice(subtotal)}</span>
+            </div>
+            <div className="flex justify-between text-sm">
+              <span>Shipping</span>
+              <span>{shipping === 0 ? "Free" : formatPrice(shipping)}</span>
+            </div>
+            {shipping > 0 && (
+              <p className="text-xs text-muted-foreground">
+                Free shipping on orders over RM300
+              </p>
+            )}
+            <div className="border-t pt-4">
+              <div className="flex justify-between font-medium">
+                <span>Total</span>
+                <span>{formatPrice(total)}</span>
               </div>
-              <div className="flex justify-between text-sm">
-                <span>Shipping</span>
-                <span>{shipping === 0 ? "Free" : formatPrice(shipping)}</span>
-              </div>
-              {shipping > 0 && (
-                <p className="text-xs text-muted-foreground">
-                  Free shipping on orders over RM300
-                </p>
-              )}
-              <div className="border-t pt-4">
-                <div className="flex justify-between font-medium">
-                  <span>Total</span>
-                  <span>{formatPrice(total)}</span>
-                </div>
-                <p className="text-xs text-muted-foreground mt-1">
-                  Tax included if applicable
-                </p>
-              </div>
+              <p className="text-xs text-muted-foreground mt-1">
+                Tax included: 0%
+              </p>
             </div>
           </>
         )}

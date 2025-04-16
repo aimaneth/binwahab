@@ -1,9 +1,28 @@
-import { loadStripe, Stripe as StripeType } from '@stripe/stripe-js';
+import { loadStripe, Stripe } from '@stripe/stripe-js';
 
 // Environment validation
-if (!process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY) {
+const publishableKey = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY;
+if (!publishableKey) {
   throw new Error('NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY is not defined');
 }
+
+// Initialize Stripe
+let stripePromise: Promise<Stripe | null>;
+const getStripe = () => {
+  if (!stripePromise) {
+    console.log('Initializing Stripe with key:', publishableKey);
+    stripePromise = loadStripe(publishableKey).then(stripe => {
+      console.log('Stripe loaded:', stripe ? 'success' : 'failed');
+      return stripe;
+    }).catch(err => {
+      console.error('Error loading Stripe:', err);
+      return null;
+    });
+  }
+  return stripePromise;
+};
+
+export { getStripe };
 
 // Stripe appearance configuration
 export const appearance = {
@@ -27,13 +46,23 @@ export const appearance = {
       border: '1px solid #0F172A',
       boxShadow: '0 1px 2px 0 rgb(0 0 0 / 0.05), 0 0 0 4px rgb(15 23 42 / 0.1)',
     },
+    '.Label': {
+      fontWeight: '500',
+    },
+    '.Tab': {
+      padding: '10px 12px',
+      border: '1px solid #E2E8F0',
+    },
+    '.Tab:hover': {
+      border: '1px solid #0F172A',
+    },
+    '.Tab--selected': {
+      border: '1px solid #0F172A',
+      backgroundColor: '#0F172A',
+      color: 'white',
+    },
   },
 };
-
-// Initialize Stripe
-export const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY, {
-  locale: 'en',
-});
 
 // Types
 export interface PaymentFormProps {

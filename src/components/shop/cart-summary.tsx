@@ -9,8 +9,8 @@ import { Loader2 } from "lucide-react";
 
 interface CartSummaryProps {
   items: (CartItem & {
-    product: Product;
-    variant?: ProductVariant | null;
+    product: Omit<Product, 'price'> & { price: number };
+    variant?: (Omit<ProductVariant, 'price'> & { price: number }) | null;
   })[];
   shippingState?: string;
 }
@@ -25,7 +25,10 @@ export function CartSummary({ items, shippingState = "Selangor" }: CartSummaryPr
       setIsLoading(true);
       try {
         const subtotal = items.reduce(
-          (sum, item) => sum + Number(item.variant?.price ?? item.product.price) * item.quantity,
+          (sum, item) => {
+            const price = item.variant?.price ?? item.product.price;
+            return sum + (Number(price) * item.quantity);
+          },
           0
         );
         
@@ -64,11 +67,14 @@ export function CartSummary({ items, shippingState = "Selangor" }: CartSummaryPr
   }
 
   const subtotal = items.reduce(
-    (sum, item) => sum + Number(item.variant?.price ?? item.product.price) * item.quantity,
+    (sum, item) => {
+      const price = item.variant?.price ?? item.product.price;
+      return sum + (Number(price) * item.quantity);
+    },
     0
   );
-  const tax = subtotal * 0.06; // 6% tax
-  const total = subtotal + shipping + tax;
+  // Remove tax calculation
+  const total = subtotal + shipping;
 
   return (
     <div className="bg-white rounded-lg shadow p-6">
@@ -86,15 +92,12 @@ export function CartSummary({ items, shippingState = "Selangor" }: CartSummaryPr
             <span className="font-medium">{formatPrice(shipping)}</span>
           )}
         </div>
-        <div className="flex justify-between text-sm">
-          <span className="text-gray-600">Tax (6%)</span>
-          <span className="font-medium">{formatPrice(tax)}</span>
-        </div>
         <div className="border-t pt-4">
           <div className="flex justify-between text-base font-medium">
             <span>Total</span>
             <span>{formatPrice(total)}</span>
           </div>
+          <p className="text-xs text-gray-500 mt-1">Tax included: 0%</p>
         </div>
         <Button
           className="w-full"

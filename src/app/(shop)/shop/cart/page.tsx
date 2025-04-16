@@ -6,9 +6,11 @@ import { prisma } from "@/lib/prisma";
 import { CartItems } from "@/components/shop/cart-items";
 import { CartSummary } from "@/components/shop/cart-summary";
 import { Steps } from "@/components/ui/steps";
-import { CartItem as PrismaCartItem, Product, ProductVariant } from "@prisma/client";
+import { CartItem as PrismaCartItem } from "@prisma/client";
 import { CartItem } from "@/types/cart";
 import { CartInitializer } from "@/components/shop/cart-initializer";
+import { Decimal } from "decimal.js";
+import { Product, ProductVariant } from "@prisma/client";
 
 export const metadata: Metadata = {
   title: "Shopping Cart - BINWAHAB",
@@ -36,12 +38,25 @@ export default async function CartPage() {
     },
   });
 
-  // Filter out items with null products
+  // Transform cart items to match CartSummary props type
   const validPrismaItems = (cart?.items?.filter(item => item.product !== null) || []).map(item => ({
-    ...item,
-    product: item.product!,
-    variant: item.variant
-  })) as (PrismaCartItem & { product: Product, variant: ProductVariant | null })[];
+    id: item.id,
+    userId: item.userId,
+    createdAt: item.createdAt,
+    updatedAt: item.updatedAt,
+    quantity: item.quantity,
+    productId: item.productId,
+    variantId: item.variantId,
+    cartId: item.cartId,
+    product: {
+      ...item.product!,
+      price: Number(item.product!.price)
+    },
+    variant: item.variant ? {
+      ...item.variant,
+      price: Number(item.variant.price)
+    } : undefined
+  }));
 
   // Transform to CartItem type for CartItems component
   const validCartItems = validPrismaItems.map(item => ({
@@ -50,7 +65,7 @@ export default async function CartPage() {
     product: {
       id: item.product.id,
       name: item.product.name,
-      price: item.product.price.toString(),
+      price: Number(item.product.price),
       image: item.product.image || undefined,
       description: item.product.description || undefined,
     },
@@ -58,10 +73,10 @@ export default async function CartPage() {
       id: item.variant.id,
       sku: item.variant.sku,
       name: item.variant.name,
-      price: item.variant.price.toString(),
+      price: Number(item.variant.price),
       image: item.variant.images[0] || undefined,
     } : undefined,
-  })) satisfies CartItem[];
+  }));
 
   const isEmpty = validPrismaItems.length === 0;
 

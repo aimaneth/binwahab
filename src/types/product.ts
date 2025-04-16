@@ -41,7 +41,6 @@ export interface Product {
   status: ProductStatus;
   image: string | null;
   sku: string | null;
-  barcode?: string | null;
   inventoryTracking: boolean;
   lowStockThreshold: number;
   images: ProductImage[];

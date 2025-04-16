@@ -27,26 +27,23 @@ export function ProductInfo({ product }: ProductInfoProps) {
   const router = useRouter();
   const { data: session } = useSession();
   const [quantity, setQuantity] = useState(1);
-
-  console.log('Product variants:', product.variants);
-  console.log('First variant options:', product.variants[0]?.options);
-
-  const [selectedVariant, setSelectedVariant] = useState(product.variants[0]);
   const [isLoading, setIsLoading] = useState(false);
 
+  // Initialize selectedVariant only if variants exist
+  const [selectedVariant, setSelectedVariant] = useState(
+    product.variants && product.variants.length > 0 ? product.variants[0] : null
+  );
+
   // Group variants by option type
-  const optionTypes = product.variants.length > 0
-    ? Object.keys(product.variants[0].options as Record<string, string>)
+  const optionTypes = product.variants && product.variants.length > 0
+    ? Object.keys(product.variants[0].options)
     : [];
-  
-  console.log('Option types:', optionTypes);
 
   const [selectedOptions, setSelectedOptions] = useState<Record<string, string>>(() => {
     const initialOptions: Record<string, string> = {};
-    if (product.variants.length > 0) {
+    if (product.variants && product.variants.length > 0) {
       const firstVariant = product.variants[0];
-      const options = firstVariant.options as Record<string, string>;
-      Object.entries(options).forEach(([key, value]) => {
+      Object.entries(firstVariant.options).forEach(([key, value]) => {
         initialOptions[key] = value;
       });
     }
@@ -56,22 +53,22 @@ export function ProductInfo({ product }: ProductInfoProps) {
   // Get unique values for each option type
   const getOptionsForType = (optionType: string) => {
     const uniqueValues = new Set<string>();
-    product.variants.forEach((variant) => {
-      const options = variant.options as Record<string, string>;
-      if (options[optionType]) {
-        uniqueValues.add(options[optionType]);
-      }
-    });
+    if (product.variants) {
+      product.variants.forEach((variant) => {
+        if (variant.options[optionType]) {
+          uniqueValues.add(variant.options[optionType]);
+        }
+      });
+    }
     return Array.from(uniqueValues);
   };
 
   // Check if a variant with specific options is in stock
   const isOptionInStock = (optionType: string, value: string) => {
-    return product.variants.some((variant) => {
-      const options = variant.options as Record<string, string>;
+    return product.variants?.some((variant) => {
       const availableStock = variant.stock - variant.reservedStock;
-      return options[optionType] === value && availableStock > 0;
-    });
+      return variant.options[optionType] === value && availableStock > 0;
+    }) ?? false;
   };
 
   // Get stock level class
@@ -84,10 +81,9 @@ export function ProductInfo({ product }: ProductInfoProps) {
 
   // Find the variant that matches the selected options
   const findMatchingVariant = () => {
-    return product.variants.find((variant) => {
-      const options = variant.options as Record<string, string>;
+    return product.variants?.find((variant) => {
       return Object.entries(selectedOptions).every(
-        ([key, value]) => options[key] === value
+        ([key, value]) => variant.options[key] === value
       );
     });
   };
@@ -96,10 +92,9 @@ export function ProductInfo({ product }: ProductInfoProps) {
   const handleOptionChange = (optionType: string, value: string) => {
     const newOptions = { ...selectedOptions, [optionType]: value };
     setSelectedOptions(newOptions);
-    const matchingVariant = product.variants.find((variant) => {
-      const options = variant.options as Record<string, string>;
+    const matchingVariant = product.variants?.find((variant) => {
       return Object.entries(newOptions).every(
-        ([key, val]) => options[key] === val
+        ([key, val]) => variant.options[key] === val
       );
     });
     if (matchingVariant) {
@@ -118,12 +113,15 @@ export function ProductInfo({ product }: ProductInfoProps) {
       return;
     }
 
-    if (!selectedVariant) {
+    // If there are variants, we need a selected variant
+    if (product.variants?.length > 0 && !selectedVariant) {
       toast.error("Please select all options");
       return;
     }
 
-    if (quantity > selectedVariant.stock) {
+    // Check stock based on whether we're using variants or not
+    const currentStock = selectedVariant ? selectedVariant.stock : product.stock;
+    if (quantity > currentStock) {
       toast.error("Not enough stock available");
       return;
     }
@@ -137,7 +135,7 @@ export function ProductInfo({ product }: ProductInfoProps) {
         },
         body: JSON.stringify({
           productId: product.id,
-          variantId: selectedVariant.id,
+          variantId: selectedVariant?.id,
           quantity,
         }),
       });
@@ -162,6 +160,13 @@ export function ProductInfo({ product }: ProductInfoProps) {
     return Number(price);
   };
 
+  // Get the current price to display
+  const currentPrice = selectedVariant ? selectedVariant.price : product.price;
+  const compareAtPrice = selectedVariant?.compareAtPrice;
+  const inStock = selectedVariant 
+    ? selectedVariant.stock > 0 
+    : product.stock > 0;
+
   return (
     <div className="mt-10 px-4 sm:mt-16 sm:px-0 lg:mt-0">
       <h1 className="text-3xl font-bold tracking-tight text-foreground">
@@ -172,24 +177,74 @@ export function ProductInfo({ product }: ProductInfoProps) {
         <div>
           <h2 className="sr-only">Product information</h2>
           <p className="text-3xl tracking-tight text-foreground">
-            {formatPrice(parsePrice(selectedVariant?.price ?? product.price))}
+            {formatPrice(parsePrice(currentPrice))}
           </p>
-          {selectedVariant?.compareAtPrice && (
+          {compareAtPrice && (
             <p className="mt-1 text-lg line-through text-muted-foreground">
-              {formatPrice(parsePrice(selectedVariant.compareAtPrice))}
+              {formatPrice(parsePrice(compareAtPrice))}
             </p>
           )}
         </div>
         <div>
-          {selectedVariant && (
-            <Badge
-              variant={selectedVariant.stock > 0 ? "outline" : "destructive"}
-              className="text-sm"
-            >
-              {selectedVariant.stock > 0 ? "In Stock" : "Out of Stock"}
-            </Badge>
-          )}
+          <Badge
+            variant={inStock ? "outline" : "destructive"}
+            className="text-sm"
+          >
+            {inStock ? "In Stock" : "Out of Stock"}
+          </Badge>
         </div>
+      </div>
+
+      <Separator className="my-6" />
+
+      <div className="mt-6">
+        {optionTypes.map((optionType) => (
+          <div key={optionType} className="mb-4">
+            <Label className="mb-2 block text-sm font-medium">
+              {optionType}
+            </Label>
+            <Select
+              value={selectedOptions[optionType]}
+              onValueChange={(value) => handleOptionChange(optionType, value)}
+            >
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder={`Select ${optionType}`} />
+              </SelectTrigger>
+              <SelectContent>
+                {getOptionsForType(optionType).map((value) => (
+                  <SelectItem
+                    key={value}
+                    value={value}
+                    disabled={!isOptionInStock(optionType, value)}
+                  >
+                    {value}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        ))}
+
+        <div className="mt-4">
+          <Label className="mb-2 block text-sm font-medium">
+            Quantity
+          </Label>
+          <Input
+            type="number"
+            min="1"
+            value={quantity}
+            onChange={(e) => setQuantity(Math.max(1, parseInt(e.target.value) || 1))}
+            className="w-24"
+          />
+        </div>
+
+        <Button
+          onClick={handleAddToCart}
+          disabled={isLoading || !inStock}
+          className="mt-8 w-full"
+        >
+          {isLoading ? "Adding to cart..." : "Add to cart"}
+        </Button>
       </div>
 
       <Separator className="my-6" />
@@ -197,111 +252,6 @@ export function ProductInfo({ product }: ProductInfoProps) {
       <div className="space-y-6 text-base text-muted-foreground">
         <div dangerouslySetInnerHTML={{ __html: product.description }} />
       </div>
-
-      <Separator className="my-6" />
-
-      {product.variants.length > 0 && (
-        <div className="space-y-4">
-          <h3 className="text-sm font-medium text-foreground">Options</h3>
-          {optionTypes.map((optionType) => (
-            <div key={optionType} className="flex flex-col gap-2">
-              <Label className="capitalize">{optionType}</Label>
-              <Select
-                value={selectedOptions[optionType]}
-                onValueChange={(value) => handleOptionChange(optionType, value)}
-              >
-                <SelectTrigger className="w-full">
-                  <SelectValue placeholder={`Select ${optionType}`} />
-                </SelectTrigger>
-                <SelectContent>
-                  {getOptionsForType(optionType).map((value) => {
-                    const inStock = isOptionInStock(optionType, value);
-                    return (
-                      <SelectItem
-                        key={value}
-                        value={value}
-                        className={!inStock ? "text-muted-foreground" : ""}
-                      >
-                        {value} {!inStock && "(Out of Stock)"}
-                      </SelectItem>
-                    );
-                  })}
-                </SelectContent>
-              </Select>
-            </div>
-          ))}
-        </div>
-      )}
-
-      {selectedVariant && (
-        <div className="mt-6">
-          <div className="flex items-center justify-between text-sm">
-            <span className="text-muted-foreground">SKU:</span>
-            <span className="font-medium">{selectedVariant.sku}</span>
-          </div>
-          <div className="mt-2 flex items-center justify-between text-sm">
-            <span className="text-muted-foreground">Stock Level:</span>
-            <span className={`font-medium ${getStockLevelClass(selectedVariant.stock, selectedVariant.reservedStock, selectedVariant.lowStockThreshold)}`}>
-              {selectedVariant.stock - selectedVariant.reservedStock} units available
-            </span>
-          </div>
-        </div>
-      )}
-
-      <Separator className="my-6" />
-
-      <div className="space-y-4">
-        <div className="flex items-center gap-4">
-          <Label htmlFor="quantity" className="min-w-24">
-            Quantity
-          </Label>
-          <Input
-            id="quantity"
-            type="number"
-            min="1"
-            max={selectedVariant ? selectedVariant.stock - selectedVariant.reservedStock : product.stock - product.reservedStock}
-            value={quantity}
-            onChange={(e) => setQuantity(Number(e.target.value))}
-            className="w-24"
-          />
-        </div>
-
-        <Button
-          onClick={handleAddToCart}
-          disabled={
-            isLoading ||
-            !selectedVariant ||
-            selectedVariant.stock - selectedVariant.reservedStock === 0 ||
-            quantity > (selectedVariant.stock - selectedVariant.reservedStock)
-          }
-          className="w-full"
-        >
-          {isLoading
-            ? "Adding..."
-            : !selectedVariant
-            ? "Select options"
-            : selectedVariant.stock - selectedVariant.reservedStock === 0
-            ? "Out of stock"
-            : "Add to cart"}
-        </Button>
-
-        {selectedVariant && 
-          selectedVariant.stock - selectedVariant.reservedStock <= (selectedVariant.lowStockThreshold ?? 5) && 
-          selectedVariant.stock - selectedVariant.reservedStock > 0 && (
-          <p className="text-sm text-amber-500">
-            Low stock - only {selectedVariant.stock - selectedVariant.reservedStock} units left
-          </p>
-        )}
-      </div>
-
-      <Separator className="my-6" />
-
-      <div className="flex items-center gap-2">
-        <h3 className="text-sm text-muted-foreground">Category:</h3>
-        <p className="text-sm font-medium text-foreground">
-          {product.category?.name}
-        </p>
-      </div>
     </div>
   );
-} 
+}

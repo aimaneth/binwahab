@@ -2,127 +2,75 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { stripe } from "@/lib/stripe";
-
-interface OrderItem {
-  id: string;
-  quantity: number;
-  product: {
-    id: string;
-    name: string;
-    price: string;
-    image?: string;
-    description?: string;
-  };
-  variant?: {
-    id: string;
-    sku: string;
-    name: string;
-    price: string;
-    image?: string;
-  };
-}
+import { prisma } from "@/lib/prisma";
+import { OrderItem } from "@/types/order";
 
 export async function POST(request: Request) {
   try {
     const session = await getServerSession(authOptions);
     if (!session?.user) {
-      return NextResponse.json(
-        { error: "Unauthorized" },
-        { status: 401 }
-      );
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     const body = await request.json();
-    const { items } = body as { items: OrderItem[] };
+    console.log("[CHECKOUT_REQUEST]", { body });
+    
+    const { items, shippingState } = body;
 
-    if (!items?.length) {
-      return NextResponse.json(
-        { error: "Cart is empty" },
-        { status: 400 }
-      );
+    if (!Array.isArray(items) || items.length === 0) {
+      return NextResponse.json({ error: "Items are required" }, { status: 400 });
     }
 
-    // Create line items for Stripe Checkout
-    const lineItems = items.map(item => ({
-      quantity: item.quantity,
-      price_data: {
-        currency: 'myr',
-        unit_amount: Math.round(parseFloat(item.variant?.price || item.product.price) * 100),
-        product_data: {
-          name: item.product.name,
-          description: item.product.description || undefined,
-          images: item.variant?.image || item.product.image ? 
-            [item.variant?.image || item.product.image].filter((img): img is string => !!img) : 
-            undefined,
-          metadata: {
-            productId: item.product.id,
-            variantSku: item.variant?.sku || '',
-          },
-        },
-      },
-    }));
+    if (!shippingState) {
+      return NextResponse.json({ error: "Shipping state is required" }, { status: 400 });
+    }
 
-    // Calculate shipping cost
-    const subtotal = items.reduce((sum, item) => {
-      const price = parseFloat(item.variant?.price || item.product.price);
-      return sum + (price * item.quantity);
+    // Calculate subtotal
+    const subtotal = items.reduce((total: number, item: OrderItem) => {
+      const itemPrice = parseFloat(item.variant?.price || item.product.price);
+      return total + (itemPrice * item.quantity);
     }, 0);
 
-    // Add shipping line item if total is less than RM300
-    if (subtotal < 300) {
-      lineItems.push({
-        quantity: 1,
-        price_data: {
-          currency: 'myr',
-          unit_amount: 2000, // RM20.00
-          product_data: {
-            name: 'Shipping',
-            description: 'Standard shipping (2-5 business days)',
-            images: [],
-            metadata: {
-              productId: 'shipping',
-              variantSku: '',
-            },
-          },
-        },
-      });
-    }
+    console.log("[CHECKOUT_SUBTOTAL]", { subtotal });
 
-    // Create Stripe Checkout session
-    const checkoutSession = await stripe.checkout.sessions.create({
-      customer_email: session.user.email || undefined,
-      mode: 'payment',
-      line_items: lineItems,
-      success_url: `${process.env.NEXT_PUBLIC_APP_URL}/shop/confirmation?session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${process.env.NEXT_PUBLIC_APP_URL}/shop/checkout/cancel`,
-      metadata: {
-        userId: session.user.id,
-      },
-      shipping_address_collection: {
-        allowed_countries: ['MY'], // Malaysia only
-      },
-      phone_number_collection: {
+    // Convert to cents for Stripe
+    const amount = Math.round(subtotal * 100);
+
+    // Create a PaymentIntent with the order amount and currency
+    const paymentIntent = await stripe.paymentIntents.create({
+      amount,
+      currency: "myr",
+      automatic_payment_methods: {
         enabled: true,
       },
-      custom_text: {
-        shipping_address: {
-          message: 'Please enter your complete shipping address for delivery.',
-        },
-        submit: {
-          message: 'We\'ll send your order confirmation via email.',
-        },
+      metadata: {
+        userId: session.user.id,
+        shippingState,
+        items: JSON.stringify(items.map(item => ({
+          id: item.product.id,
+          quantity: item.quantity,
+          variantId: item.variant?.id,
+        }))),
       },
     });
 
-    if (!checkoutSession.url) {
-      throw new Error('Failed to create checkout session');
-    }
+    console.log("[PAYMENT_INTENT_CREATED]", { 
+      id: paymentIntent.id,
+      clientSecret: paymentIntent.client_secret,
+      amount
+    });
 
-    return NextResponse.json({ url: checkoutSession.url });
+    return NextResponse.json({ 
+      clientSecret: paymentIntent.client_secret,
+      amount
+    });
   } catch (error) {
-    console.error('Checkout error:', error);
+    console.error("[CHECKOUT_ERROR]", {
+      error,
+      stack: error instanceof Error ? error.stack : undefined
+    });
     return NextResponse.json(
-      { error: 'Failed to create checkout session' },
+      { error: "Failed to create payment intent" },
       { status: 500 }
     );
   }

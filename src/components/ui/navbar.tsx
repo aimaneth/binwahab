@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { ShoppingBag, Menu, X, User, LogOut, LayoutDashboard, ChevronDown } from "lucide-react";
+import { ShoppingBag, Menu, X, User, LogOut, LayoutDashboard, ChevronDown, ShoppingCart } from "lucide-react";
 import { useState, useEffect } from "react";
 import { cn } from "@/utils/cn";
 import { useSession, signOut } from "next-auth/react";
@@ -14,12 +14,14 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Collection } from "@prisma/client";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
+import { useCartCount } from "@/hooks/use-cart-count";
 
 export function Navbar() {
   const [isOpen, setIsOpen] = useState(false);
   const { data: session } = useSession();
   const [categories, setCategories] = useState<{ id: string; name: string; collections: Collection[] }[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const cartCount = useCartCount();
 
   useEffect(() => {
     const fetchCategoriesAndCollections = async () => {
@@ -112,13 +114,15 @@ export function Navbar() {
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-4">
             <ThemeToggle />
-            <Link
-              href="/shop/cart"
-              className="text-muted-foreground hover:text-foreground transition-colors p-1.5 rounded-full hover:bg-muted"
-            >
-              <ShoppingBag className="h-5 w-5" />
+            <Link href="/shop/cart" className="relative">
+              <ShoppingCart className="h-6 w-6" />
+              {cartCount > 0 && (
+                <span className="absolute -right-2 -top-2 flex h-5 w-5 items-center justify-center rounded-full bg-primary text-xs text-primary-foreground">
+                  {cartCount}
+                </span>
+              )}
             </Link>
             
             {session ? (

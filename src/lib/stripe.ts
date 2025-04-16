@@ -2,39 +2,48 @@ import Stripe from 'stripe';
 
 // Validate environment variables
 const validateEnv = () => {
-  if (!process.env.STRIPE_SECRET_KEY) {
+  const secretKey = process.env.STRIPE_SECRET_KEY;
+  const publishableKey = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY;
+
+  if (!secretKey) {
     throw new Error('STRIPE_SECRET_KEY is not defined');
   }
-  if (!process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY) {
+
+  if (!publishableKey) {
     throw new Error('NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY is not defined');
   }
 
   // Validate key format
-  if (!process.env.STRIPE_SECRET_KEY.startsWith('sk_')) {
+  if (!secretKey.startsWith('sk_')) {
     throw new Error('Invalid STRIPE_SECRET_KEY format');
   }
-  if (!process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY.startsWith('pk_')) {
+  if (!publishableKey.startsWith('pk_')) {
     throw new Error('Invalid NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY format');
   }
+
+  return {
+    secretKey,
+    publishableKey,
+  };
 };
 
 // Validate on initialization
-validateEnv();
+const env = validateEnv();
 
 const stripeConfig = {
   apiVersion: '2025-03-31.basil' as const,
-  typescript: true as const,
+  typescript: true,
   appInfo: {
-    name: 'BINWAHAB Shop',
-    version: '1.0.0',
+    name: 'BinWahab',
+    version: '0.1.0',
   },
-};
+} satisfies Stripe.StripeConfig;
 
-export const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, stripeConfig);
+export const stripe = new Stripe(env.secretKey, stripeConfig);
 
 export const getStripeInstance = () => {
-  validateEnv();
-  return new Stripe(process.env.STRIPE_SECRET_KEY!, stripeConfig);
+  const env = validateEnv();
+  return new Stripe(env.secretKey, stripeConfig);
 };
 
 export const formatAmountForStripe = (amount: number, currency: string): number => {

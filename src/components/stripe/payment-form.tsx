@@ -4,7 +4,8 @@ import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Loader2 } from "lucide-react";
 import { formatPrice } from "@/lib/utils";
-import { stripePromise, appearance, PaymentFormProps } from "@/lib/stripe/config";
+import { appearance, PaymentFormProps } from "@/lib/stripe/config";
+import { getStripe } from "@/lib/stripe/config";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 
 // Inner component that handles the actual payment form
@@ -117,7 +118,7 @@ export function PaymentForm({ clientSecret, amount, returnUrl, user }: PaymentFo
         </div>
       ) : (
         <Elements 
-          stripe={stripePromise} 
+          stripe={getStripe()} 
           options={{
             clientSecret,
             appearance,
