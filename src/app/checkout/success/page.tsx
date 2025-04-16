@@ -73,7 +73,7 @@ export default function CheckoutSuccessPage() {
       <div className="mt-6 flex justify-center gap-4">
         {orderId && (
           <Button asChild variant="outline">
-            <Link href={`/account/orders/${orderId}`}>View Order</Link>
+            <Link href="/orders">View Orders</Link>
           </Button>
         )}
         <Button asChild>

@@ -108,11 +108,11 @@ export default async function PaymentSuccessPage({
           Thank you for your purchase. We have received your payment and are processing your order.
           You will receive a confirmation email shortly.
         </p>
-        <div className="space-x-4">
-          <Button asChild>
-            <Link href="/profile/orders">View Orders</Link>
+        <div className="mt-6 flex justify-center gap-4">
+          <Button asChild variant="outline">
+            <Link href="/orders">View Orders</Link>
           </Button>
-          <Button variant="outline" asChild>
+          <Button asChild>
             <Link href="/shop">Continue Shopping</Link>
           </Button>
         </div>
