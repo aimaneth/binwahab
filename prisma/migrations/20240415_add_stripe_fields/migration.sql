@@ -1,0 +1,6 @@
+-- Add Stripe-related fields to Order table
+ALTER TABLE "Order" ADD COLUMN IF NOT EXISTS "stripePaymentIntentId" TEXT UNIQUE;
+ALTER TABLE "Order" ADD COLUMN IF NOT EXISTS "stripeSessionId" TEXT UNIQUE;
+ALTER TABLE "Order" ADD COLUMN IF NOT EXISTS "currency" TEXT NOT NULL DEFAULT 'myr';
+ALTER TABLE "Order" ADD COLUMN IF NOT EXISTS "amountSubtotal" INTEGER;
+ALTER TABLE "Order" ADD COLUMN IF NOT EXISTS "amountTotal" INTEGER; 

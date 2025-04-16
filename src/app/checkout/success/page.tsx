@@ -8,22 +8,24 @@ import Link from "next/link";
 
 export default function CheckoutSuccessPage() {
   const [status, setStatus] = useState<string>("loading");
+  const [orderId, setOrderId] = useState<string | null>(null);
   const searchParams = useSearchParams();
-  const payment_intent = searchParams.get("payment_intent");
+  const session_id = searchParams.get("session_id");
 
   useEffect(() => {
     const verifyPayment = async () => {
-      if (!payment_intent) {
+      if (!session_id) {
         setStatus("error");
         return;
       }
 
       try {
-        const response = await fetch(`/api/checkout/verify?payment_intent=${payment_intent}`);
+        const response = await fetch(`/api/checkout/verify?session_id=${session_id}`);
         const data = await response.json();
         
-        if (data.success) {
-          setStatus("success");
+        if (response.ok && data.orderId) {
+          setStatus(data.status);
+          setOrderId(data.orderId);
         } else {
           setStatus("error");
         }
@@ -34,7 +36,7 @@ export default function CheckoutSuccessPage() {
     };
 
     verifyPayment();
-  }, [payment_intent]);
+  }, [session_id]);
 
   if (status === "loading") {
     return (
@@ -44,7 +46,7 @@ export default function CheckoutSuccessPage() {
     );
   }
 
-  if (status === "error") {
+  if (status === "error" || status === "unpaid") {
     return (
       <div className="max-w-2xl mx-auto p-6">
         <Alert variant="destructive">
@@ -68,7 +70,12 @@ export default function CheckoutSuccessPage() {
           Thank you for your purchase! We'll send you an email confirmation shortly.
         </AlertDescription>
       </Alert>
-      <div className="mt-6 text-center">
+      <div className="mt-6 flex justify-center gap-4">
+        {orderId && (
+          <Button asChild variant="outline">
+            <Link href={`/account/orders/${orderId}`}>View Order</Link>
+          </Button>
+        )}
         <Button asChild>
           <Link href="/shop">Continue Shopping</Link>
         </Button>

@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
+import { persist, createJSONStorage } from 'zustand/middleware';
 
 interface CartItem {
   product: {
@@ -16,9 +16,9 @@ interface CartItem {
   };
 }
 
-interface CartStore<T extends CartItem> {
-  items: T[];
-  addItem: (item: T) => void;
+interface CartStore {
+  items: CartItem[];
+  addItem: (item: CartItem) => void;
   removeItem: (productId: string | number, variantSku?: string) => void;
   updateQuantity: (productId: string | number, quantity: number, variantSku?: string) => void;
   clearCart: () => void;
@@ -26,14 +26,14 @@ interface CartStore<T extends CartItem> {
 }
 
 export const useCart = create(
-  persist<CartStore<CartItem>>(
+  persist<CartStore>(
     (set, get) => ({
       items: [],
       addItem: (item) => {
         const currentItems = get().items;
         const existingItemIndex = currentItems.findIndex(
           (i) =>
-            i.product.id === item.product.id &&
+            i.product.id.toString() === item.product.id.toString() &&
             i.variant?.sku === item.variant?.sku
         );
 
@@ -50,7 +50,7 @@ export const useCart = create(
           items: state.items.filter(
             (item) =>
               !(
-                item.product.id === productId &&
+                item.product.id.toString() === productId.toString() &&
                 item.variant?.sku === variantSku
               )
           ),
@@ -59,7 +59,8 @@ export const useCart = create(
       updateQuantity: (productId, quantity, variantSku) => {
         set((state) => ({
           items: state.items.map((item) =>
-            item.product.id === productId && item.variant?.sku === variantSku
+            item.product.id.toString() === productId.toString() && 
+            item.variant?.sku === variantSku
               ? { ...item, quantity }
               : item
           ),
@@ -76,6 +77,8 @@ export const useCart = create(
     }),
     {
       name: 'cart-storage',
+      storage: createJSONStorage(() => localStorage),
+      version: 1,
     }
   )
 ); 

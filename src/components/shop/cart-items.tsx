@@ -10,6 +10,7 @@ import { formatPrice } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Trash2, ShoppingBag } from "lucide-react";
+import { useCart } from "@/hooks/use-cart";
 
 interface CartItemsProps {
   items: CartItem[];
@@ -18,6 +19,7 @@ interface CartItemsProps {
 export function CartItems({ items }: CartItemsProps) {
   const router = useRouter();
   const [updating, setUpdating] = useState<string | null>(null);
+  const { updateQuantity: updateCartQuantity, removeItem: removeCartItem } = useCart();
 
   if (items.length === 0) {
     return (
@@ -56,6 +58,8 @@ export function CartItems({ items }: CartItemsProps) {
         throw new Error(error.message || "Failed to update quantity");
       }
       
+      // Update client-side cart state
+      updateCartQuantity(itemId, quantity);
       router.refresh();
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Failed to update quantity");
@@ -72,6 +76,9 @@ export function CartItems({ items }: CartItemsProps) {
       });
 
       if (!response.ok) throw new Error("Failed to remove item");
+      
+      // Update client-side cart state
+      removeCartItem(itemId);
       router.refresh();
       toast.success("Item removed from cart");
     } catch (error) {

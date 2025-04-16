@@ -5,8 +5,10 @@ import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { CartItems } from "@/components/shop/cart-items";
 import { CartSummary } from "@/components/shop/cart-summary";
+import { Steps } from "@/components/ui/steps";
 import { CartItem as PrismaCartItem, Product, ProductVariant } from "@prisma/client";
 import { CartItem } from "@/types/cart";
+import { CartInitializer } from "@/components/shop/cart-initializer";
 
 export const metadata: Metadata = {
   title: "Shopping Cart - BINWAHAB",
@@ -65,7 +67,22 @@ export default async function CartPage() {
 
   return (
     <main className="container mx-auto px-4 py-8">
+      {/* Initialize client-side cart state */}
+      <CartInitializer items={validCartItems} />
+      
       <h1 className="text-3xl font-bold mb-8">Shopping Cart</h1>
+      
+      {/* Progress Steps */}
+      <div className="max-w-3xl mx-auto mb-12">
+        <Steps
+          steps={[
+            { title: "Cart", href: "/shop/cart", status: "current" },
+            { title: "Checkout", href: "#", status: "upcoming" },
+            { title: "Confirmation", href: "#", status: "upcoming" },
+          ]}
+        />
+      </div>
+
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         <div className={isEmpty ? "col-span-3" : "lg:col-span-2"}>
           <CartItems items={validCartItems} />
