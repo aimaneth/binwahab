@@ -49,19 +49,47 @@ export async function POST(request: Request) {
     const subtotal = items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
     const tax = subtotal * 0.06; // 6% Malaysian GST
     
-    // Create line items with tax included in the price
+    // Create line items with base prices
     const lineItems = items.map((item: CheckoutItem) => ({
       price_data: {
         currency: 'myr',
         product_data: {
           name: item.name || 'Unknown Product',
-          description: `${item.description || ''} (Includes 6% GST)`,
+          description: item.description || '',
           images: item.images?.length ? [item.images[0]] : [],
         },
-        unit_amount: Math.round((item.price * 1.06) * 100), // Price with 6% tax, converted to cents
+        unit_amount: Math.round(item.price * 100), // Base price in cents
       },
       quantity: item.quantity || 1,
     }));
+
+    // Add shipping as a line item
+    lineItems.push({
+      price_data: {
+        currency: 'myr',
+        product_data: {
+          name: 'Standard Shipping',
+          description: 'Delivery within 3-5 business days',
+          images: [],
+        },
+        unit_amount: 1000, // RM10.00 in cents
+      },
+      quantity: 1,
+    });
+
+    // Add tax as a line item
+    lineItems.push({
+      price_data: {
+        currency: 'myr',
+        product_data: {
+          name: 'GST (6%)',
+          description: 'Malaysian Goods and Services Tax',
+          images: [],
+        },
+        unit_amount: Math.round(tax * 100), // Tax amount in cents
+      },
+      quantity: 1,
+    });
 
     // Create Stripe checkout session
     const session = await stripe.checkout.sessions.create({

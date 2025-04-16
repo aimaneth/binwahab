@@ -124,7 +124,8 @@ export function CartSummary({ items, shippingState = "Selangor" }: CartSummaryPr
     },
     0
   );
-  const total = subtotal + shipping;
+  const tax = subtotal * 0.06; // 6% GST
+  const total = subtotal + tax + shipping;
 
   return (
     <div className="bg-white rounded-lg shadow divide-y">
@@ -135,6 +136,10 @@ export function CartSummary({ items, shippingState = "Selangor" }: CartSummaryPr
           <div className="flex justify-between text-sm">
             <span className="text-gray-600">Subtotal ({items.length} items)</span>
             <span className="font-medium">{formatPrice(subtotal)}</span>
+          </div>
+          <div className="flex justify-between text-sm">
+            <span className="text-gray-600">GST (6%)</span>
+            <span className="font-medium">{formatPrice(tax)}</span>
           </div>
           <div className="flex justify-between text-sm">
             <span className="text-gray-600">Shipping</span>
@@ -149,7 +154,7 @@ export function CartSummary({ items, shippingState = "Selangor" }: CartSummaryPr
             <span>Total</span>
             <span>{formatPrice(total)}</span>
           </div>
-          <p className="text-xs text-gray-500">Tax included: 0%</p>
+          <p className="text-xs text-gray-500">Includes 6% GST</p>
         </div>
       </div>
 
