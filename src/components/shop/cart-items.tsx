@@ -67,6 +67,8 @@ export function CartItems({ items }: CartItemsProps) {
       }
       
       updateCartQuantity(itemId, quantity);
+      // Dispatch cart update event
+      window.dispatchEvent(new Event('cartUpdate'));
       router.refresh();
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Failed to update quantity");
@@ -85,6 +87,8 @@ export function CartItems({ items }: CartItemsProps) {
       if (!response.ok) throw new Error("Failed to remove item");
       
       removeCartItem(itemId);
+      // Dispatch cart update event
+      window.dispatchEvent(new Event('cartUpdate'));
       router.refresh();
       toast.success("Item removed from cart");
     } catch (error) {

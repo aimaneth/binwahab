@@ -3,6 +3,9 @@
 import { useState, useEffect } from "react";
 import { useSession } from "next-auth/react";
 
+// Create a custom event for cart updates
+export const cartUpdateEvent = new Event('cartUpdate');
+
 export function useCartCount() {
   const [count, setCount] = useState(0);
   const { data: session } = useSession();
@@ -25,7 +28,19 @@ export function useCartCount() {
       }
     };
 
+    // Fetch initial cart count
     fetchCartCount();
+
+    // Listen for cart updates
+    const handleCartUpdate = () => {
+      fetchCartCount();
+    };
+
+    window.addEventListener('cartUpdate', handleCartUpdate);
+
+    return () => {
+      window.removeEventListener('cartUpdate', handleCartUpdate);
+    };
   }, [session]);
 
   return count;

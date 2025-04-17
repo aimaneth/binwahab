@@ -145,6 +145,8 @@ export function ProductInfo({ product }: ProductInfoProps) {
       }
 
       toast.success("Added to cart");
+      // Dispatch cart update event
+      window.dispatchEvent(new Event('cartUpdate'));
       router.refresh();
     } catch (error) {
       toast.error("Something went wrong");

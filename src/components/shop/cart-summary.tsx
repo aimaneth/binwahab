@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { formatPrice } from "@/lib/utils";
 import { CartItem, Product, ProductVariant } from "@prisma/client";
@@ -167,11 +168,24 @@ export function CartSummary({ items, shippingState = "Selangor" }: CartSummaryPr
             <p className="text-gray-600">{estimatedDelivery}</p>
           </div>
         </div>
-        <div className="flex items-start gap-3 text-sm">
+        <div className="flex items-start gap-3 text-sm mb-4">
           <Clock className="h-5 w-5 text-gray-400 mt-0.5" />
           <div>
             <p className="font-medium text-gray-900">Order Processing Time</p>
             <p className="text-gray-600">1-2 business days</p>
+          </div>
+        </div>
+        <Separator className="my-4" />
+        <div>
+          <p className="text-sm font-medium text-gray-900 mb-3">Delivery Partner</p>
+          <div className="flex justify-center">
+            <Image
+              src="/courier-logos/jnt.png"
+              alt="J&T Express"
+              width={120}
+              height={48}
+              className="object-contain"
+            />
           </div>
         </div>
       </div>
