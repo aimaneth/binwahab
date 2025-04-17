@@ -24,6 +24,12 @@ export default function ShippingPage() {
             </div>
             <div className="space-y-4">
               <div>
+                <h3 className="text-lg font-semibold text-primary mb-2">Our Delivery Partner</h3>
+                <p className="text-muted-foreground mb-4">
+                  We partner with J&T Express, a trusted logistics provider, to ensure reliable and efficient delivery of your orders. J&T Express offers extensive coverage across Malaysia with real-time tracking capabilities.
+                </p>
+              </div>
+              <div>
                 <h3 className="text-lg font-semibold text-primary mb-2">Standard Delivery</h3>
                 <p className="text-muted-foreground">
                   • 3-5 working days for West Malaysia<br />
