@@ -137,12 +137,12 @@ const ORDER_STATUS_TABS: OrderStatusTab[] = [
 ]
 
 export default function OrdersPage() {
-  const { data: session } = useSession()
   const router = useRouter()
+  const { data: session } = useSession()
+  const [searchQuery, setSearchQuery] = useState("")
+  const [activeTab, setActiveTab] = useState("all")
   const [orders, setOrders] = useState<Order[]>([])
   const [loading, setLoading] = useState(true)
-  const [searchQuery, setSearchQuery] = useState("")
-  const [activeTab, setActiveTab] = useState<OrderTab>("all")
   const [pagination, setPagination] = useState<PaginatedResponse["pagination"]>({
     total: 0,
     totalPages: 0,
@@ -251,6 +251,10 @@ export default function OrdersPage() {
     return orders.filter(tab.filter).length
   }
 
+  const handleRowClick = (orderId: string) => {
+    router.push(`/admin/orders/${orderId}`)
+  }
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -334,7 +338,11 @@ export default function OrdersPage() {
                           </TableRow>
                         ) : (
                           filteredOrders.map((order) => (
-                            <TableRow key={order.id}>
+                            <TableRow 
+                              key={order.id}
+                              onClick={() => handleRowClick(order.id)}
+                              className="cursor-pointer hover:bg-muted/50 transition-colors group"
+                            >
                               <TableCell className="font-medium">
                                 #{order.id}
                               </TableCell>
@@ -369,12 +377,15 @@ export default function OrdersPage() {
                                 </Badge>
                               </TableCell>
                               <TableCell>{formatPrice(order.total)}</TableCell>
-                              <TableCell className="text-right">
+                              <TableCell 
+                                className="text-right"
+                                onClick={(e) => e.stopPropagation()}
+                              >
                                 <DropdownMenu>
                                   <DropdownMenuTrigger asChild>
                                     <Button
                                       variant="ghost"
-                                      className="h-8 w-8 p-0"
+                                      className="h-8 w-8 p-0 opacity-0 group-hover:opacity-100 transition-opacity"
                                     >
                                       <span className="sr-only">Open menu</span>
                                       <MoreHorizontal className="h-4 w-4" />
