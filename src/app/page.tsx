@@ -312,11 +312,11 @@ export default function HomePage() {
       </section>
 
       {/* Store Locations Section */}
-      <section className="w-full py-12 md:py-24 lg:py-32 bg-gray-50">
+      <section className="w-full py-12 md:py-24 lg:py-32 bg-background">
         <div className="container px-4 md:px-6">
           <div className="flex flex-col items-center justify-center space-y-4 text-center">
-            <h2 className="text-3xl font-bold tracking-tighter sm:text-4xl md:text-5xl">Our Store Locations</h2>
-            <p className="max-w-[700px] text-gray-500 md:text-xl/relaxed lg:text-base/relaxed xl:text-xl/relaxed dark:text-gray-400">
+            <h2 className="text-3xl font-bold tracking-tighter sm:text-4xl md:text-5xl text-foreground">Our Store Locations</h2>
+            <p className="max-w-[700px] text-muted-foreground md:text-xl/relaxed lg:text-base/relaxed xl:text-xl/relaxed">
               Visit us at any of our branches to experience our products in person
             </p>
           </div>
@@ -403,15 +403,15 @@ export default function HomePage() {
       </section>
 
       {/* Newsletter Section */}
-      <section className="py-16 px-4 md:px-6 bg-primary text-primary-foreground">
+      <section className="py-16 px-4 md:px-6 bg-primary">
         <div className="container mx-auto text-center space-y-4">
-          <h2 className="text-3xl font-bold">Stay Updated</h2>
-          <p className="text-lg">Subscribe to our newsletter for the latest updates and offers</p>
+          <h2 className="text-3xl font-bold text-primary-foreground">Stay Updated</h2>
+          <p className="text-lg text-primary-foreground/90">Subscribe to our newsletter for the latest updates and offers</p>
           <div className="max-w-md mx-auto flex gap-2">
             <input
               type="email"
               placeholder="Enter your email"
-              className="flex-1 px-4 py-2 rounded-md text-black"
+              className="flex-1 px-4 py-2 rounded-md bg-background text-foreground"
             />
             <Button variant="secondary">Subscribe</Button>
           </div>
