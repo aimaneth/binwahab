@@ -2,7 +2,6 @@ import { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
-import { Footer } from "@/components/ui/footer";
 
 export const metadata: Metadata = {
   title: "About Us | BinWahab",
@@ -109,7 +108,6 @@ export default function AboutPage() {
           </div>
         </div>
       </main>
-      <Footer />
     </div>
   );
 } 
