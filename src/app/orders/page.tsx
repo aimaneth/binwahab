@@ -68,17 +68,17 @@ export default function OrdersPage() {
   const getStatusColor = (status: Order["status"]) => {
     switch (status) {
       case "PENDING":
-        return "bg-yellow-100 text-yellow-800";
+        return "bg-yellow-100 dark:bg-yellow-900 text-yellow-800 dark:text-yellow-200";
       case "PROCESSING":
-        return "bg-blue-100 text-blue-800";
+        return "bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200";
       case "SHIPPED":
-        return "bg-purple-100 text-purple-800";
+        return "bg-purple-100 dark:bg-purple-900 text-purple-800 dark:text-purple-200";
       case "DELIVERED":
-        return "bg-green-100 text-green-800";
+        return "bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200";
       case "CANCELLED":
-        return "bg-red-100 text-red-800";
+        return "bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-200";
       default:
-        return "bg-gray-100 text-gray-800";
+        return "bg-muted text-muted-foreground";
     }
   };
 
@@ -101,9 +101,9 @@ export default function OrdersPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
+      <div className="min-h-screen bg-background py-12 px-4 sm:px-6 lg:px-8">
         <div className="max-w-7xl mx-auto">
-          <h1 className="text-3xl font-bold text-gray-900 mb-8">Your Orders</h1>
+          <h1 className="text-3xl font-bold text-foreground mb-8">Your Orders</h1>
           <div className="space-y-4">
             {[1, 2, 3].map((i) => (
               <Card key={i}>
@@ -132,36 +132,38 @@ export default function OrdersPage() {
 
   if (orders.length === 0) {
     return (
-      <div className="min-h-screen bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
+      <div className="min-h-screen bg-background py-12 px-4 sm:px-6 lg:px-8">
         <div className="max-w-7xl mx-auto">
-          <h1 className="text-3xl font-bold text-gray-900 mb-8">Your Orders</h1>
+          <h1 className="text-3xl font-bold text-foreground mb-8">Your Orders</h1>
           
-          <div className="bg-white shadow rounded-lg p-6">
-            <div className="flex flex-col items-center justify-center py-12">
-              <div className="bg-gray-50 rounded-full p-4 mb-4">
-                <ShoppingBag className="h-12 w-12 text-gray-400" />
+          <Card>
+            <CardContent>
+              <div className="flex flex-col items-center justify-center py-12">
+                <div className="bg-muted rounded-full p-4 mb-4">
+                  <ShoppingBag className="h-12 w-12 text-muted-foreground" />
+                </div>
+                <h2 className="text-2xl font-semibold text-foreground mb-2">No Orders Yet</h2>
+                <p className="text-muted-foreground text-center mb-8 max-w-md">
+                  When you place an order, it will appear here. Start shopping to create your first order!
+                </p>
+                <Link
+                  href="/shop"
+                  className="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-md shadow-sm text-primary-foreground bg-primary hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary transition-colors duration-200"
+                >
+                  Start Shopping
+                </Link>
               </div>
-              <h2 className="text-2xl font-semibold text-gray-900 mb-2">No Orders Yet</h2>
-              <p className="text-gray-500 text-center mb-8 max-w-md">
-                When you place an order, it will appear here. Start shopping to create your first order!
-              </p>
-              <Link
-                href="/shop"
-                className="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-md shadow-sm text-primary-foreground bg-primary hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary transition-colors duration-200"
-              >
-                Start Shopping
-              </Link>
-            </div>
-          </div>
+            </CardContent>
+          </Card>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-background py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-7xl mx-auto">
-        <h1 className="text-3xl font-bold text-gray-900 mb-8">Your Orders</h1>
+        <h1 className="text-3xl font-bold text-foreground mb-8">Your Orders</h1>
         
         <div className="space-y-4">
           {orders.map((order) => (
@@ -170,7 +172,7 @@ export default function OrdersPage() {
                 <div className="flex justify-between items-center">
                   <div>
                     <CardTitle className="text-lg">Order #{order.id}</CardTitle>
-                    <p className="text-sm text-gray-500">
+                    <p className="text-sm text-muted-foreground">
                       {format(new Date(order.createdAt), "PPP")}
                     </p>
                   </div>
@@ -196,37 +198,33 @@ export default function OrdersPage() {
                           />
                         </div>
                         <div className="flex-1">
-                          <h3 className="font-medium">{item.product.name}</h3>
-                          <p className="text-sm text-gray-500">
-                            Quantity: {item.quantity}
+                          <h3 className="font-medium text-foreground">{item.product.name}</h3>
+                          <p className="text-sm text-muted-foreground">
+                            Quantity: {item.quantity} × {formatPrice(item.price)}
                           </p>
                         </div>
                         <div className="text-right">
-                          <p className="font-medium">{formatPrice(item.price)}</p>
-                          <p className="text-sm text-gray-500">
-                            Total: {formatPrice(item.price * item.quantity)}
+                          <p className="font-medium text-foreground">
+                            {formatPrice(item.price * item.quantity)}
                           </p>
                         </div>
                       </div>
                     ))}
                   </div>
-                  <div className="flex justify-between border-t pt-4">
-                    <div>
-                      <h4 className="font-medium">Shipping Address</h4>
-                      <p className="text-sm text-gray-500">
-                        {order.shippingAddress.fullName}
-                        <br />
-                        {order.shippingAddress.addressLine1}
-                        <br />
-                        {order.shippingAddress.city}, {order.shippingAddress.state} {order.shippingAddress.postalCode}
-                        <br />
-                        {order.shippingAddress.country}
-                      </p>
+                  <div className="border-t border-border pt-4">
+                    <div className="flex justify-between">
+                      <p className="font-medium text-foreground">Total</p>
+                      <p className="font-medium text-foreground">{formatPrice(order.total)}</p>
                     </div>
-                    <div className="text-right">
-                      <p className="text-sm text-gray-500">Order Total</p>
-                      <p className="text-lg font-medium">{formatPrice(order.total)}</p>
-                    </div>
+                  </div>
+                  <div className="border-t border-border pt-4">
+                    <h4 className="font-medium text-foreground mb-2">Shipping Address</h4>
+                    <p className="text-sm text-muted-foreground">
+                      {order.shippingAddress.fullName}<br />
+                      {order.shippingAddress.addressLine1}<br />
+                      {order.shippingAddress.city}, {order.shippingAddress.state} {order.shippingAddress.postalCode}<br />
+                      {order.shippingAddress.country}
+                    </p>
                   </div>
                 </div>
               </CardContent>
