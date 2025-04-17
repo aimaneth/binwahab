@@ -82,16 +82,6 @@ export function Footer() {
                   Careers
                 </Link>
               </li>
-              <li>
-                <Link href="/sustainability" className="text-sm text-muted-foreground hover:text-foreground">
-                  Sustainability
-                </Link>
-              </li>
-              <li>
-                <Link href="/press" className="text-sm text-muted-foreground hover:text-foreground">
-                  Press
-                </Link>
-              </li>
             </ul>
           </div>
 

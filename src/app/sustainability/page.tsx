@@ -141,7 +141,7 @@ export default function SustainabilityPage() {
           <p className="mt-2">
             Email: sustainability@binwahab.com<br />
             Phone: [Your Sustainability Team Phone]<br />
-            Hours: Monday - Friday, 9:00 AM - 5:00 PM [Your Timezone]
+            Hours: Monday - Friday, 9:00 AM - 5:00 PM GMT+8
           </p>
         </div>
       </section>
