@@ -336,8 +336,10 @@ export default function HomePage() {
                 </p>
                 <p className="mt-2 text-sm text-gray-600">+601114324225</p>
                 <Link
-                  href="https://maps.google.com"
+                  href="https://maps.app.goo.gl/6T5AEVPZfQSp8wwT8"
                   className="mt-4 inline-flex items-center text-sm text-blue-600 hover:text-blue-800"
+                  target="_blank"
+                  rel="noopener noreferrer"
                 >
                   <MapPin className="mr-2 h-4 w-4" />
                   Get Directions
@@ -359,8 +361,10 @@ export default function HomePage() {
                 </p>
                 <p className="mt-2 text-sm text-gray-600">+60124162989</p>
                 <Link
-                  href="https://maps.google.com"
+                  href="https://maps.app.goo.gl/5zkh3fCmjFdALW4F6"
                   className="mt-4 inline-flex items-center text-sm text-blue-600 hover:text-blue-800"
+                  target="_blank"
+                  rel="noopener noreferrer"
                 >
                   <MapPin className="mr-2 h-4 w-4" />
                   Get Directions
@@ -382,8 +386,10 @@ export default function HomePage() {
                 </p>
                 <p className="mt-2 text-sm text-gray-600">+60124162989</p>
                 <Link
-                  href="https://maps.google.com"
+                  href="https://maps.app.goo.gl/w8t2UNRc7wFWm8DaA"
                   className="mt-4 inline-flex items-center text-sm text-blue-600 hover:text-blue-800"
+                  target="_blank"
+                  rel="noopener noreferrer"
                 >
                   <MapPin className="mr-2 h-4 w-4" />
                   Get Directions

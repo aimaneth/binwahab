@@ -19,16 +19,25 @@ export function Footer() {
             <p className="text-sm text-muted-foreground max-w-xs">
               Premium fashion that combines contemporary design with timeless elegance.
             </p>
-            <div className="flex space-x-4">
-              <a href="#" className="text-muted-foreground hover:text-foreground transition-colors">
-                <Facebook className="h-5 w-5" />
-              </a>
-              <a href="#" className="text-muted-foreground hover:text-foreground transition-colors">
-                <Instagram className="h-5 w-5" />
-              </a>
-              <a href="#" className="text-muted-foreground hover:text-foreground transition-colors">
-                <Twitter className="h-5 w-5" />
-              </a>
+            <div className="flex space-x-6">
+              <Link
+                href="https://www.facebook.com/binwahab.my"
+                className="text-gray-400 hover:text-gray-500"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                <span className="sr-only">Facebook</span>
+                <Facebook className="h-6 w-6" />
+              </Link>
+              <Link
+                href="https://www.instagram.com/binwahab.my"
+                className="text-gray-400 hover:text-gray-500"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                <span className="sr-only">Instagram</span>
+                <Instagram className="h-6 w-6" />
+              </Link>
             </div>
           </div>
 
@@ -112,6 +121,28 @@ export function Footer() {
               </li>
             </ul>
           </div>
+
+          {/* Store Locations */}
+          <div className="space-y-4">
+            <h3 className="text-sm font-semibold text-gray-400 tracking-wider uppercase">Store Locations</h3>
+            <ul role="list" className="mt-4 space-y-4">
+              <li>
+                <Link href="https://maps.app.goo.gl/6T5AEVPZfQSp8wwT8" className="text-base text-gray-500 hover:text-gray-900" target="_blank" rel="noopener noreferrer">
+                  Bangi Branch
+                </Link>
+              </li>
+              <li>
+                <Link href="https://maps.app.goo.gl/5zkh3fCmjFdALW4F6" className="text-base text-gray-500 hover:text-gray-900" target="_blank" rel="noopener noreferrer">
+                  Johor Branch 1
+                </Link>
+              </li>
+              <li>
+                <Link href="https://maps.app.goo.gl/w8t2UNRc7wFWm8DaA" className="text-base text-gray-500 hover:text-gray-900" target="_blank" rel="noopener noreferrer">
+                  Johor Branch 2
+                </Link>
+              </li>
+            </ul>
+          </div>
         </div>
 
         {/* Payment Methods */}
@@ -155,7 +186,7 @@ export function Footer() {
                 alt="Stripe"
                 width={40}
                 height={24}
-                className="h-6 w-auto"
+                className="h-7 w-auto"
               />
             </div>
           </div>
