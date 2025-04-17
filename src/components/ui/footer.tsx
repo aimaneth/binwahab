@@ -155,7 +155,7 @@ export function Footer() {
                 alt="Stripe"
                 width={40}
                 height={24}
-                className="h-4 w-auto"
+                className="h-6 w-auto"
               />
             </div>
           </div>
