@@ -68,7 +68,7 @@ const storeLocations = [
       line2: "Seksyen 9, 43650 Bandar Baru Bangi",
       line3: "Selangor, Malaysia"
     },
-    mapsUrl: "https://www.google.com/maps/search/?api=1&query=No+5-11-01+Jalan+Medan+Pusat+Bandar+8A+Seksyen+9+43650+Bandar+Baru+Bangi+Selangor",
+    mapsUrl: "https://maps.app.goo.gl/6T5AEVPZfQSp8wwT8",
     phone: "+601114324225"
   },
   {
@@ -79,7 +79,7 @@ const storeLocations = [
       line2: "Uda Business Center, Bandar Baru Uda",
       line3: "81200 Johor Bahru, Malaysia"
     },
-    mapsUrl: "https://www.google.com/maps/search/?api=1&query=No+16+Jalan+Padi+Emas+1/5+Uda+Business+Center+Bandar+Baru+Uda+81200+Johor+Bahru",
+    mapsUrl: "https://maps.app.goo.gl/5zkh3fCmjFdALW4F6",
     phone: "+60124162989"
   },
   {
@@ -90,7 +90,7 @@ const storeLocations = [
       line2: "Uda Business Center, Bandar Baru Uda",
       line3: "81200 Johor Bahru, Malaysia"
     },
-    mapsUrl: "https://www.google.com/maps/search/?api=1&query=No+23+Jalan+Padi+Emas+1/5+Uda+Business+Center+Bandar+Baru+Uda+81200+Johor+Bahru",
+    mapsUrl: "https://maps.app.goo.gl/w8t2UNRc7wFWm8DaA",
     phone: "+60124162989"
   }
 ];
