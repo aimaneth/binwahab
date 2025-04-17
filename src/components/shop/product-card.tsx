@@ -22,19 +22,22 @@ export function ProductCard({ product }: ProductCardProps) {
   const productUrl = `/shop/products/${product.slug || `product-${product.id}`}`;
 
   // Check if product is out of stock
-  const isOutOfStock = product.variants.length > 0
-    ? product.variants.every(variant => variant.stock <= variant.reservedStock)
-    : product.stock <= product.reservedStock;
+  const hasVariants = Array.isArray(product.variants) && product.variants.length > 0;
+  const isOutOfStock = hasVariants
+    ? product.variants.every(variant => !variant.isActive || variant.stock <= 0)
+    : product.stock <= 0;
 
   // Get available sizes from variants
-  const availableSizes = product.variants
-    .filter(variant => variant.stock > variant.reservedStock && variant.isActive)
-    .map(variant => variant.options.Size)
-    .filter((size, index, self) => size && self.indexOf(size) === index)
-    .sort((a, b) => {
-      const sizeOrder = { 'S': 1, 'M': 2, 'L': 3, 'XL': 4, 'XXL': 5 };
-      return (sizeOrder[a] || 99) - (sizeOrder[b] || 99);
-    });
+  const availableSizes = hasVariants
+    ? product.variants
+        .filter(variant => variant.stock > 0 && variant.isActive)
+        .map(variant => variant.options?.Size)
+        .filter((size, index, self) => size && self.indexOf(size) === index)
+        .sort((a, b) => {
+          const sizeOrder: Record<string, number> = { 'S': 1, 'M': 2, 'L': 3, 'XL': 4, 'XXL': 5 };
+          return (sizeOrder[a] ?? 99) - (sizeOrder[b] ?? 99);
+        })
+    : [];
 
   return (
     <Card className="group overflow-hidden">
@@ -48,7 +51,7 @@ export function ProductCard({ product }: ProductCardProps) {
           />
           {isOutOfStock && (
             <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
-              <Badge variant="destructive" className="text-sm font-semibold">
+              <Badge variant="destructive" className="text-sm font-semibold px-3 py-1.5">
                 Out of Stock
               </Badge>
             </div>
@@ -65,9 +68,9 @@ export function ProductCard({ product }: ProductCardProps) {
         <div className="mt-2 flex items-center justify-between">
           <p className="font-semibold">{formatPrice(Number(product.price))}</p>
           {availableSizes.length > 0 && (
-            <div className="flex gap-1">
+            <div className="flex gap-1 flex-wrap">
               {availableSizes.map((size) => (
-                <Badge key={size} variant="outline" className="text-xs">
+                <Badge key={size} variant="secondary" className="text-xs">
                   {size}
                 </Badge>
               ))}
@@ -82,7 +85,7 @@ export function ProductCard({ product }: ProductCardProps) {
             variant={isOutOfStock ? "destructive" : "secondary"}
           >
             <Eye className="h-4 w-4" />
-            {isOutOfStock ? "Notify When Available" : "View Details"}
+            {isOutOfStock ? "Out of Stock" : "View Details"}
           </Button>
         </Link>
       </CardFooter>
