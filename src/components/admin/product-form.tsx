@@ -225,12 +225,14 @@ export function ProductForm({ product, categories, collections }: ProductFormPro
         ...formData,
         collectionIds: formData.collectionIds,
         images: formData.images,
+        variantOptions: filteredVariantOptions,
+        variants, // Include current variants in case of update
       };
 
       // Only remove collections reference
       delete (dataToSubmit as any).collections;
 
-      // First, create the product without variants
+      // First, create/update the product
       const response = await fetch(
         product ? `/api/admin/products/${product.id}` : "/api/admin/products",
         {
@@ -260,8 +262,8 @@ export function ProductForm({ product, categories, collections }: ProductFormPro
 
       const savedProduct = await response.json();
 
-      // Generate variants if we have valid options
-      if (filteredVariantOptions.length > 0) {
+      // Only generate new variants if we're creating a new product or explicitly requested
+      if (!product && filteredVariantOptions.length > 0) {
         setIsGeneratingVariants(true);
         try {
           const variantResponse = await fetch(`/api/admin/products/${savedProduct.id}/variants`, {
@@ -273,49 +275,53 @@ export function ProductForm({ product, categories, collections }: ProductFormPro
           });
 
           if (!variantResponse.ok) {
-            throw new Error("Failed to generate variants");
+            const errorData = await variantResponse.json();
+            throw new Error(errorData.message || "Failed to generate variants");
           }
 
           const generatedVariants = await variantResponse.json();
-          setVariants(generatedVariants);
+          
+          // Only update variants if we actually got new ones
+          if (Array.isArray(generatedVariants) && generatedVariants.length > 0) {
+            setVariants(generatedVariants);
+            
+            // Update the product with the generated variants
+            const updateResponse = await fetch(`/api/admin/products/${savedProduct.id}`, {
+              method: "PATCH",
+              headers: {
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({
+                ...dataToSubmit,
+                variants: generatedVariants,
+              }),
+            });
 
-          // Update the product with the generated variants
-          const updateResponse = await fetch(`/api/admin/products/${savedProduct.id}`, {
-            method: "PATCH",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-              ...dataToSubmit,
-              variantOptions: filteredVariantOptions,
-              variants: generatedVariants,
-            }),
-          });
-
-          if (!updateResponse.ok) {
-            throw new Error("Failed to update product with variants");
+            if (!updateResponse.ok) {
+              throw new Error("Failed to update product with variants");
+            }
           }
-
-          toast({
-            title: "Success",
-            description: "Product and variants created successfully",
-          });
-        } catch (error) {
+        } catch (error: any) {
           console.error("Error generating variants:", error);
-          toast({
-            title: "Warning",
-            description: "Product saved but failed to generate variants. You can generate them later.",
-            variant: "destructive",
-          });
+          // Only show warning if variants actually failed to generate
+          if (!variants.length) {
+            toast({
+              title: "Warning",
+              description: "Product saved but failed to generate variants. You can generate them later.",
+              variant: "destructive",
+            });
+            setIsLoading(false);
+            return;
+          }
         } finally {
           setIsGeneratingVariants(false);
         }
-      } else {
-        toast({
-          title: "Success",
-          description: `Product ${product ? "updated" : "created"} successfully`,
-        });
       }
+
+      toast({
+        title: "Success",
+        description: product ? "Product updated successfully" : "Product and variants created successfully",
+      });
 
       router.push("/admin/products");
       router.refresh();
