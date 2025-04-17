@@ -131,6 +131,7 @@ export default function ShippingPage() {
                 <h3 className="text-lg font-semibold text-primary mb-2">Tracking Information</h3>
                 <p className="text-muted-foreground">
                   • Track your order using the tracking number provided in your shipping confirmation email<br />
+                  • Visit <a href="https://jtexpress.my/tracking" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">J&T Express Tracking</a> to track your package<br />
                   • Updates are provided at key stages of the delivery process<br />
                   • Contact our customer service team if you need assistance with tracking your order
                 </p>
