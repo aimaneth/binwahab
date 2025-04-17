@@ -1,6 +1,4 @@
 import { Metadata } from "next";
-import { Navbar } from "@/components/ui/navbar";
-import { Footer } from "@/components/ui/footer";
 import { ProductCard } from "@/components/shop/product-card";
 import { ProductFilters } from "@/components/shop/product-filters";
 import { SearchBar } from "@/components/shop/search-bar";
@@ -375,8 +373,6 @@ export default async function CategoryPage({ params }: { params: { categoryId: s
 
   return (
     <div className="min-h-screen flex flex-col bg-white">
-      <Navbar />
-      
       <main className="flex-1">
         {/* Collection Header */}
         <div className="bg-black text-white py-12">
@@ -418,8 +414,6 @@ export default async function CategoryPage({ params }: { params: { categoryId: s
           </div>
         </div>
       </main>
-
-      <Footer />
     </div>
   );
 } 
