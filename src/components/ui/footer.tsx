@@ -21,7 +21,7 @@ export function Footer() {
             </p>
             <div className="flex space-x-6">
               <Link
-                href="https://www.facebook.com/binwahab.my"
+                href="https://www.facebook.com/binwahab.kurta"
                 className="text-gray-400 hover:text-gray-500"
                 target="_blank"
                 rel="noopener noreferrer"
@@ -30,7 +30,7 @@ export function Footer() {
                 <Facebook className="h-6 w-6" />
               </Link>
               <Link
-                href="https://www.instagram.com/binwahab.my"
+                href="https://www.instagram.com/99binwahab"
                 className="text-gray-400 hover:text-gray-500"
                 target="_blank"
                 rel="noopener noreferrer"
