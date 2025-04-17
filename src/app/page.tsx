@@ -323,12 +323,10 @@ export default function HomePage() {
           <div className="mx-auto grid max-w-5xl grid-cols-1 gap-6 py-12 md:grid-cols-2 lg:grid-cols-3">
             <Card className="overflow-hidden">
               <div className="relative h-48 w-full">
-                <ImageWithFallback
+                <img
                   src="/branch-images/bangi-branch.jpg"
                   alt="Bangi Branch"
-                  fill
-                  className="object-cover"
-                  type="product"
+                  className="h-full w-full object-cover"
                 />
               </div>
               <CardContent className="p-4">
@@ -348,12 +346,10 @@ export default function HomePage() {
             </Card>
             <Card className="overflow-hidden">
               <div className="relative h-48 w-full">
-                <ImageWithFallback
+                <img
                   src="/branch-images/johor-branch-1.jpg"
                   alt="Johor Bahru Branch 1"
-                  fill
-                  className="object-cover"
-                  type="product"
+                  className="h-full w-full object-cover"
                 />
               </div>
               <CardContent className="p-4">
@@ -373,12 +369,10 @@ export default function HomePage() {
             </Card>
             <Card className="overflow-hidden">
               <div className="relative h-48 w-full">
-                <ImageWithFallback
+                <img
                   src="/branch-images/johor-branch-2.jpg"
                   alt="Johor Bahru Branch 2"
-                  fill
-                  className="object-cover"
-                  type="product"
+                  className="h-full w-full object-cover"
                 />
               </div>
               <CardContent className="p-4">
