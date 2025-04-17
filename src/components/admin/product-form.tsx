@@ -225,13 +225,12 @@ export function ProductForm({ product, categories, collections }: ProductFormPro
         ...formData,
         collectionIds: formData.collectionIds,
         images: formData.images,
-        variantOptions: filteredVariantOptions,
-        variants,
       };
 
       // Only remove collections reference
       delete (dataToSubmit as any).collections;
 
+      // First, create the product without variants
       const response = await fetch(
         product ? `/api/admin/products/${product.id}` : "/api/admin/products",
         {
@@ -261,15 +260,63 @@ export function ProductForm({ product, categories, collections }: ProductFormPro
 
       const savedProduct = await response.json();
 
-      // Generate variants for new products if we have valid variant options
-      if (!product && filteredVariantOptions.length > 0) {
-        await handleGenerateVariants(savedProduct.id);
+      // Generate variants if we have valid options
+      if (filteredVariantOptions.length > 0) {
+        setIsGeneratingVariants(true);
+        try {
+          const variantResponse = await fetch(`/api/admin/products/${savedProduct.id}/variants`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({ options: filteredVariantOptions }),
+          });
+
+          if (!variantResponse.ok) {
+            throw new Error("Failed to generate variants");
+          }
+
+          const generatedVariants = await variantResponse.json();
+          setVariants(generatedVariants);
+
+          // Update the product with the generated variants
+          const updateResponse = await fetch(`/api/admin/products/${savedProduct.id}`, {
+            method: "PATCH",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              ...dataToSubmit,
+              variantOptions: filteredVariantOptions,
+              variants: generatedVariants,
+            }),
+          });
+
+          if (!updateResponse.ok) {
+            throw new Error("Failed to update product with variants");
+          }
+
+          toast({
+            title: "Success",
+            description: "Product and variants created successfully",
+          });
+        } catch (error) {
+          console.error("Error generating variants:", error);
+          toast({
+            title: "Warning",
+            description: "Product saved but failed to generate variants. You can generate them later.",
+            variant: "destructive",
+          });
+        } finally {
+          setIsGeneratingVariants(false);
+        }
+      } else {
+        toast({
+          title: "Success",
+          description: `Product ${product ? "updated" : "created"} successfully`,
+        });
       }
 
-      toast({
-        title: "Success",
-        description: `Product ${product ? "updated" : "created"} successfully`,
-      });
       router.push("/admin/products");
       router.refresh();
     } catch (error: any) {
