@@ -1,92 +1,151 @@
 import { Metadata } from "next"
 import { PolicyLayout } from "@/components/layouts/PolicyLayout"
+import { Card, CardContent } from "@/components/ui/card"
+import { RefreshCw, Calendar, Package, AlertCircle, CheckCircle2, Ban } from "lucide-react"
 
 export const metadata: Metadata = {
-  title: "Returns & Refunds Policy",
-  description: "Learn about our returns and refunds policy, including how to return items and get refunds.",
+  title: "Returns & Exchanges | BinWahab",
+  description: "Learn about our returns and exchange policies for your purchases.",
 }
 
 export default function ReturnsPage() {
   return (
     <PolicyLayout
-      heading="Returns & Refunds Policy"
-      subheading="Making returns simple and hassle-free"
+      heading="Returns & Exchanges"
+      subheading="Our commitment to your satisfaction with clear and fair return policies"
     >
-      <section className="space-y-6">
-        <h2>Return Policy Overview</h2>
-        <p>
-          We want you to be completely satisfied with your purchase. If you're not happy with your
-          order for any reason, we accept returns within 30 days of delivery for a full refund or
-          exchange.
-        </p>
+      <div className="space-y-8">
+        {/* Return Policy Overview */}
+        <Card>
+          <CardContent className="p-6">
+            <div className="flex items-center gap-3 mb-4">
+              <RefreshCw className="h-6 w-6 text-primary" />
+              <h2 className="text-2xl font-bold">Return Policy Overview</h2>
+            </div>
+            <div className="space-y-4">
+              <div>
+                <h3 className="text-lg font-semibold text-primary mb-2">Return Window</h3>
+                <p className="text-muted-foreground">
+                  • 14 days return window from the date of delivery<br />
+                  • Items must be unworn, unwashed, and with original tags attached<br />
+                  • Original receipt or proof of purchase required
+                </p>
+              </div>
+              <div>
+                <h3 className="text-lg font-semibold text-primary mb-2">Refund Options</h3>
+                <p className="text-muted-foreground">
+                  • Full refund to original payment method<br />
+                  • Store credit option available<br />
+                  • Exchange for different size or color (subject to availability)
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
 
-        <h2>Return Eligibility</h2>
-        <p>To be eligible for a return, your item must be:</p>
-        <ul>
-          <li>Unused and in the same condition that you received it</li>
-          <li>In the original packaging</li>
-          <li>Accompanied by the original receipt or proof of purchase</li>
-          <li>Returned within 30 days of delivery</li>
-        </ul>
+        {/* Return Process */}
+        <Card>
+          <CardContent className="p-6">
+            <div className="flex items-center gap-3 mb-4">
+              <Package className="h-6 w-6 text-primary" />
+              <h2 className="text-2xl font-bold">Return Process</h2>
+            </div>
+            <div className="space-y-4">
+              <div>
+                <h3 className="text-lg font-semibold text-primary mb-2">How to Return</h3>
+                <p className="text-muted-foreground">
+                  1. Contact our customer service to initiate a return<br />
+                  2. Fill out the return form provided in your order<br />
+                  3. Pack the item(s) securely in original packaging<br />
+                  4. Attach the provided return label<br />
+                  5. Drop off at any Pos Malaysia branch
+                </p>
+              </div>
+              <div>
+                <h3 className="text-lg font-semibold text-primary mb-2">Processing Time</h3>
+                <p className="text-muted-foreground">
+                  • Returns are processed within 3-5 business days of receipt<br />
+                  • Refunds may take 5-7 business days to appear in your account<br />
+                  • You will receive email notifications at each step
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
 
-        <h2>Non-Returnable Items</h2>
-        <p>The following items cannot be returned:</p>
-        <ul>
-          <li>Custom or personalized orders</li>
-          <li>Perishable goods</li>
-          <li>Downloadable software products</li>
-          <li>Gift cards</li>
-          <li>Personal care items</li>
-          <li>Items marked as final sale</li>
-        </ul>
+        {/* Non-Returnable Items */}
+        <Card>
+          <CardContent className="p-6">
+            <div className="flex items-center gap-3 mb-4">
+              <Ban className="h-6 w-6 text-primary" />
+              <h2 className="text-2xl font-bold">Non-Returnable Items</h2>
+            </div>
+            <div className="space-y-4">
+              <div>
+                <h3 className="text-lg font-semibold text-primary mb-2">Excluded Items</h3>
+                <p className="text-muted-foreground">
+                  • Intimate apparel and undergarments<br />
+                  • Sale items marked as "Final Sale"<br />
+                  • Customized or altered items<br />
+                  • Items without original tags or packaging<br />
+                  • Items showing signs of wear or use
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
 
-        <h2>Return Process</h2>
-        <p>To return an item, please follow these steps:</p>
-        <ol>
-          <li>Contact our customer service team to initiate the return</li>
-          <li>Receive a Return Merchandise Authorization (RMA) number</li>
-          <li>Pack the item securely in its original packaging</li>
-          <li>Include the RMA number on the outside of the package</li>
-          <li>Ship the item to the provided return address</li>
-        </ol>
+        {/* Exchange Policy */}
+        <Card>
+          <CardContent className="p-6">
+            <div className="flex items-center gap-3 mb-4">
+              <CheckCircle2 className="h-6 w-6 text-primary" />
+              <h2 className="text-2xl font-bold">Exchange Policy</h2>
+            </div>
+            <div className="space-y-4">
+              <div>
+                <h3 className="text-lg font-semibold text-primary mb-2">Exchange Options</h3>
+                <p className="text-muted-foreground">
+                  • Free size exchanges within 14 days<br />
+                  • Color exchanges subject to availability<br />
+                  • Different style exchanges will be processed as a return and new purchase<br />
+                  • Price differences will be charged or refunded accordingly
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
 
-        <h2>Refund Process</h2>
-        <p>
-          Once we receive your return, we will inspect it and notify you of the status of your
-          refund. If approved, your refund will be processed, and a credit will automatically be
-          applied to your original method of payment within 5-10 business days.
-        </p>
-
-        <h2>Return Shipping</h2>
-        <p>
-          You will be responsible for paying for your own shipping costs for returning your item.
-          Shipping costs are non-refundable. If you receive a refund, the cost of return shipping
-          will be deducted from your refund.
-        </p>
-
-        <h2>Damaged or Defective Items</h2>
-        <p>
-          If you receive a damaged or defective item, please contact us immediately. We will cover
-          the return shipping costs and send you a replacement item at no additional cost.
-        </p>
-
-        <h2>Exchanges</h2>
-        <p>
-          If you need to exchange an item for a different size or color, please contact our
-          customer service team. We will guide you through the exchange process and ensure you
-          receive the correct item.
-        </p>
-
-        <h2>Contact Us</h2>
-        <p>
-          If you have any questions about our returns policy, please contact us:
-        </p>
-        <p>
-          Email: returns@binwahab.com<br />
-          Phone: [Your Returns Department Phone]<br />
-          Hours: Monday - Friday, 9:00 AM - 5:00 PM [Your Timezone]
-        </p>
-      </section>
+        {/* Important Notes */}
+        <Card>
+          <CardContent className="p-6">
+            <div className="flex items-center gap-3 mb-4">
+              <AlertCircle className="h-6 w-6 text-primary" />
+              <h2 className="text-2xl font-bold">Important Information</h2>
+            </div>
+            <div className="space-y-4">
+              <div>
+                <h3 className="text-lg font-semibold text-primary mb-2">Return Shipping</h3>
+                <p className="text-muted-foreground">
+                  • Free returns for Malaysian customers<br />
+                  • International returns shipping cost borne by customer<br />
+                  • Use our provided return label to ensure proper tracking<br />
+                  • Items must be returned in original packaging
+                </p>
+              </div>
+              <div>
+                <h3 className="text-lg font-semibold text-primary mb-2">Quality Check</h3>
+                <p className="text-muted-foreground">
+                  • All returns undergo quality inspection<br />
+                  • Items damaged by customer may be rejected<br />
+                  • Defective items will be fully refunded including shipping<br />
+                  • Photo evidence may be required for damaged items
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
     </PolicyLayout>
   )
 } 

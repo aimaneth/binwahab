@@ -121,28 +121,6 @@ export function Footer() {
               </li>
             </ul>
           </div>
-
-          {/* Store Locations */}
-          <div className="space-y-4">
-            <h3 className="text-sm font-semibold text-gray-400 tracking-wider uppercase">Store Locations</h3>
-            <ul role="list" className="mt-4 space-y-4">
-              <li>
-                <Link href="https://maps.app.goo.gl/6T5AEVPZfQSp8wwT8" className="text-base text-gray-500 hover:text-gray-900" target="_blank" rel="noopener noreferrer">
-                  Bangi Branch
-                </Link>
-              </li>
-              <li>
-                <Link href="https://maps.app.goo.gl/5zkh3fCmjFdALW4F6" className="text-base text-gray-500 hover:text-gray-900" target="_blank" rel="noopener noreferrer">
-                  Johor Branch 1
-                </Link>
-              </li>
-              <li>
-                <Link href="https://maps.app.goo.gl/w8t2UNRc7wFWm8DaA" className="text-base text-gray-500 hover:text-gray-900" target="_blank" rel="noopener noreferrer">
-                  Johor Branch 2
-                </Link>
-              </li>
-            </ul>
-          </div>
         </div>
 
         {/* Payment Methods */}
