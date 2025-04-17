@@ -18,6 +18,8 @@ interface ProductVariantFormProps {
   options: VariantOption[];
   onOptionsChange: (options: VariantOption[]) => void;
   onVariantsChange: (variants: ProductVariant[]) => void;
+  isGeneratingVariants?: boolean;
+  onGenerateVariants?: () => void;
 }
 
 interface VariantOption {
@@ -42,7 +44,9 @@ export function ProductVariantForm({
   variants, 
   options, 
   onOptionsChange, 
-  onVariantsChange 
+  onVariantsChange,
+  isGeneratingVariants = false,
+  onGenerateVariants
 }: ProductVariantFormProps) {
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
@@ -203,16 +207,14 @@ export function ProductVariantForm({
         Add Option
       </Button>
 
-      {productId && (
-        <Button
-          type="button"
-          onClick={generateVariants}
-          disabled={isLoading}
-          className="w-full"
-        >
-          {isLoading ? "Generating..." : "Generate Variants"}
-        </Button>
-      )}
+      <Button
+        type="button"
+        onClick={onGenerateVariants}
+        disabled={isGeneratingVariants}
+        className="w-full"
+      >
+        {isGeneratingVariants ? "Generating..." : "Generate Variants"}
+      </Button>
 
       {variants.length > 0 && (
         <div className="space-y-4">

@@ -64,6 +64,7 @@ export function ProductForm({ product, categories, collections }: ProductFormPro
     { name: "Color", values: [] },
   ]);
   const [variants, setVariants] = useState<any[]>(product?.variants || []);
+  const [isGeneratingVariants, setIsGeneratingVariants] = useState(false);
 
   const [formData, setFormData] = useState<{
     name: string;
@@ -126,6 +127,68 @@ export function ProductForm({ product, categories, collections }: ProductFormPro
     }));
   };
 
+  // Add validation for variant options
+  const validateVariantOptions = (options: Array<{ name: string; values: string[] }>) => {
+    const errors: string[] = [];
+    
+    // Filter out empty options
+    const nonEmptyOptions = options.filter(opt => opt.name.trim() !== "");
+    
+    // Check each non-empty option
+    nonEmptyOptions.forEach(option => {
+      if (option.name.trim() && option.values.length === 0) {
+        errors.push(`Please add values for the "${option.name}" option or remove it.`);
+      }
+    });
+
+    return errors;
+  };
+
+  // Add handler for generating variants
+  const handleGenerateVariants = async (productId: string) => {
+    setIsGeneratingVariants(true);
+    try {
+      const errors = validateVariantOptions(variantOptions);
+      if (errors.length > 0) {
+        toast({
+          title: "Validation Error",
+          description: errors.join("\n"),
+          variant: "destructive",
+        });
+        return;
+      }
+
+      const response = await fetch(`/api/admin/products/${productId}/variants`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ options: variantOptions.filter(opt => opt.name.trim() !== "" && opt.values.length > 0) }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to generate variants");
+      }
+
+      const newVariants = await response.json();
+      setVariants(newVariants);
+
+      toast({
+        title: "Success",
+        description: "Product variants generated successfully",
+      });
+    } catch (error) {
+      console.error("Error generating variants:", error);
+      toast({
+        title: "Error",
+        description: "Failed to generate variants. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsGeneratingVariants(false);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
@@ -141,11 +204,28 @@ export function ProductForm({ product, categories, collections }: ProductFormPro
         return;
       }
 
+      // Validate variant options before submission
+      const variantErrors = validateVariantOptions(variantOptions);
+      if (variantErrors.length > 0) {
+        toast({
+          title: "Validation Error",
+          description: variantErrors.join("\n"),
+          variant: "destructive",
+        });
+        setIsLoading(false);
+        return;
+      }
+
+      // Filter out empty variant options
+      const filteredVariantOptions = variantOptions.filter(
+        opt => opt.name.trim() !== "" && opt.values.length > 0
+      );
+
       const dataToSubmit = {
         ...formData,
         collectionIds: formData.collectionIds,
         images: formData.images,
-        variantOptions,
+        variantOptions: filteredVariantOptions,
         variants,
       };
 
@@ -181,28 +261,9 @@ export function ProductForm({ product, categories, collections }: ProductFormPro
 
       const savedProduct = await response.json();
 
-      // Generate variants for new products if we have variant options with values
-      if (!product && variantOptions.some(opt => opt.values.length > 0)) {
-        try {
-          const variantResponse = await fetch(`/api/admin/products/${savedProduct.id}/variants`, {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({ options: variantOptions }),
-          });
-
-          if (!variantResponse.ok) {
-            throw new Error("Failed to generate variants");
-          }
-        } catch (variantError) {
-          console.error("Error generating variants:", variantError);
-          toast({
-            title: "Warning",
-            description: "Product saved but failed to generate variants. You can generate them later.",
-            variant: "destructive",
-          });
-        }
+      // Generate variants for new products if we have valid variant options
+      if (!product && filteredVariantOptions.length > 0) {
+        await handleGenerateVariants(savedProduct.id);
       }
 
       toast({
@@ -408,6 +469,17 @@ export function ProductForm({ product, categories, collections }: ProductFormPro
             options={variantOptions}
             onOptionsChange={handleVariantOptionsChange}
             onVariantsChange={handleVariantsChange}
+            isGeneratingVariants={isGeneratingVariants}
+            onGenerateVariants={
+              product?.id ? 
+              () => handleGenerateVariants(product.id) : 
+              () => {
+                toast({
+                  title: "Info",
+                  description: "Variants will be automatically generated when you save the product.",
+                });
+              }
+            }
           />
         </TabsContent>
 
