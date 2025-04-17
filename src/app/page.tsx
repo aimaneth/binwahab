@@ -1,12 +1,14 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { formatPrice } from "@/lib/utils";
 import { ImageWithFallback } from "@/components/ui/image-with-fallback";
 import { CollectionCard } from "@/components/collections/collection-card";
+import { MapPin, ArrowRight } from "lucide-react";
 
 interface Product {
   id: string;
@@ -306,6 +308,103 @@ export default function HomePage() {
               <p className="text-muted-foreground">No complete collections available.</p>
             </div>
           )}
+        </div>
+      </section>
+
+      {/* Store Locations Section */}
+      <section className="w-full py-12 md:py-24 lg:py-32 bg-gray-50">
+        <div className="container px-4 md:px-6">
+          <div className="flex flex-col items-center justify-center space-y-4 text-center">
+            <h2 className="text-3xl font-bold tracking-tighter sm:text-4xl md:text-5xl">Our Store Locations</h2>
+            <p className="max-w-[700px] text-gray-500 md:text-xl/relaxed lg:text-base/relaxed xl:text-xl/relaxed dark:text-gray-400">
+              Visit us at any of our branches to experience our products in person
+            </p>
+          </div>
+          <div className="mx-auto grid max-w-5xl grid-cols-1 gap-6 py-12 md:grid-cols-2 lg:grid-cols-3">
+            <Card className="overflow-hidden">
+              <div className="relative h-48 w-full">
+                <ImageWithFallback
+                  src="/branch-images/bangi-branch.jpg"
+                  alt="Bangi Branch"
+                  fill
+                  className="object-cover"
+                  type="product"
+                />
+              </div>
+              <CardContent className="p-4">
+                <h3 className="text-xl font-bold">Bangi Branch</h3>
+                <p className="mt-2 text-sm text-gray-600">
+                  No 5-11-01 Jalan Medan Pusat Bandar 8A, Seksyen 9, 43650 Bandar Baru Bangi, Selangor
+                </p>
+                <p className="mt-2 text-sm text-gray-600">+601114324225</p>
+                <Link
+                  href="https://maps.google.com"
+                  className="mt-4 inline-flex items-center text-sm text-blue-600 hover:text-blue-800"
+                >
+                  <MapPin className="mr-2 h-4 w-4" />
+                  Get Directions
+                </Link>
+              </CardContent>
+            </Card>
+            <Card className="overflow-hidden">
+              <div className="relative h-48 w-full">
+                <ImageWithFallback
+                  src="/branch-images/johor-branch-1.jpg"
+                  alt="Johor Bahru Branch 1"
+                  fill
+                  className="object-cover"
+                  type="product"
+                />
+              </div>
+              <CardContent className="p-4">
+                <h3 className="text-xl font-bold">Johor Bahru Branch 1</h3>
+                <p className="mt-2 text-sm text-gray-600">
+                  No 16, Jalan Padi Emas 1/5, Uda Business Center, Bandar Baru Uda, 81200 Johor Bahru
+                </p>
+                <p className="mt-2 text-sm text-gray-600">+60124162989</p>
+                <Link
+                  href="https://maps.google.com"
+                  className="mt-4 inline-flex items-center text-sm text-blue-600 hover:text-blue-800"
+                >
+                  <MapPin className="mr-2 h-4 w-4" />
+                  Get Directions
+                </Link>
+              </CardContent>
+            </Card>
+            <Card className="overflow-hidden">
+              <div className="relative h-48 w-full">
+                <ImageWithFallback
+                  src="/branch-images/johor-branch-2.jpg"
+                  alt="Johor Bahru Branch 2"
+                  fill
+                  className="object-cover"
+                  type="product"
+                />
+              </div>
+              <CardContent className="p-4">
+                <h3 className="text-xl font-bold">Johor Bahru Branch 2</h3>
+                <p className="mt-2 text-sm text-gray-600">
+                  No 23, Jalan Padi Emas 1/5, Uda Business Center, Bandar Baru Uda, 81200 Johor Bahru
+                </p>
+                <p className="mt-2 text-sm text-gray-600">+60124162989</p>
+                <Link
+                  href="https://maps.google.com"
+                  className="mt-4 inline-flex items-center text-sm text-blue-600 hover:text-blue-800"
+                >
+                  <MapPin className="mr-2 h-4 w-4" />
+                  Get Directions
+                </Link>
+              </CardContent>
+            </Card>
+          </div>
+          <div className="flex justify-center">
+            <Link href="/contact">
+              <Button variant="outline" className="gap-2">
+                View More Details
+                <ArrowRight className="h-4 w-4" />
+              </Button>
+            </Link>
+          </div>
         </div>
       </section>
 

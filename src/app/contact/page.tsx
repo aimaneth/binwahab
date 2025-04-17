@@ -8,10 +8,8 @@ import {
   Mail, 
   MapPin, 
   Clock,
-  MessagesSquare,
   Facebook,
-  Instagram,
-  Twitter
+  Instagram
 } from "lucide-react";
 
 export const metadata: Metadata = {
@@ -37,12 +35,6 @@ const contactMethods = [
     icon: <Mail className="h-6 w-6" />,
     details: "support@binwahab.com",
     description: "For general inquiries and support"
-  },
-  {
-    title: "Live Chat",
-    icon: <MessagesSquare className="h-6 w-6" />,
-    details: "Available on our website",
-    description: "Chat with our customer service team"
   }
 ];
 

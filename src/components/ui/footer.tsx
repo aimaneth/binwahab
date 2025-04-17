@@ -122,30 +122,40 @@ export function Footer() {
               <Image
                 src="/payment-logos/visa.svg"
                 alt="Visa"
-                width={48}
-                height={32}
-                className="h-8 w-auto"
+                width={40}
+                height={24}
+                className="h-6 w-auto"
               />
               <Image
                 src="/payment-logos/mastercard.svg"
                 alt="Mastercard"
-                width={48}
-                height={32}
-                className="h-8 w-auto"
+                width={40}
+                height={24}
+                className="h-6 w-auto"
               />
               <Image
                 src="/payment-logos/unionpay.svg"
                 alt="UnionPay"
-                width={48}
-                height={32}
-                className="h-8 w-auto"
+                width={40}
+                height={24}
+                className="h-6 w-auto"
               />
               <Image
                 src="/payment-logos/fpx.svg"
                 alt="FPX"
-                width={48}
-                height={32}
-                className="h-8 w-auto"
+                width={40}
+                height={24}
+                className="h-6 w-auto"
+              />
+            </div>
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <span>Secured by</span>
+              <Image
+                src="/payment-logos/stripe.svg"
+                alt="Stripe"
+                width={40}
+                height={24}
+                className="h-4 w-auto"
               />
             </div>
           </div>
