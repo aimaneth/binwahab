@@ -129,55 +129,55 @@ export function CartSummary({ items, shippingState = "Selangor" }: CartSummaryPr
   const total = subtotal + tax + shipping;
 
   return (
-    <div className="bg-white rounded-lg shadow divide-y">
+    <div className="bg-card rounded-lg shadow divide-y divide-border border border-border">
       {/* Order Summary Section */}
       <div className="p-6">
-        <h2 className="text-xl font-semibold text-gray-900 mb-4">Order Summary</h2>
+        <h2 className="text-xl font-semibold text-foreground mb-4">Order Summary</h2>
         <div className="space-y-3">
           <div className="flex justify-between text-sm">
-            <span className="text-gray-600">Subtotal ({items.length} items)</span>
-            <span className="font-medium">{formatPrice(subtotal)}</span>
+            <span className="text-muted-foreground">Subtotal ({items.length} items)</span>
+            <span className="font-medium text-foreground">{formatPrice(subtotal)}</span>
           </div>
           <div className="flex justify-between text-sm">
-            <span className="text-gray-600">GST (6%)</span>
-            <span className="font-medium">{formatPrice(tax)}</span>
+            <span className="text-muted-foreground">GST (6%)</span>
+            <span className="font-medium text-foreground">{formatPrice(tax)}</span>
           </div>
           <div className="flex justify-between text-sm">
-            <span className="text-gray-600">Shipping</span>
+            <span className="text-muted-foreground">Shipping</span>
             {isLoading ? (
               <Loader2 className="h-4 w-4 animate-spin" />
             ) : (
-              <span className="font-medium">{formatPrice(shipping)}</span>
+              <span className="font-medium text-foreground">{formatPrice(shipping)}</span>
             )}
           </div>
           <Separator className="my-4" />
-          <div className="flex justify-between text-base font-medium">
+          <div className="flex justify-between text-base font-medium text-foreground">
             <span>Total</span>
             <span>{formatPrice(total)}</span>
           </div>
-          <p className="text-xs text-gray-500">Includes 6% GST</p>
+          <p className="text-xs text-muted-foreground">Includes 6% GST</p>
         </div>
       </div>
 
       {/* Delivery Information */}
       <div className="p-6">
         <div className="flex items-start gap-3 text-sm mb-4">
-          <Truck className="h-5 w-5 text-gray-400 mt-0.5" />
+          <Truck className="h-5 w-5 text-muted-foreground mt-0.5" />
           <div>
-            <p className="font-medium text-gray-900">Estimated Delivery</p>
-            <p className="text-gray-600">{estimatedDelivery}</p>
+            <p className="font-medium text-foreground">Estimated Delivery</p>
+            <p className="text-muted-foreground">{estimatedDelivery}</p>
           </div>
         </div>
         <div className="flex items-start gap-3 text-sm mb-4">
-          <Clock className="h-5 w-5 text-gray-400 mt-0.5" />
+          <Clock className="h-5 w-5 text-muted-foreground mt-0.5" />
           <div>
-            <p className="font-medium text-gray-900">Order Processing Time</p>
-            <p className="text-gray-600">1-2 business days</p>
+            <p className="font-medium text-foreground">Order Processing Time</p>
+            <p className="text-muted-foreground">1-2 business days</p>
           </div>
         </div>
         <Separator className="my-4" />
         <div>
-          <p className="text-sm font-medium text-gray-900 mb-3">Delivery Partner</p>
+          <p className="text-sm font-medium text-foreground mb-3">Delivery Partner</p>
           <div className="flex justify-center">
             <Image
               src="/courier-logos/jnt.png"
@@ -193,11 +193,11 @@ export function CartSummary({ items, shippingState = "Selangor" }: CartSummaryPr
       {/* Payment Information */}
       <div className="p-6">
         <div className="space-y-4">
-          <div className="flex items-center gap-2 text-sm text-gray-600">
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <CreditCard className="h-4 w-4" />
             <span>Secure payment via Stripe</span>
           </div>
-          <div className="flex items-center gap-2 text-sm text-gray-600">
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <Shield className="h-4 w-4" />
             <span>Protected by buyer guarantee</span>
           </div>

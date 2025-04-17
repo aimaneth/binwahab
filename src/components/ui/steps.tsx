@@ -16,38 +16,40 @@ export function Steps({ steps }: StepsProps) {
   return (
     <nav aria-label="Progress">
       <ol role="list" className="flex items-center justify-center">
-        {steps.map((step, stepIdx) => (
+        {steps.map((step, index) => (
           <li
             key={step.title}
             className={cn(
-              stepIdx !== steps.length - 1 ? "pr-8 sm:pr-20" : "",
+              index !== steps.length - 1 ? "pr-8 sm:pr-20" : "",
               "relative flex flex-col items-center"
             )}
           >
             <div className="relative flex items-center">
-              <div 
-                className={cn(
-                  "absolute top-4 -left-[50%] w-[100%]",
-                  stepIdx === 0 ? "hidden" : "block"
-                )}
-                aria-hidden="true"
-              >
-                <div className={cn(
-                  "h-0.5 w-full",
-                  step.status === "complete" ? "bg-primary" : "bg-gray-200"
-                )} />
-              </div>
+              {/* Connector line */}
+              {index !== 0 && (
+                <div 
+                  className="absolute right-full w-[calc(100%+5rem)] sm:w-[calc(100%+8rem)] h-0.5 top-4 transition-colors duration-200"
+                  aria-hidden="true"
+                >
+                  <div className={cn(
+                    "h-full w-full",
+                    step.status === "complete" ? "bg-primary" : "bg-border"
+                  )} />
+                </div>
+              )}
+              
+              {/* Step indicator */}
               {step.status === "complete" ? (
                 <Link
                   href={step.href}
-                  className="relative flex h-8 w-8 items-center justify-center rounded-full bg-primary hover:bg-primary/80"
+                  className="relative flex h-8 w-8 items-center justify-center rounded-full bg-primary hover:bg-primary/90 transition-colors duration-200"
                 >
-                  <CheckIcon className="h-5 w-5 text-white" aria-hidden="true" />
+                  <CheckIcon className="h-5 w-5 text-primary-foreground" aria-hidden="true" />
                   <span className="sr-only">{step.title}</span>
                 </Link>
               ) : step.status === "current" ? (
                 <div
-                  className="relative flex h-8 w-8 items-center justify-center rounded-full border-2 border-primary bg-white"
+                  className="relative flex h-8 w-8 items-center justify-center rounded-full border-2 border-primary bg-background"
                   aria-current="step"
                 >
                   <span
@@ -57,16 +59,24 @@ export function Steps({ steps }: StepsProps) {
                   <span className="sr-only">{step.title}</span>
                 </div>
               ) : (
-                <div className="group relative flex h-8 w-8 items-center justify-center rounded-full border-2 border-gray-300 bg-white hover:border-gray-400">
+                <div className="group relative flex h-8 w-8 items-center justify-center rounded-full border-2 border-muted bg-background hover:border-muted-foreground transition-colors duration-200">
                   <span
-                    className="h-2.5 w-2.5 rounded-full bg-transparent group-hover:bg-gray-300"
+                    className="h-2.5 w-2.5 rounded-full bg-transparent group-hover:bg-muted-foreground transition-colors duration-200"
                     aria-hidden="true"
                   />
                   <span className="sr-only">{step.title}</span>
                 </div>
               )}
             </div>
-            <span className="mt-4 text-sm font-medium text-gray-900">
+            {/* Step title */}
+            <span 
+              className={cn(
+                "mt-4 text-sm font-medium",
+                step.status === "complete" ? "text-foreground" : 
+                step.status === "current" ? "text-foreground" : 
+                "text-muted-foreground"
+              )}
+            >
               {step.title}
             </span>
           </li>

@@ -82,7 +82,7 @@ export default async function CartPage() {
   const isEmpty = validPrismaItems.length === 0;
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-background">
       <div className="container mx-auto px-4 py-8">
         {/* Initialize client-side cart state */}
         <CartInitializer items={validCartItems} />
@@ -90,8 +90,8 @@ export default async function CartPage() {
         <div className="max-w-7xl mx-auto">
           {/* Header */}
           <div className="flex items-center justify-between mb-8">
-            <h1 className="text-3xl font-bold text-gray-900">Shopping Cart</h1>
-            <div className="flex items-center text-sm text-gray-500">
+            <h1 className="text-3xl font-bold text-foreground">Shopping Cart</h1>
+            <div className="flex items-center text-sm text-muted-foreground">
               <ShoppingBag className="h-5 w-5 mr-2" />
               <span>{validCartItems.length} items</span>
             </div>
@@ -101,8 +101,16 @@ export default async function CartPage() {
           <div className="max-w-3xl mx-auto mb-8">
             <Steps
               steps={[
-                { title: "Cart", href: "/shop/cart", status: "current" },
-                { title: "Payment", href: "#", status: "upcoming" }
+                { 
+                  title: "Shopping Cart", 
+                  href: "/shop/cart", 
+                  status: "current" 
+                },
+                { 
+                  title: "Checkout & Payment", 
+                  href: "#", 
+                  status: "upcoming" 
+                }
               ]}
             />
           </div>

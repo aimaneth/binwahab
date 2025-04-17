@@ -31,13 +31,13 @@ export function CartItems({ items }: CartItemsProps) {
 
   if (items.length === 0) {
     return (
-      <div className="col-span-3 text-center py-12 bg-white rounded-lg shadow">
+      <div className="col-span-3 text-center py-12 bg-card rounded-lg shadow">
         <div className="flex flex-col items-center">
-          <ShoppingBag className="h-16 w-16 text-gray-400 mb-4" />
-          <h2 className="text-2xl font-semibold text-gray-900 mb-2">
+          <ShoppingBag className="h-16 w-16 text-muted-foreground mb-4" />
+          <h2 className="text-2xl font-semibold text-foreground mb-2">
             Your cart is empty
           </h2>
-          <p className="text-gray-500 mb-6">
+          <p className="text-muted-foreground mb-6">
             Looks like you haven't added any items to your cart yet.
           </p>
           <Link href="/shop">
@@ -110,13 +110,13 @@ export function CartItems({ items }: CartItemsProps) {
   };
 
   return (
-    <div className="bg-white rounded-lg shadow overflow-hidden">
+    <div className="bg-card rounded-lg shadow overflow-hidden border border-border">
       <div className="p-6">
         <div className="flex items-center justify-between mb-6">
-          <h2 className="text-xl font-semibold text-gray-900">
+          <h2 className="text-xl font-semibold text-foreground">
             Shopping Cart ({items.length})
           </h2>
-          <Link href="/shop" className="text-sm text-blue-600 hover:text-blue-800">
+          <Link href="/shop" className="text-sm text-primary hover:text-primary/80">
             Continue Shopping
           </Link>
         </div>
@@ -145,15 +145,15 @@ export function CartItems({ items }: CartItemsProps) {
                   <div className="flex-1 min-w-0">
                     <div className="flex justify-between">
                       <div>
-                        <h3 className="text-sm font-medium text-gray-900 truncate">
+                        <h3 className="text-sm font-medium text-foreground truncate">
                           {item.product.name}
                         </h3>
                         {item.variant && (
-                          <p className="mt-1 text-sm text-gray-500">
+                          <p className="mt-1 text-sm text-muted-foreground">
                             SKU: {item.variant.sku}
                           </p>
                         )}
-                        <p className="mt-1 text-sm font-medium text-gray-900">
+                        <p className="mt-1 text-sm font-medium text-foreground">
                           {formatPrice(itemTotal)}
                         </p>
                       </div>
@@ -161,11 +161,10 @@ export function CartItems({ items }: CartItemsProps) {
                         <Button
                           variant="ghost"
                           size="icon"
-                          className="text-gray-400 hover:text-gray-500"
                           onClick={() => toggleSaveForLater(item.product.id)}
                         >
                           {isSaved ? (
-                            <Heart className="h-5 w-5 fill-red-500 text-red-500" />
+                            <Heart className="h-5 w-5 fill-destructive text-destructive" />
                           ) : (
                             <Heart className="h-5 w-5" />
                           )}
@@ -173,7 +172,6 @@ export function CartItems({ items }: CartItemsProps) {
                         <Button
                           variant="ghost"
                           size="icon"
-                          className="text-gray-400 hover:text-gray-500"
                           onClick={() => removeItem(item.product.id)}
                           disabled={isUpdating}
                         >

@@ -54,9 +54,9 @@ export default function ConfirmationPage() {
   }, [searchParams, clearCart]);
 
   const steps = [
-    { title: "Cart", href: "/shop/cart", status: "complete" as const },
-    { title: "Checkout", href: "#", status: "complete" as const },
-    { title: "Confirmation", href: "#", status: "current" as const },
+    { title: "Shopping Cart", href: "/shop/cart", status: "complete" as const },
+    { title: "Checkout & Payment", href: "#", status: "complete" as const },
+    { title: "Order Confirmation", href: "#", status: "current" as const },
   ];
 
   return (
