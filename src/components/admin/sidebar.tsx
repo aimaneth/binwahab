@@ -61,7 +61,7 @@ export function AdminSidebar({ isOpen, setIsOpen }: AdminSidebarProps) {
           <div className="flex min-h-0 flex-1 flex-col bg-card">
             <div className="flex flex-1 flex-col overflow-y-auto pt-5 pb-4">
               <div className="flex flex-shrink-0 items-center px-4">
-                <span className="text-2xl font-bold bg-gradient-to-r from-primary to-primary/70 bg-clip-text text-transparent font-times-new-roman">
+                <span className="text-2xl font-bold bg-gradient-to-r from-primary to-primary/70 bg-clip-text text-transparent">
                   BINWAHAB
                 </span>
               </div>
@@ -108,11 +108,11 @@ export function AdminSidebar({ isOpen, setIsOpen }: AdminSidebarProps) {
           <div className="flex flex-1 flex-col overflow-y-auto pt-5 pb-4">
             <div className="flex flex-shrink-0 items-center px-4">
               {isOpen ? (
-                <span className="text-2xl font-bold bg-gradient-to-r from-primary to-primary/70 bg-clip-text text-transparent font-times-new-roman">
+                <span className="text-2xl font-bold bg-gradient-to-r from-primary to-primary/70 bg-clip-text text-transparent" style={{ fontFamily: 'Times New Roman, serif' }}>
                   BINWAHAB
                 </span>
               ) : (
-                <span className="text-2xl font-bold bg-gradient-to-r from-primary to-primary/70 bg-clip-text text-transparent font-times-new-roman">
+                <span className="text-2xl font-bold bg-gradient-to-r from-primary to-primary/70 bg-clip-text text-transparent" style={{ fontFamily: 'Times New Roman, serif' }}>
                   BW
                 </span>
               )}
