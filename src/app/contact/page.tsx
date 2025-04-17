@@ -49,17 +49,12 @@ const socialMedia = [
   {
     name: "Facebook",
     icon: Facebook,
-    url: "#",
+    url: "https://www.facebook.com/binwahab.kurta",
   },
   {
     name: "Instagram",
     icon: Instagram,
-    url: "#",
-  },
-  {
-    name: "Twitter",
-    icon: Twitter,
-    url: "#",
+    url: "https://www.instagram.com/99binwahab/",
   }
 ];
 
