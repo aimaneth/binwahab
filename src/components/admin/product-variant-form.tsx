@@ -15,6 +15,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 interface ProductVariantFormProps {
   productId?: string;
   variants: ProductVariant[];
+  options: VariantOption[];
+  onOptionsChange: (options: VariantOption[]) => void;
+  onVariantsChange: (variants: ProductVariant[]) => void;
 }
 
 interface VariantOption {
@@ -34,33 +37,35 @@ interface ImageUploadProps {
   onRemove: (url: string) => void;
 }
 
-export function ProductVariantForm({ productId, variants }: ProductVariantFormProps) {
+export function ProductVariantForm({ 
+  productId, 
+  variants, 
+  options, 
+  onOptionsChange, 
+  onVariantsChange 
+}: ProductVariantFormProps) {
   const { toast } = useToast();
-  const [options, setOptions] = useState<VariantOption[]>([
-    { name: "Size", values: [] },
-    { name: "Color", values: [] },
-  ]);
   const [isLoading, setIsLoading] = useState(false);
   const [selectedVariant, setSelectedVariant] = useState<ProductVariant | null>(null);
 
   const addOption = () => {
-    setOptions([...options, { name: "", values: [] }]);
+    onOptionsChange([...options, { name: "", values: [] }]);
   };
 
   const removeOption = (index: number) => {
-    setOptions(options.filter((_, i) => i !== index));
+    onOptionsChange(options.filter((_, i) => i !== index));
   };
 
   const updateOptionName = (index: number, name: string) => {
     const newOptions = [...options];
     newOptions[index].name = name;
-    setOptions(newOptions);
+    onOptionsChange(newOptions);
   };
 
   const updateOptionValues = (index: number, valuesString: string) => {
     const newOptions = [...options];
     newOptions[index].values = valuesString.split(",").map((v) => v.trim());
-    setOptions(newOptions);
+    onOptionsChange(newOptions);
   };
 
   const generateVariants = async () => {
@@ -77,6 +82,9 @@ export function ProductVariantForm({ productId, variants }: ProductVariantFormPr
       });
 
       if (!response.ok) throw new Error("Failed to generate variants");
+
+      const newVariants = await response.json();
+      onVariantsChange(newVariants);
 
       toast({
         title: "Success",
@@ -101,7 +109,6 @@ export function ProductVariantForm({ productId, variants }: ProductVariantFormPr
     setIsLoading(true);
 
     try {
-      // Convert price and compareAtPrice to Decimal strings
       const formattedData = {
         ...data,
         price: data.price !== undefined ? data.price.toString() : undefined,
@@ -117,6 +124,9 @@ export function ProductVariantForm({ productId, variants }: ProductVariantFormPr
       });
 
       if (!response.ok) throw new Error("Failed to update variant");
+
+      const updatedVariant = await response.json();
+      onVariantsChange(variants.map(v => v.id.toString() === variantId ? updatedVariant : v));
 
       toast({
         title: "Success",

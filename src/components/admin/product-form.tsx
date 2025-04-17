@@ -58,6 +58,13 @@ export function ProductForm({ product, categories, collections }: ProductFormPro
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
 
+  // Add variant state management
+  const [variantOptions, setVariantOptions] = useState<Array<{ name: string; values: string[] }>>([
+    { name: "Size", values: ["S", "M", "L", "XL"] },
+    { name: "Color", values: [] },
+  ]);
+  const [variants, setVariants] = useState<any[]>(product?.variants || []);
+
   const [formData, setFormData] = useState<{
     name: string;
     slug: string;
@@ -83,6 +90,15 @@ export function ProductForm({ product, categories, collections }: ProductFormPro
     status: product?.status || "DRAFT",
     collectionIds: product?.collections?.map((c) => c.collectionId) || [],
   });
+
+  // Add handlers for variant state
+  const handleVariantOptionsChange = (newOptions: Array<{ name: string; values: string[] }>) => {
+    setVariantOptions(newOptions);
+  };
+
+  const handleVariantsChange = (newVariants: any[]) => {
+    setVariants(newVariants);
+  };
 
   // Add a function to generate slug from name
   const generateSlug = (name: string) => {
@@ -115,7 +131,6 @@ export function ProductForm({ product, categories, collections }: ProductFormPro
     setIsLoading(true);
 
     try {
-      // Validate required fields
       if (!formData.name || !formData.slug || !formData.categoryId || formData.categoryId === '') {
         toast({
           title: "Error",
@@ -126,20 +141,16 @@ export function ProductForm({ product, categories, collections }: ProductFormPro
         return;
       }
 
-      // Prepare data in the format expected by the API
       const dataToSubmit = {
         ...formData,
-        // The API expects collectionIds as an array of strings
         collectionIds: formData.collectionIds,
-        // Include the images array
         images: formData.images,
+        variantOptions,
+        variants,
       };
 
-      // Remove any properties that might cause issues
+      // Only remove collections reference
       delete (dataToSubmit as any).collections;
-      delete (dataToSubmit as any).variants;
-
-      console.log("Submitting data:", dataToSubmit);
 
       const response = await fetch(
         product ? `/api/admin/products/${product.id}` : "/api/admin/products",
@@ -153,17 +164,13 @@ export function ProductForm({ product, categories, collections }: ProductFormPro
       );
 
       if (!response.ok) {
-        // Try to get more detailed error information
         let errorMessage = "Failed to save product";
         try {
           const errorData = await response.json();
-          console.error("Server error details:", errorData);
           errorMessage = errorData.message || errorData.error || JSON.stringify(errorData);
         } catch (e) {
-          // If we can't parse the error as JSON, get the text
           try {
             const errorText = await response.text();
-            console.error("Server error text:", errorText);
             errorMessage = errorText || "Failed to save product";
           } catch (e2) {
             console.error("Could not get error details:", e2);
@@ -173,6 +180,31 @@ export function ProductForm({ product, categories, collections }: ProductFormPro
       }
 
       const savedProduct = await response.json();
+
+      // Generate variants for new products if we have variant options with values
+      if (!product && variantOptions.some(opt => opt.values.length > 0)) {
+        try {
+          const variantResponse = await fetch(`/api/admin/products/${savedProduct.id}/variants`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({ options: variantOptions }),
+          });
+
+          if (!variantResponse.ok) {
+            throw new Error("Failed to generate variants");
+          }
+        } catch (variantError) {
+          console.error("Error generating variants:", variantError);
+          toast({
+            title: "Warning",
+            description: "Product saved but failed to generate variants. You can generate them later.",
+            variant: "destructive",
+          });
+        }
+      }
+
       toast({
         title: "Success",
         description: `Product ${product ? "updated" : "created"} successfully`,
@@ -370,17 +402,13 @@ export function ProductForm({ product, categories, collections }: ProductFormPro
         </TabsContent>
 
         <TabsContent value="variants" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>Product Variants</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <ProductVariantForm
-                productId={product?.id}
-                variants={product?.variants || []}
-              />
-            </CardContent>
-          </Card>
+          <ProductVariantForm
+            productId={product?.id}
+            variants={variants}
+            options={variantOptions}
+            onOptionsChange={handleVariantOptionsChange}
+            onVariantsChange={handleVariantsChange}
+          />
         </TabsContent>
 
         <TabsContent value="seo" className="space-y-4">
