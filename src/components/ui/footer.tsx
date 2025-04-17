@@ -46,7 +46,7 @@ export function Footer() {
             <h3 className="text-sm font-semibold text-foreground mb-4">Shop</h3>
             <ul className="space-y-3">
               <li>
-                <Link href="/shop/categories" className="text-sm text-muted-foreground hover:text-foreground">
+                <Link href="/shop/collections" className="text-sm text-muted-foreground hover:text-foreground">
                   All Collections
                 </Link>
               </li>
@@ -61,8 +61,8 @@ export function Footer() {
                 </Link>
               </li>
               <li>
-                <Link href="/shop/category/sustainable" className="text-sm text-muted-foreground hover:text-foreground">
-                  Sustainable Fashion
+                <Link href="/shop/categories" className="text-sm text-muted-foreground hover:text-foreground">
+                  All Categories
                 </Link>
               </li>
             </ul>

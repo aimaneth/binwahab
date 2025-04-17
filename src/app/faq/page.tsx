@@ -15,7 +15,7 @@ export const metadata: Metadata = {
 const faqs = [
   {
     question: "What payment methods do you accept?",
-    answer: "We accept all major credit cards (Visa, MasterCard, American Express), PayPal, and bank transfers. All payments are processed securely through our payment partners."
+    answer: "We accept all major credit cards (Visa, MasterCard), PayPal, and bank transfers (FPX). All payments are processed securely through our payment partners (Stripe)."
   },
   {
     question: "How long does shipping take?",
@@ -32,10 +32,6 @@ const faqs = [
   {
     question: "How can I track my order?",
     answer: "Once your order ships, you'll receive a tracking number via email. You can use this number to track your package through our website or the carrier's website."
-  },
-  {
-    question: "Are your products sustainable?",
-    answer: "We are committed to sustainability and environmental responsibility. Visit our Sustainability page to learn more about our eco-friendly practices and initiatives."
   },
   {
     question: "How do I contact customer service?",
