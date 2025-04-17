@@ -2,12 +2,12 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { Product as PrismaProduct, Category } from "@prisma/client";
 import { Product } from "@/types/product";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { formatPrice } from "@/lib/utils";
 import { Eye } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 
 interface ProductCardProps {
   product: Product;
@@ -21,8 +21,20 @@ export function ProductCard({ product }: ProductCardProps) {
   // Ensure we have a valid slug, fallback to product ID if not
   const productUrl = `/shop/products/${product.slug || `product-${product.id}`}`;
 
-  // Debug log to check product data
-  console.log('Product data:', { id: product.id, slug: product.slug, url: productUrl });
+  // Check if product is out of stock
+  const isOutOfStock = product.variants.length > 0
+    ? product.variants.every(variant => variant.stock <= variant.reservedStock)
+    : product.stock <= product.reservedStock;
+
+  // Get available sizes from variants
+  const availableSizes = product.variants
+    .filter(variant => variant.stock > variant.reservedStock && variant.isActive)
+    .map(variant => variant.options.Size)
+    .filter((size, index, self) => size && self.indexOf(size) === index)
+    .sort((a, b) => {
+      const sizeOrder = { 'S': 1, 'M': 2, 'L': 3, 'XL': 4, 'XXL': 5 };
+      return (sizeOrder[a] || 99) - (sizeOrder[b] || 99);
+    });
 
   return (
     <Card className="group overflow-hidden">
@@ -34,6 +46,13 @@ export function ProductCard({ product }: ProductCardProps) {
             fill
             className="object-cover transition-transform duration-300 group-hover:scale-105"
           />
+          {isOutOfStock && (
+            <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
+              <Badge variant="destructive" className="text-sm font-semibold">
+                Out of Stock
+              </Badge>
+            </div>
+          )}
         </div>
       </Link>
       <CardContent className="p-4">
@@ -43,16 +62,30 @@ export function ProductCard({ product }: ProductCardProps) {
         {product.category && (
           <p className="text-sm text-muted-foreground">{product.category.name}</p>
         )}
-        <p className="mt-2 font-semibold">{formatPrice(Number(product.price))}</p>
+        <div className="mt-2 flex items-center justify-between">
+          <p className="font-semibold">{formatPrice(Number(product.price))}</p>
+          {availableSizes.length > 0 && (
+            <div className="flex gap-1">
+              {availableSizes.map((size) => (
+                <Badge key={size} variant="outline" className="text-xs">
+                  {size}
+                </Badge>
+              ))}
+            </div>
+          )}
+        </div>
       </CardContent>
       <CardFooter className="p-4 pt-0">
         <Link href={productUrl} className="w-full">
-          <Button className="w-full gap-2" variant="secondary">
+          <Button 
+            className="w-full gap-2" 
+            variant={isOutOfStock ? "destructive" : "secondary"}
+          >
             <Eye className="h-4 w-4" />
-            View Details
+            {isOutOfStock ? "Notify When Available" : "View Details"}
           </Button>
         </Link>
       </CardFooter>
     </Card>
   );
-} 
+}
