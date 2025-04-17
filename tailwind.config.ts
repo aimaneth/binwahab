@@ -59,6 +59,7 @@ const config = {
       },
       fontFamily: {
         sans: ["var(--font-sans)", ...fontFamily.sans],
+        'times-new-roman': ['Times New Roman', 'serif'],
       },
       keyframes: {
         "accordion-down": {
