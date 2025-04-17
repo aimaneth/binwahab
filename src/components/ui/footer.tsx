@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { Facebook, Instagram, Twitter } from "lucide-react";
 
 export function Footer() {
@@ -110,6 +111,43 @@ export function Footer() {
                 </Link>
               </li>
             </ul>
+          </div>
+        </div>
+
+        {/* Payment Methods */}
+        <div className="py-8 border-t border-border">
+          <div className="flex flex-col items-center space-y-4">
+            <h3 className="text-sm font-semibold text-foreground">We Accept</h3>
+            <div className="flex flex-wrap justify-center gap-4 items-center">
+              <Image
+                src="/payment-logos/visa.svg"
+                alt="Visa"
+                width={48}
+                height={32}
+                className="h-8 w-auto"
+              />
+              <Image
+                src="/payment-logos/mastercard.svg"
+                alt="Mastercard"
+                width={48}
+                height={32}
+                className="h-8 w-auto"
+              />
+              <Image
+                src="/payment-logos/unionpay.svg"
+                alt="UnionPay"
+                width={48}
+                height={32}
+                className="h-8 w-auto"
+              />
+              <Image
+                src="/payment-logos/fpx.svg"
+                alt="FPX"
+                width={48}
+                height={32}
+                className="h-8 w-auto"
+              />
+            </div>
           </div>
         </div>
 

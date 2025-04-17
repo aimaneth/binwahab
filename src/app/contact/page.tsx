@@ -1,4 +1,5 @@
 import { Metadata } from "next";
+import Image from "next/image";
 import { PolicyLayout } from "@/components/layouts/PolicyLayout";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -61,6 +62,7 @@ const socialMedia = [
 const storeLocations = [
   {
     name: "Bangi Branch",
+    image: "/branch-images/bangi-branch.jpg",
     address: {
       line1: "No 5-11-01 Jalan Medan Pusat Bandar 8A",
       line2: "Seksyen 9, 43650 Bandar Baru Bangi",
@@ -71,6 +73,7 @@ const storeLocations = [
   },
   {
     name: "Johor Bahru Branch 1",
+    image: "/branch-images/johor-branch-1.jpg",
     address: {
       line1: "No 16, Jalan Padi Emas 1/5",
       line2: "Uda Business Center, Bandar Baru Uda",
@@ -81,6 +84,7 @@ const storeLocations = [
   },
   {
     name: "Johor Bahru Branch 2",
+    image: "/branch-images/johor-branch-2.jpg",
     address: {
       line1: "No 23, Jalan Padi Emas 1/5",
       line2: "Uda Business Center, Bandar Baru Uda",
@@ -154,44 +158,57 @@ export default function ContactPage() {
             <MapPin className="h-6 w-6" />
             Store Locations
           </h2>
-          <div className="grid gap-6">
+          <div className="grid gap-8">
             {storeLocations.map((location) => (
-              <Card key={location.name}>
-                <CardContent className="p-6">
-                  <div className="flex flex-col md:flex-row md:justify-between md:items-start">
-                    <div>
-                      <h3 className="font-semibold text-lg">{location.name}</h3>
-                      <p className="text-muted-foreground mt-2">
-                        {location.address.line1}<br />
-                        {location.address.line2}<br />
-                        {location.address.line3}
-                      </p>
-                      <p className="text-sm mt-2">
-                        <span className="font-medium">Phone:</span> {location.phone}
-                      </p>
-                      <div className="mt-2 space-y-1">
-                        <p className="text-sm font-medium">Operating Hours:</p>
-                        <p className="text-sm text-muted-foreground">
-                          Monday - Friday: 10:30 AM - 7:00 PM<br />
-                          Saturday - Sunday: 10:30 AM - 8:00 PM<br />
-                          Public Holidays: Please contact the store
+              <Card key={location.name} className="overflow-hidden">
+                <div className="grid md:grid-cols-2 gap-6">
+                  <div className="relative aspect-square">
+                    <Image
+                      src={location.image}
+                      alt={`${location.name} storefront`}
+                      fill
+                      className="object-cover"
+                      sizes="(max-width: 768px) 100vw, 50vw"
+                    />
+                  </div>
+                  <CardContent className="p-6">
+                    <div className="space-y-4">
+                      <div>
+                        <h3 className="font-semibold text-lg">{location.name}</h3>
+                        <p className="text-muted-foreground mt-2">
+                          {location.address.line1}<br />
+                          {location.address.line2}<br />
+                          {location.address.line3}
                         </p>
                       </div>
+                      <div>
+                        <p className="text-sm">
+                          <span className="font-medium">Phone:</span> {location.phone}
+                        </p>
+                        <div className="mt-2 space-y-1">
+                          <p className="text-sm font-medium">Operating Hours:</p>
+                          <p className="text-sm text-muted-foreground">
+                            Monday - Friday: 10:30 AM - 7:00 PM<br />
+                            Saturday - Sunday: 10:30 AM - 8:00 PM<br />
+                            Public Holidays: Please contact the store
+                          </p>
+                        </div>
+                      </div>
+                      <div>
+                        <a 
+                          href={location.mapsUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                        >
+                          <Button variant="outline" className="gap-2">
+                            <MapPin className="h-4 w-4" />
+                            Get Directions
+                          </Button>
+                        </a>
+                      </div>
                     </div>
-                    <div className="mt-4 md:mt-0">
-                      <a 
-                        href={location.mapsUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                      >
-                        <Button variant="outline" className="gap-2">
-                          <MapPin className="h-4 w-4" />
-                          Get Directions
-                        </Button>
-                      </a>
-                    </div>
-                  </div>
-                </CardContent>
+                  </CardContent>
+                </div>
               </Card>
             ))}
           </div>
