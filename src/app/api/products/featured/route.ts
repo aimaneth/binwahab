@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { Product, Category, Collection } from "@prisma/client";
+import { Product as ProductType } from "@/types/product";
 
 type ProductVariantWithImages = {
   id: number;
@@ -28,11 +29,7 @@ export async function GET() {
         createdAt: "desc",
       },
       include: {
-        category: {
-          select: {
-            name: true
-          }
-        },
+        category: true,
         collections: {
           select: {
             collection: {
@@ -47,7 +44,12 @@ export async function GET() {
             order: "asc"
           },
           select: {
-            url: true
+            id: true,
+            url: true,
+            order: true,
+            productId: true,
+            createdAt: true,
+            updatedAt: true
           }
         },
         variants: {
@@ -81,15 +83,29 @@ export async function GET() {
 
     // Transform the data to match the frontend interface
     const transformedProducts = products.map(product => {
-      // Get images from the images relation
-      const images = product.images.map(img => img.url);
-      
+      // Transform product images to match ProductImage interface
+      const productImages = product.images.map(img => ({
+        id: Number(img.id),
+        url: img.url,
+        order: img.order,
+        productId: Number(img.productId),
+        createdAt: img.createdAt,
+        updatedAt: img.updatedAt
+      }));
+
       // If no images in the relation, fall back to the main image
-      if (images.length === 0 && product.image) {
-        images.push(product.image);
+      if (productImages.length === 0 && product.image) {
+        productImages.push({
+          id: 0,
+          url: product.image,
+          order: 0,
+          productId: Number(product.id),
+          createdAt: new Date(),
+          updatedAt: new Date()
+        });
       }
-      
-      console.log(`Product ${product.id} images:`, images);
+
+      console.log(`Product ${product.id} images:`, productImages.map(img => img.url));
 
       // Transform variants
       const variants = product.variants.map(variant => ({
@@ -112,25 +128,31 @@ export async function GET() {
         dimensions: variant.dimensions as Record<string, any> | null
       }));
       
-      return {
-        id: product.id.toString(),
+      const transformedProduct: ProductType = {
+        id: Number(product.id),
         name: product.name,
-        description: product.description,
-        price: product.price.toString(), // Keep price as string
+        description: product.description || "",
+        descriptionHtml: product.descriptionHtml,
+        handle: product.handle,
+        price: product.price.toString(),
         stock: product.stock,
         reservedStock: product.reservedStock,
-        images: images,
-        variants: variants,
-        category: product.category ? {
-          name: product.category.name
-        } : null,
-        collection: product.collections[0]?.collection.name || "",
+        slug: product.handle || `product-${product.id}`,
         isActive: product.isActive,
         status: product.status,
+        image: product.image,
+        sku: product.sku,
+        inventoryTracking: product.inventoryTracking,
+        lowStockThreshold: product.lowStockThreshold,
+        images: productImages,
+        variants: variants,
+        category: product.category,
         categoryId: product.categoryId,
         createdAt: product.createdAt,
         updatedAt: product.updatedAt
       };
+
+      return transformedProduct;
     });
 
     console.log("Transformed products:", JSON.stringify(transformedProducts, null, 2));

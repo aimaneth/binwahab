@@ -6,18 +6,45 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
 }
 
-// Type guard for Decimal-like objects
-function isDecimal(value: any): boolean {
-  return value && typeof value === 'object' && 'toNumber' in value;
+interface DecimalLike {
+  toNumber: () => number;
 }
 
-export function formatPrice(price: number | string | { toString: () => string }) {
-  // Handle various price types
-  const numericPrice = typeof price === 'number' 
-    ? price 
-    : typeof price === 'string' 
-      ? parseFloat(price)
-      : parseFloat(price.toString());
+function isDecimal(value: any): value is DecimalLike {
+  return typeof value === 'object' && value !== null && typeof value.toNumber === 'function';
+}
+
+export function formatPrice(price: number | string | DecimalLike | { toString: () => string }) {
+  if (!price) return 'RM0.00';
+
+  // Handle Decimal objects from Prisma
+  if (isDecimal(price)) {
+    return new Intl.NumberFormat('en-MY', {
+      style: 'currency',
+      currency: 'MYR',
+      minimumFractionDigits: 2,
+    }).format(price.toNumber());
+  }
+
+  // Handle string prices
+  if (typeof price === 'string') {
+    // Remove any non-numeric characters except decimal point
+    const cleanPrice = price.replace(/[^0-9.]/g, '');
+    const numericPrice = parseFloat(cleanPrice);
+    
+    if (isNaN(numericPrice)) return 'RM0.00';
+    
+    return new Intl.NumberFormat('en-MY', {
+      style: 'currency',
+      currency: 'MYR',
+      minimumFractionDigits: 2,
+    }).format(numericPrice);
+  }
+
+  // Handle numeric prices
+  const numericPrice = typeof price === 'number' ? price : parseFloat(price.toString());
+  
+  if (isNaN(numericPrice)) return 'RM0.00';
 
   return new Intl.NumberFormat('en-MY', {
     style: 'currency',

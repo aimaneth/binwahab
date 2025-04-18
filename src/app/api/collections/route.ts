@@ -3,7 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { z } from "zod";
-import { Prisma, Collection, Product, DisplaySection, ProductImage, CollectionSortOption, ProductVariant } from "@prisma/client";
+import { Prisma, Collection, Product, DisplaySection, ProductImage, CollectionSortOption, ProductVariant, ProductStatus, Category } from "@prisma/client";
 
 const collectionSchema = z.object({
   name: z.string().min(1, "Name is required"),
@@ -23,8 +23,13 @@ const collectionInclude = {
     include: {
       product: {
         include: {
+          category: true,
           images: true,
-          variants: true
+          variants: {
+            where: {
+              isActive: true
+            }
+          }
         }
       }
     }
@@ -37,17 +42,51 @@ type CollectionWithProducts = Prisma.CollectionGetPayload<{
 
 type TransformedProduct = {
   id: string;
-  slug: string;
   name: string;
-  description: string | null;
-  images: { url: string }[];
-  variants: {
-    id: string;
-    name: string;
-    price: number;
-    compareAtPrice: number | null;
-    stock: number;
+  description: string;
+  descriptionHtml: string | null;
+  handle: string | null;
+  price: string;
+  stock: number;
+  reservedStock: number;
+  slug: string;
+  isActive: boolean;
+  status: ProductStatus;
+  image: string | null;
+  sku: string | null;
+  inventoryTracking: boolean;
+  lowStockThreshold: number | null;
+  images: {
+    id: number;
+    url: string;
+    order: number;
+    productId: number;
+    createdAt: Date;
+    updatedAt: Date;
   }[];
+  variants: {
+    id: number;
+    name: string;
+    sku: string;
+    price: string;
+    compareAtPrice: string | null;
+    stock: number;
+    reservedStock: number;
+    options: Record<string, string>;
+    images: string[];
+    inventoryTracking: boolean;
+    lowStockThreshold: number | null;
+    productId: number;
+    isActive: boolean;
+    barcode: string | null;
+    weight: string | null;
+    weightUnit: string | null;
+    dimensions: Record<string, any> | null;
+  }[];
+  category: Category | null;
+  categoryId: string | null;
+  createdAt: Date;
+  updatedAt: Date;
 };
 
 type TransformedCollection = {
@@ -103,25 +142,99 @@ export async function GET(req: Request) {
         ...(section && { displaySection: section }),
         ...(category && { products: { some: { product: { categoryId: category } } } })
       },
-      include: collectionInclude
+      include: {
+        products: {
+          include: {
+            product: {
+              include: {
+                category: true,
+                images: {
+                  orderBy: {
+                    order: 'asc'
+                  }
+                },
+                variants: {
+                  where: {
+                    isActive: true
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
     });
 
     // Transform the response to include products directly
-    const transformedCollections: TransformedCollection[] = collections.map((collection: CollectionWithProducts) => {
-      const products: TransformedProduct[] = collection.products.map(({ product }) => ({
-        id: product.id.toString(),
-        slug: product.slug || product.handle || `product-${product.id}`,
-        name: product.name,
-        description: product.description,
-        images: product.images.map((img: ProductImage) => ({ url: img.url })),
-        variants: product.variants.map((variant: ProductVariant) => ({
-          id: variant.id.toString(),
+    const transformedCollections = collections.map((collection) => {
+      const products = collection.products.map(({ product }) => {
+        // Transform product images
+        const productImages = product.images.map(img => ({
+          id: Number(img.id),
+          url: img.url,
+          order: img.order,
+          productId: Number(img.productId),
+          createdAt: img.createdAt,
+          updatedAt: img.updatedAt
+        }));
+
+        // If no images in the relation, fall back to the main image
+        if (productImages.length === 0 && product.image) {
+          productImages.push({
+            id: 0,
+            url: product.image,
+            order: 0,
+            productId: Number(product.id),
+            createdAt: new Date(),
+            updatedAt: new Date()
+          });
+        }
+
+        // Transform variants
+        const variants = product.variants.map(variant => ({
+          id: Number(variant.id),
           name: variant.name,
-          price: Number(variant.price),
-          compareAtPrice: variant.compareAtPrice ? Number(variant.compareAtPrice) : null,
-          stock: variant.stock
-        }))
-      }));
+          sku: variant.sku,
+          price: variant.price.toString(),
+          compareAtPrice: variant.compareAtPrice?.toString() || null,
+          stock: variant.stock,
+          reservedStock: variant.reservedStock,
+          options: variant.options as Record<string, string>,
+          images: variant.images as string[],
+          inventoryTracking: variant.inventoryTracking,
+          lowStockThreshold: variant.lowStockThreshold,
+          productId: Number(variant.productId),
+          isActive: variant.isActive,
+          barcode: variant.barcode,
+          weight: variant.weight?.toString() || null,
+          weightUnit: variant.weightUnit,
+          dimensions: typeof variant.dimensions === 'object' ? variant.dimensions as Record<string, any> : null
+        }));
+
+        return {
+          id: product.id.toString(),
+          name: product.name,
+          description: product.description || "",
+          descriptionHtml: product.descriptionHtml,
+          handle: product.handle,
+          price: product.price.toString(),
+          stock: product.stock,
+          reservedStock: product.reservedStock,
+          slug: product.slug || product.handle || `product-${product.id}`,
+          isActive: product.isActive,
+          status: product.status,
+          image: product.image,
+          sku: product.sku,
+          inventoryTracking: product.inventoryTracking,
+          lowStockThreshold: product.lowStockThreshold,
+          images: productImages,
+          variants,
+          category: product.category,
+          categoryId: product.categoryId,
+          createdAt: product.createdAt,
+          updatedAt: product.updatedAt
+        };
+      });
 
       return {
         id: collection.id.toString(),

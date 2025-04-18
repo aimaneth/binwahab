@@ -16,7 +16,7 @@ interface ProductCardProps {
 export function ProductCard({ product }: ProductCardProps) {
   // Handle image URL - if it's an object with url property, use that, otherwise use the string
   const imageUrl = product.images && product.images.length > 0 
-    ? (typeof product.images[0] === 'string' ? product.images[0] : product.images[0].url)
+    ? product.images[0].url
     : product.image || "/images/fallback-product.jpg";
   
   // Ensure we have a valid slug, fallback to product ID if not
@@ -25,13 +25,13 @@ export function ProductCard({ product }: ProductCardProps) {
   // Check if product is out of stock
   const hasVariants = Array.isArray(product.variants) && product.variants.length > 0;
   const isOutOfStock = hasVariants
-    ? product.variants.every(variant => variant.stock <= 0)
-    : product.stock <= 0;
+    ? product.variants.every(variant => !variant.isActive || variant.stock <= variant.reservedStock)
+    : product.stock <= product.reservedStock;
 
   // Get available sizes from variants that have stock
   const availableSizes = hasVariants
     ? product.variants
-        .filter(variant => variant.stock > 0)
+        .filter(variant => variant.isActive && variant.stock > variant.reservedStock)
         .map(variant => variant.options?.Size)
         .filter(Boolean)
         .filter((size, index, self) => self.indexOf(size) === index)
@@ -40,6 +40,11 @@ export function ProductCard({ product }: ProductCardProps) {
           return (sizeOrder[a] ?? 99) - (sizeOrder[b] ?? 99);
         })
     : [];
+
+  // Get the lowest price from variants if they exist
+  const displayPrice = hasVariants
+    ? Math.min(...product.variants.map(v => parseFloat(v.price)))
+    : product.price;
 
   return (
     <Card className="group overflow-hidden">
@@ -68,7 +73,7 @@ export function ProductCard({ product }: ProductCardProps) {
           <p className="text-sm text-muted-foreground">{product.category.name}</p>
         )}
         <div className="mt-2 flex items-center justify-between">
-          <p className="font-semibold">{formatPrice(product.price)}</p>
+          <p className="font-semibold">{formatPrice(displayPrice)}</p>
           {availableSizes.length > 0 && (
             <div className="flex gap-1 flex-wrap">
               {availableSizes.map((size) => (
