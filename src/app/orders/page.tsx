@@ -19,7 +19,15 @@ interface OrderItem {
   product: {
     name: string;
     image: string | null;
+    images: string[];
   };
+  variant: {
+    id: string;
+    name: string;
+    sku: string;
+    image: string | null;
+    options: Record<string, string>;
+  } | null;
 }
 
 interface Order {
@@ -29,12 +37,12 @@ interface Order {
   items: OrderItem[];
   createdAt: string;
   shippingAddress: {
-    fullName: string;
-    addressLine1: string;
+    street: string;
     city: string;
     state: string;
-    postalCode: string;
+    zipCode: string;
     country: string;
+    phone: string;
   };
 }
 
@@ -57,8 +65,8 @@ export default function OrdersPage() {
     try {
       const response = await fetch("/api/orders");
       if (!response.ok) throw new Error("Failed to fetch orders");
-      const data = await response.json();
-      setOrders(data);
+      const { orders } = await response.json();
+      setOrders(orders);
     } catch (error) {
       console.error("Error fetching orders:", error);
     } finally {
@@ -193,7 +201,7 @@ export default function OrdersPage() {
                       <div key={item.id} className="flex items-center gap-4">
                         <div className="relative h-16 w-16 overflow-hidden rounded-lg">
                           <Image
-                            src={item.product.image || "/images/fallback-product.jpg"}
+                            src={item.variant?.image || item.product.image || item.product.images?.[0] || "/images/fallback-product.jpg"}
                             alt={item.product.name}
                             fill
                             className="object-cover"
@@ -223,9 +231,9 @@ export default function OrdersPage() {
                   <div className="border-t border-border pt-4">
                     <h4 className="font-medium text-foreground mb-2">Shipping Address</h4>
                     <p className="text-sm text-muted-foreground">
-                      {order.shippingAddress.fullName}<br />
-                      {order.shippingAddress.addressLine1}<br />
-                      {order.shippingAddress.city}, {order.shippingAddress.state} {order.shippingAddress.postalCode}<br />
+                      {order.shippingAddress.phone}<br />
+                      {order.shippingAddress.street}<br />
+                      {order.shippingAddress.city}, {order.shippingAddress.state} {order.shippingAddress.zipCode}<br />
                       {order.shippingAddress.country}
                     </p>
                   </div>

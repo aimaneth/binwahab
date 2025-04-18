@@ -134,8 +134,23 @@ export function CartItems({ items }: CartItemsProps) {
                 <div className="flex gap-6">
                   {/* Product Image */}
                   <div className="relative w-24 h-24 flex-shrink-0">
+                    {(() => {
+                      console.log('Cart Item Image Debug:', {
+                        productName: item.product.name,
+                        variantImage: item.variant?.image,
+                        productImages: item.product.images,
+                        productImage: item.product.image,
+                      });
+                      return null;
+                    })()}
                     <ImageWithFallback
-                      src={item.variant?.image || item.product.image || '/images/fallback-product.jpg'}
+                      src={
+                        item.variant?.image || 
+                        (item.product.images && item.product.images.length > 0 
+                          ? item.product.images[0].url 
+                          : item.product.image) || 
+                        '/images/fallback-product.jpg'
+                      }
                       alt={item.product.name}
                       fill
                       className="object-cover rounded-md"

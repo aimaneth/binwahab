@@ -6,7 +6,7 @@ import { prisma } from "@/lib/prisma";
 import { CartItems } from "@/components/shop/cart-items";
 import { CartSummary } from "@/components/shop/cart-summary";
 import { Steps } from "@/components/ui/steps";
-import { CartItem as PrismaCartItem } from "@prisma/client";
+import { CartItem as PrismaCartItem, ProductImage } from "@prisma/client";
 import { CartItem } from "@/types/cart";
 import { CartInitializer } from "@/components/shop/cart-initializer";
 import { Decimal } from "decimal.js";
@@ -32,7 +32,11 @@ export default async function CartPage() {
     include: {
       items: {
         include: {
-          product: true,
+          product: {
+            include: {
+              images: true
+            }
+          },
           variant: true,
         },
       },
@@ -60,25 +64,35 @@ export default async function CartPage() {
   }));
 
   // Transform to CartItem type for CartItems component
-  const validCartItems = validPrismaItems.map(item => ({
-    id: item.id,
-    quantity: item.quantity,
-    product: {
-      id: item.product.id,
-      name: item.product.name,
-      price: Number(item.product.price),
-      image: item.product.image || undefined,
-      description: item.product.description || undefined,
-    },
-    variant: item.variant ? {
-      id: item.variant.id,
-      sku: item.variant.sku,
-      name: item.variant.name,
-      price: Number(item.variant.price),
-      image: item.variant.images && item.variant.images.length > 0 ? item.variant.images[0] : undefined,
-      options: item.variant.options as Record<string, string> || undefined,
-    } : undefined,
-  }));
+  const validCartItems = validPrismaItems.map(item => {
+    console.log('Cart Page Debug:', {
+      productName: item.product.name,
+      productImage: item.product.image,
+      productImages: item.product.images,
+      variantImages: item.variant?.images,
+    });
+
+    return {
+      id: item.id,
+      quantity: item.quantity,
+      product: {
+        id: item.product.id,
+        name: item.product.name,
+        price: Number(item.product.price),
+        image: item.product.image || undefined,
+        images: item.product.images?.map((img: ProductImage) => ({ url: img.url })) || undefined,
+        description: item.product.description || undefined,
+      },
+      variant: item.variant ? {
+        id: item.variant.id,
+        sku: item.variant.sku,
+        name: item.variant.name,
+        price: Number(item.variant.price),
+        image: item.variant.images && item.variant.images.length > 0 ? item.variant.images[0] : undefined,
+        options: item.variant.options as Record<string, string> || undefined,
+      } : undefined,
+    };
+  });
 
   const isEmpty = validPrismaItems.length === 0;
 

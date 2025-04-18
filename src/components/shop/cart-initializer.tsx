@@ -23,7 +23,10 @@ export function CartInitializer({ items }: CartInitializerProps) {
           id: item.product.id,
           name: item.product.name,
           price: item.product.price,
-          images: [item.product.image || ''],
+          images: [
+            ...(item.product.images?.map(img => img.url) || []),
+            ...(item.product.image ? [item.product.image] : [])
+          ],
         },
         quantity: item.quantity,
         variant: item.variant ? {

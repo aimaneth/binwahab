@@ -15,43 +15,47 @@ export const metadata: Metadata = {
 
 async function createOrder(session: any, checkoutSession: any) {
   try {
-    // Parse shipping address from metadata
-    const shippingAddress = JSON.parse(checkoutSession.metadata.shippingAddress);
+    // Get the shipping address ID from metadata
+    const shippingAddressId = checkoutSession.metadata.shippingAddressId;
 
-    // Create address record
-    const address = await prisma.address.create({
-      data: {
-        userId: session.user.id,
-        street: shippingAddress.street,
-        city: shippingAddress.city,
-        state: shippingAddress.state,
-        zipCode: shippingAddress.zipCode,
-        country: shippingAddress.country,
-        phone: shippingAddress.phone || "",
-      },
+    // Verify the shipping address exists and belongs to the user
+    const address = await prisma.address.findUnique({
+      where: {
+        id: shippingAddressId,
+        userId: session.user.id
+      }
     });
+
+    if (!address) {
+      throw new Error("Invalid shipping address");
+    }
+
+    // Parse the items from metadata
+    const items = JSON.parse(checkoutSession.metadata.items);
 
     // Create order
     const order = await prisma.order.create({
       data: {
         userId: session.user.id,
-        total: checkoutSession.amount_total / 100, // Convert from cents to dollars
+        total: checkoutSession.amount_total / 100,
         status: "PROCESSING",
         paymentStatus: "PAID",
         paymentMethod: checkoutSession.payment_method_types[0].toUpperCase(),
-        shippingAddressId: address.id,
+        shippingAddressId: shippingAddressId,
         items: {
-          create: checkoutSession.line_items.data.map((item: any) => ({
-            name: item.description || item.price.product.name,
-            price: item.price.unit_amount / 100,
+          create: items.map((item: any) => ({
+            productId: item.productId,
+            variantId: item.variantId || null,
             quantity: item.quantity,
-            productId: parseInt(item.price.product.metadata.productId || "0"),
-            variantSku: item.price.product.metadata.variantSku,
+            price: checkoutSession.line_items.data.find(
+              (li: any) => li.price.product.metadata.productId === item.productId
+            )?.price.unit_amount / 100 || 0,
           })),
         },
       },
       include: {
         items: true,
+        shippingAddress: true,
       },
     });
 

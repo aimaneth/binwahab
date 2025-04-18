@@ -163,15 +163,9 @@ export async function POST(request: Request) {
           phone: address.phone,
         }),
         items: JSON.stringify(items.map(item => ({
-          id: item.id,
-          quantity: item.quantity,
+          productId: item.id,
           variantId: item.variantId,
-          variant: item.variant ? {
-            id: item.variant.id,
-            sku: item.variant.sku,
-            name: item.variant.name,
-            options: item.variant.options,
-          } : undefined,
+          quantity: item.quantity,
         }))),
       },
     });

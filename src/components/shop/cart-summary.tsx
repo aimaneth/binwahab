@@ -150,11 +150,13 @@ export function CartSummary({ items, shippingState = "Selangor" }: CartSummaryPr
       setIsProcessing(true);
 
       const checkoutItems = items.map(item => ({
+        id: item.product.id,
         name: item.variant?.name || item.product.name,
         description: `${item.product.name}${item.variant ? ` - ${item.variant.name}` : ''}`,
         price: Number(item.variant?.price || item.product.price),
         quantity: item.quantity,
-        images: item.product.image ? [item.product.image] : []
+        images: item.product.image ? [item.product.image] : [],
+        variantId: item.variant?.id
       }));
 
       const response = await fetch("/api/checkout", {

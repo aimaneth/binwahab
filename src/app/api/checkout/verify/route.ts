@@ -68,38 +68,38 @@ export async function GET(request: Request) {
       });
     }
 
-    // Get user's cart
-    const cart = await prisma.cart.findUnique({
-      where: { userId: session.user.id },
-      include: {
-        items: {
-          include: {
-            product: true,
-            variant: true
-          }
-        }
-      }
-    });
-
-    if (!cart || cart.items.length === 0) {
-      return NextResponse.json({
-        success: true,
-        status: "paid",
-        message: "Payment successful but cart is already cleared"
-      });
+    // Get shipping address from session metadata
+    const metadata = checkoutSession.metadata;
+    if (!metadata?.shippingAddressId) {
+      return NextResponse.json(
+        { error: "Missing shipping address in session" },
+        { status: 400 }
+      );
     }
 
-    // Get user's default address
-    const address = await prisma.address.findFirst({
+    // Verify the shipping address exists and belongs to the user
+    const address = await prisma.address.findUnique({
       where: {
-        userId: session.user.id,
-        isDefault: true
+        id: metadata.shippingAddressId,
+        userId: session.user.id
       }
     });
 
     if (!address) {
       return NextResponse.json(
-        { error: "No default address found" },
+        { error: "Invalid shipping address" },
+        { status: 400 }
+      );
+    }
+
+    // Parse items from metadata
+    let orderItems: any[] = [];
+    try {
+      orderItems = metadata.items ? JSON.parse(metadata.items) : [];
+    } catch (error) {
+      console.error("Error parsing order items from metadata:", error);
+      return NextResponse.json(
+        { error: "Invalid order items data" },
         { status: 400 }
       );
     }
@@ -119,13 +119,22 @@ export async function GET(request: Request) {
         currency: checkoutSession.currency || "myr",
         shippingAddressId: address.id,
         items: {
-          create: cart.items.map(item => ({
-            productId: item.productId || undefined,
-            variantId: item.variantId || undefined,
-            quantity: item.quantity,
-            price: Number(item.variant?.price || item.product?.price || 0),
-            currency: checkoutSession.currency || "myr"
-          }))
+          create: orderItems.map((item: any) => {
+            const lineItem = checkoutSession.line_items?.data?.find(
+              (li: any) => li.price?.product?.metadata?.productId === item.productId
+            );
+            const price = lineItem?.price?.unit_amount 
+              ? lineItem.price.unit_amount / 100 
+              : 0;
+
+            return {
+              productId: item.productId,
+              variantId: item.variantId || undefined,
+              quantity: item.quantity,
+              price,
+              currency: checkoutSession.currency || "myr"
+            };
+          })
         }
       },
       include: {
@@ -139,8 +148,8 @@ export async function GET(request: Request) {
       }
     });
 
-    // Update stock levels
-    await Promise.all(cart.items.map(async (item) => {
+    // Update stock levels using the already parsed orderItems
+    await Promise.all(orderItems.map(async (item: any) => {
       if (item.variantId) {
         await prisma.productVariant.update({
           where: { id: item.variantId },
@@ -154,10 +163,16 @@ export async function GET(request: Request) {
       }
     }));
 
-    // Clear the cart after successful order creation
-    await prisma.cartItem.deleteMany({
-      where: { cartId: cart.id }
+    // Clear the user's cart
+    const cart = await prisma.cart.findUnique({
+      where: { userId: session.user.id }
     });
+
+    if (cart) {
+      await prisma.cartItem.deleteMany({
+        where: { cartId: cart.id }
+      });
+    }
 
     return NextResponse.json({
       success: true,

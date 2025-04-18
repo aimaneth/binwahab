@@ -8,6 +8,7 @@ export interface CartItem {
     name: string;
     price: string | number; // Match Prisma Decimal
     image?: string;
+    images?: Array<{ url: string }>;
     description?: string;
   };
   variant?: {

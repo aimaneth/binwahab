@@ -17,41 +17,86 @@ export async function GET(req: Request) {
       where: {
         userId: session.user.id,
       },
-      include: {
+      select: {
+        id: true,
+        total: true,
+        status: true,
+        createdAt: true,
+        updatedAt: true,
         items: {
-          include: {
+          select: {
+            id: true,
+            quantity: true,
+            price: true,
+            variantId: true,
+            variant: {
+              select: {
+                id: true,
+                name: true,
+                sku: true,
+                images: true,
+                options: true,
+              }
+            },
             product: {
               select: {
                 name: true,
                 image: true,
-              },
-            },
-            variant: {
-              select: {
-                name: true,
-                images: true,
-                options: true,
-              },
-            },
-          },
+                images: {
+                  select: {
+                    url: true
+                  }
+                }
+              }
+            }
+          }
         },
         shippingAddress: {
           select: {
+            id: true,
             street: true,
             city: true,
             state: true,
             zipCode: true,
             country: true,
             phone: true,
-          },
+          }
         },
       },
       orderBy: {
-        createdAt: "desc",
+        createdAt: 'desc',
       },
     });
 
-    return NextResponse.json(orders);
+    return NextResponse.json({
+      orders: orders.map((order) => ({
+        id: order.id,
+        total: order.total,
+        status: order.status,
+        createdAt: order.createdAt,
+        updatedAt: order.updatedAt,
+        shippingAddress: order.shippingAddress,
+        items: order.items.map((item) => ({
+          id: item.id,
+          quantity: item.quantity,
+          price: item.price,
+          product: item.product ? {
+            name: item.product.name,
+            image: item.product.image,
+            images: item.product.images?.map((img) => img.url) || [],
+          } : null,
+          variant: item.variant
+            ? {
+                id: item.variant.id,
+                name: item.variant.name,
+                sku: item.variant.sku,
+                image: item.variant.images?.[0] || null,
+                options: item.variant.options,
+              }
+            : null,
+        })),
+      })),
+    });
   } catch (error) {
     console.error("[ORDERS_GET]", error);
     return new NextResponse("Internal error", { status: 500 });

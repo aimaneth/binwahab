@@ -136,7 +136,11 @@ export async function GET(req: Request) {
       include: {
         items: {
           include: {
-            product: true,
+            product: {
+              include: {
+                images: true
+              }
+            },
             variant: true,
           },
         },
@@ -150,25 +154,42 @@ export async function GET(req: Request) {
     // Transform to match CartItem type
     const items = cart.items
       .filter(item => item.product !== null)
-      .map(item => ({
-        id: item.id.toString(),
-        product: {
-          id: item.product!.id.toString(),
-          name: item.product!.name,
-          price: item.product!.price.toString(),
-          image: item.product!.image || undefined,
-          description: item.product!.description || undefined,
-        },
-        variant: item.variant ? {
-          id: item.variant.id.toString(),
-          sku: item.variant.sku,
-          name: item.variant.name,
-          price: item.variant.price.toString(),
-          image: Array.isArray(item.variant.images) && item.variant.images.length > 0 ? item.variant.images[0] : undefined,
-          options: item.variant.options as Record<string, string> || undefined,
-        } : undefined,
-        quantity: item.quantity,
-      }));
+      .map(item => {
+        // Collect all product images
+        const productImages = [
+          ...(item.product!.images?.map(img => img.url) || []),
+          ...(item.product!.image ? [item.product!.image] : [])
+        ];
+
+        console.log('Cart API Debug:', {
+          productName: item.product!.name,
+          rawProductImages: item.product!.images,
+          rawProductImage: item.product!.image,
+          processedImages: productImages,
+          variantImages: item.variant?.images,
+        });
+
+        return {
+          id: item.id.toString(),
+          product: {
+            id: item.product!.id.toString(),
+            name: item.product!.name,
+            price: item.product!.price.toString(),
+            image: productImages[0] || undefined,
+            images: productImages.map(url => ({ url })),
+            description: item.product!.description || undefined,
+          },
+          variant: item.variant ? {
+            id: item.variant.id.toString(),
+            sku: item.variant.sku,
+            name: item.variant.name,
+            price: item.variant.price.toString(),
+            image: item.variant.images?.[0] || undefined,
+            options: item.variant.options as Record<string, string> || undefined,
+          } : undefined,
+          quantity: item.quantity,
+        };
+      });
 
     return NextResponse.json({ items });
   } catch (error) {
