@@ -203,7 +203,13 @@ export default function OrdersPage() {
                     </Badge>
                     {order.trackingNumber && (order.status === "SHIPPED" || order.status === "DELIVERED") && (
                       <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                        <Truck className="h-4 w-4" />
+                        <Image
+                          src="/courier-logos/jnt.png"
+                          alt="J&T Express"
+                          width={16}
+                          height={16}
+                          className="object-contain"
+                        />
                         <span>Tracking: {order.trackingNumber}</span>
                       </div>
                     )}
@@ -256,7 +262,13 @@ export default function OrdersPage() {
                       <div className="mt-2">
                         <h4 className="font-medium text-foreground mb-1">Tracking Number</h4>
                         <p className="text-sm text-muted-foreground flex items-center gap-2">
-                          <Truck className="h-4 w-4" />
+                          <Image
+                            src="/courier-logos/jnt.png"
+                            alt="J&T Express"
+                            width={16}
+                            height={16}
+                            className="object-contain"
+                          />
                           {order.trackingNumber}
                         </p>
                       </div>
