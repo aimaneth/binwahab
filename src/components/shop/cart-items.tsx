@@ -150,9 +150,6 @@ export function CartItems({ items }: CartItemsProps) {
                         </h3>
                         {item.variant && (
                           <div className="mt-1 space-y-1">
-                            <p className="text-sm text-muted-foreground">
-                              SKU: {item.variant.sku}
-                            </p>
                             {item.variant.options && Object.entries(item.variant.options).map(([key, value]) => (
                               <p key={key} className="text-sm text-muted-foreground">
                                 {key}: {value}
