@@ -164,7 +164,8 @@ export async function GET(req: Request) {
           sku: item.variant.sku,
           name: item.variant.name,
           price: item.variant.price.toString(),
-          image: item.variant.images[0] || undefined,
+          image: Array.isArray(item.variant.images) && item.variant.images.length > 0 ? item.variant.images[0] : undefined,
+          options: item.variant.options as Record<string, string> || undefined,
         } : undefined,
         quantity: item.quantity,
       }));

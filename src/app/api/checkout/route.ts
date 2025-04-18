@@ -8,11 +8,24 @@ import { calculateOrderAmount } from '@/lib/stripe/calculate-amount';
 
 // Define the expected item structure
 interface CheckoutItem {
+  id: string;
+  quantity: number;
+  variantId?: string;
   name: string;
   price: number;
-  quantity: number;
   description?: string;
   images?: string[];
+  variant?: {
+    id: string;
+    sku: string;
+    name: string;
+    options: Record<string, string>;
+  };
+}
+
+interface CheckoutRequest {
+  items: CheckoutItem[];
+  shippingAddressId: string;
 }
 
 if (!process.env.STRIPE_SECRET_KEY) {
@@ -32,10 +45,18 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
 
 export async function POST(request: Request) {
   try {
+    const session = await getServerSession(authOptions);
+    if (!session?.user?.id) {
+      return NextResponse.json(
+        { error: "Unauthorized" },
+        { status: 401 }
+      );
+    }
+
     const body = await request.json();
     console.log('Received checkout request:', body);
 
-    const { items } = body as { items: CheckoutItem[] };
+    const { items, shippingAddressId } = body as CheckoutRequest;
 
     if (!items?.length) {
       console.log('No items provided in request');
@@ -45,23 +66,53 @@ export async function POST(request: Request) {
       );
     }
 
+    if (!shippingAddressId) {
+      return NextResponse.json(
+        { error: 'Please provide a shipping address' },
+        { status: 400 }
+      );
+    }
+
+    // Verify shipping address belongs to user
+    const address = await prisma.address.findUnique({
+      where: {
+        id: shippingAddressId,
+        userId: session.user.id
+      }
+    });
+
+    if (!address) {
+      return NextResponse.json(
+        { error: "Invalid shipping address" },
+        { status: 400 }
+      );
+    }
+
     // Calculate subtotal and tax
     const subtotal = items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
     const tax = subtotal * 0.06; // 6% Malaysian GST
     
-    // Create line items with base prices
-    const lineItems = items.map((item: CheckoutItem) => ({
-      price_data: {
-        currency: 'myr',
-        product_data: {
-          name: item.name || 'Unknown Product',
-          description: item.description || '',
-          images: item.images?.length ? [item.images[0]] : [],
+    // Create line items with base prices and variant information
+    const lineItems = items.map((item: CheckoutItem) => {
+      const variantInfo = item.variant 
+        ? `\nSKU: ${item.variant.sku}${Object.entries(item.variant.options)
+            .map(([key, value]) => `\n${key}: ${value}`)
+            .join('')}`
+        : '';
+
+      return {
+        price_data: {
+          currency: 'myr',
+          product_data: {
+            name: item.name || 'Unknown Product',
+            description: (item.description || '') + variantInfo,
+            images: item.images?.length ? [item.images[0]] : [],
+          },
+          unit_amount: Math.round(item.price * 100), // Base price in cents
         },
-        unit_amount: Math.round(item.price * 100), // Base price in cents
-      },
-      quantity: item.quantity || 1,
-    }));
+        quantity: item.quantity || 1,
+      };
+    });
 
     // Add shipping as a line item
     lineItems.push({
@@ -92,23 +143,50 @@ export async function POST(request: Request) {
     });
 
     // Create Stripe checkout session
-    const session = await stripe.checkout.sessions.create({
+    const checkoutSession = await stripe.checkout.sessions.create({
       payment_method_types: ['card', 'fpx'],
       locale: 'en',
       line_items: lineItems,
       mode: 'payment',
       success_url: `https://binwahab.vercel.app/checkout/success?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `https://binwahab.vercel.app/shop/cart`,
+      customer_email: session.user.email || undefined,
+      shipping_address_collection: {
+        allowed_countries: ['MY'],
+      },
+      metadata: {
+        userId: session.user.id,
+        shippingAddressId: address.id,
+        shippingAddress: JSON.stringify({
+          street: address.street,
+          city: address.city,
+          state: address.state,
+          zipCode: address.zipCode,
+          country: address.country,
+          phone: address.phone,
+        }),
+        items: JSON.stringify(items.map(item => ({
+          id: item.id,
+          quantity: item.quantity,
+          variantId: item.variantId,
+          variant: item.variant ? {
+            id: item.variant.id,
+            sku: item.variant.sku,
+            name: item.variant.name,
+            options: item.variant.options,
+          } : undefined,
+        }))),
+      },
     });
 
     console.log('Checkout session created:', {
-      sessionId: session.id,
-      url: session.url
+      sessionId: checkoutSession.id,
+      url: checkoutSession.url
     });
 
     return NextResponse.json({ 
-      sessionId: session.id,
-      url: session.url 
+      sessionId: checkoutSession.id,
+      url: checkoutSession.url 
     });
   } catch (err) {
     console.error('Error creating checkout session:', {

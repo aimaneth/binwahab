@@ -7,6 +7,9 @@ import { formatPrice } from "@/lib/utils";
 import { CartItem, Product, ProductVariant } from "@prisma/client";
 import { Clock, CreditCard, Loader2, Shield, Truck } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
+import { ShippingAddressForm } from "./shipping-address-form";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { toast } from "sonner";
 
 interface CartSummaryProps {
   items: (CartItem & {
@@ -16,11 +19,46 @@ interface CartSummaryProps {
   shippingState?: string;
 }
 
+interface Address {
+  id: string;
+  street: string;
+  city: string;
+  state: string;
+  zipCode: string;
+  country: string;
+  phone: string;
+  isDefault: boolean;
+}
+
 export function CartSummary({ items, shippingState = "Selangor" }: CartSummaryProps) {
   const [shipping, setShipping] = useState<number>(0);
   const [isLoading, setIsLoading] = useState(true);
   const [isProcessing, setIsProcessing] = useState(false);
   const [estimatedDelivery, setEstimatedDelivery] = useState<string>("");
+  const [addresses, setAddresses] = useState<Address[]>([]);
+  const [selectedAddressId, setSelectedAddressId] = useState<string>();
+  const [showAddressForm, setShowAddressForm] = useState(false);
+
+  useEffect(() => {
+    // Fetch user's addresses
+    const fetchAddresses = async () => {
+      try {
+        const response = await fetch('/api/addresses');
+        if (!response.ok) throw new Error('Failed to fetch addresses');
+        const data = await response.json();
+        setAddresses(data);
+        // Set the default address if available
+        const defaultAddress = data.find((addr: Address) => addr.isDefault);
+        if (defaultAddress) {
+          setSelectedAddressId(defaultAddress.id);
+        }
+      } catch (error) {
+        console.error('Error fetching addresses:', error);
+      }
+    };
+
+    fetchAddresses();
+  }, []);
 
   useEffect(() => {
     const calculateShipping = async () => {
@@ -53,7 +91,6 @@ export function CartSummary({ items, shippingState = "Selangor" }: CartSummaryPr
         const { cost } = await response.json();
         setShipping(cost);
 
-        // Calculate estimated delivery date (3-5 business days)
         const today = new Date();
         const minDelivery = new Date(today);
         minDelivery.setDate(today.getDate() + 3);
@@ -79,7 +116,36 @@ export function CartSummary({ items, shippingState = "Selangor" }: CartSummaryPr
     calculateShipping();
   }, [items, shippingState]);
 
+  const handleAddressSubmit = async (data: any) => {
+    try {
+      const response = await fetch('/api/addresses', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(data),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to save address');
+      }
+
+      const newAddress = await response.json();
+      setAddresses(prev => [...prev, newAddress]);
+      setSelectedAddressId(newAddress.id);
+      setShowAddressForm(false);
+      toast.success('Address saved successfully');
+    } catch (error) {
+      toast.error('Failed to save address');
+    }
+  };
+
   const handleCheckout = async () => {
+    if (!selectedAddressId) {
+      toast.error('Please select a shipping address');
+      return;
+    }
+
     try {
       setIsProcessing(true);
 
@@ -94,7 +160,10 @@ export function CartSummary({ items, shippingState = "Selangor" }: CartSummaryPr
       const response = await fetch("/api/checkout", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ items: checkoutItems })
+        body: JSON.stringify({ 
+          items: checkoutItems,
+          shippingAddressId: selectedAddressId
+        })
       });
 
       const data = await response.json();
@@ -111,6 +180,7 @@ export function CartSummary({ items, shippingState = "Selangor" }: CartSummaryPr
     } catch (err) {
       console.error("Checkout error:", err);
       setIsProcessing(false);
+      toast.error('Failed to proceed to checkout');
     }
   };
 
@@ -129,69 +199,91 @@ export function CartSummary({ items, shippingState = "Selangor" }: CartSummaryPr
   const total = subtotal + tax + shipping;
 
   return (
-    <div className="bg-card rounded-lg shadow divide-y divide-border border border-border">
-      {/* Order Summary Section */}
-      <div className="p-6">
-        <h2 className="text-xl font-semibold text-foreground mb-4">Order Summary</h2>
-        <div className="space-y-3">
+    <div className="rounded-lg border bg-card text-card-foreground shadow-sm">
+      <div className="p-6 space-y-4">
+        <h2 className="text-lg font-semibold">Order Summary</h2>
+        <div className="space-y-2">
           <div className="flex justify-between text-sm">
-            <span className="text-muted-foreground">Subtotal ({items.length} items)</span>
-            <span className="font-medium text-foreground">{formatPrice(subtotal)}</span>
+            <span>Subtotal</span>
+            <span>{formatPrice(subtotal)}</span>
           </div>
           <div className="flex justify-between text-sm">
-            <span className="text-muted-foreground">GST (6%)</span>
-            <span className="font-medium text-foreground">{formatPrice(tax)}</span>
+            <span>Tax (6% GST)</span>
+            <span>{formatPrice(tax)}</span>
           </div>
           <div className="flex justify-between text-sm">
-            <span className="text-muted-foreground">Shipping</span>
-            {isLoading ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <span className="font-medium text-foreground">{formatPrice(shipping)}</span>
-            )}
+            <span>Shipping</span>
+            <span>{isLoading ? "Calculating..." : formatPrice(shipping)}</span>
           </div>
-          <Separator className="my-4" />
-          <div className="flex justify-between text-base font-medium text-foreground">
+          <Separator className="my-2" />
+          <div className="flex justify-between text-sm font-semibold">
             <span>Total</span>
             <span>{formatPrice(total)}</span>
           </div>
-          <p className="text-xs text-muted-foreground">Includes 6% GST</p>
         </div>
-      </div>
 
-      {/* Delivery Information */}
-      <div className="p-6">
-        <div className="flex items-start gap-3 text-sm mb-4">
-          <Truck className="h-5 w-5 text-muted-foreground mt-0.5" />
-          <div>
-            <p className="font-medium text-foreground">Estimated Delivery</p>
-            <p className="text-muted-foreground">{estimatedDelivery}</p>
-          </div>
-        </div>
-        <div className="flex items-start gap-3 text-sm mb-4">
-          <Clock className="h-5 w-5 text-muted-foreground mt-0.5" />
-          <div>
-            <p className="font-medium text-foreground">Order Processing Time</p>
-            <p className="text-muted-foreground">1-2 business days</p>
-          </div>
-        </div>
-        <Separator className="my-4" />
-        <div>
-          <p className="text-sm font-medium text-foreground mb-3">Delivery Partner</p>
-          <div className="flex justify-center">
+        <div className="space-y-4">
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <Truck className="h-4 w-4" />
+            <span>Estimated delivery: {estimatedDelivery}</span>
             <Image
               src="/courier-logos/jnt.png"
               alt="J&T Express"
-              width={120}
-              height={48}
-              className="object-contain"
+              width={40}
+              height={20}
+              className="ml-auto"
             />
           </div>
         </div>
-      </div>
 
-      {/* Payment Information */}
-      <div className="p-6">
+        {/* Shipping Address Section */}
+        <div className="space-y-4">
+          <h3 className="font-medium">Shipping Address</h3>
+          {addresses.length > 0 ? (
+            <div className="space-y-4">
+              <select
+                className="w-full p-2 border rounded-md"
+                value={selectedAddressId}
+                onChange={(e) => setSelectedAddressId(e.target.value)}
+              >
+                <option value="">Select an address</option>
+                {addresses.map((address) => (
+                  <option key={address.id} value={address.id}>
+                    {address.street}, {address.city}, {address.state} {address.zipCode}
+                  </option>
+                ))}
+              </select>
+              <Button
+                variant="outline"
+                className="w-full"
+                onClick={() => setShowAddressForm(true)}
+              >
+                Add New Address
+              </Button>
+            </div>
+          ) : (
+            <Button
+              variant="outline"
+              className="w-full"
+              onClick={() => setShowAddressForm(true)}
+            >
+              Add Shipping Address
+            </Button>
+          )}
+        </div>
+
+        <Dialog open={showAddressForm} onOpenChange={setShowAddressForm}>
+          <DialogContent className="sm:max-w-[425px]">
+            <DialogHeader>
+              <DialogTitle>Add Shipping Address</DialogTitle>
+            </DialogHeader>
+            <ShippingAddressForm
+              onSubmit={handleAddressSubmit}
+              isLoading={isProcessing}
+            />
+          </DialogContent>
+        </Dialog>
+
         <div className="space-y-4">
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <CreditCard className="h-4 w-4" />
@@ -205,7 +297,7 @@ export function CartSummary({ items, shippingState = "Selangor" }: CartSummaryPr
             className="w-full"
             size="lg"
             onClick={handleCheckout}
-            disabled={isLoading || isProcessing}
+            disabled={isLoading || isProcessing || !selectedAddressId}
           >
             {isProcessing ? (
               <>

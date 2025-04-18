@@ -135,7 +135,7 @@ export function CartItems({ items }: CartItemsProps) {
                   {/* Product Image */}
                   <div className="relative w-24 h-24 flex-shrink-0">
                     <ImageWithFallback
-                      src={item.variant?.image || item.product.image || ''}
+                      src={item.variant?.image || item.product.image || '/images/fallback-product.jpg'}
                       alt={item.product.name}
                       fill
                       className="object-cover rounded-md"
