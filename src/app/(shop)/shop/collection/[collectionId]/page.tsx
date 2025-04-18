@@ -6,17 +6,19 @@ import { ProductFilters } from "@/components/shop/product-filters";
 import { SearchBar } from "@/components/shop/search-bar";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
-import { Product, Category, ProductCollection } from "@prisma/client";
+import { Prisma, Product, Category, ProductCollection, ProductImage as PrismaProductImage, ProductVariant as PrismaProductVariant } from "@prisma/client";
+import { Product as ProductType } from "@/types/product";
 
-interface ProductWithCategory {
-  id: string;
-  name: string;
-  price: number;
-  image: string | null;
-  slug: string;
-  category: {
-    name: string;
+type ProductWithRelations = Prisma.ProductGetPayload<{
+  include: {
+    category: true;
+    images: true;
+    variants: true;
   };
+}>;
+
+interface CollectionProductRelation {
+  product: ProductWithRelations;
 }
 
 type CollectionWithProducts = {
@@ -24,7 +26,7 @@ type CollectionWithProducts = {
   name: string;
   description: string | null;
   image: string | null;
-  products: ProductWithCategory[];
+  products: ProductType[];
 };
 
 async function getCollection(collectionId: string): Promise<CollectionWithProducts | null> {
@@ -36,6 +38,8 @@ async function getCollection(collectionId: string): Promise<CollectionWithProduc
           product: {
             include: {
               category: true,
+              images: true,
+              variants: true
             }
           }
         }
@@ -47,19 +51,57 @@ async function getCollection(collectionId: string): Promise<CollectionWithProduc
     return null;
   }
 
-  // Filter out products with null categories and convert to CollectionProduct type
+  // Transform products to match the expected Product type
   const validProducts = collection.products
-    .filter(pc => pc.product.category !== null && pc.product.slug !== null)
-    .map(pc => ({
-      id: pc.product.id.toString(),
+    .filter((pc: CollectionProductRelation) => pc.product.category !== null && pc.product.slug !== null)
+    .map((pc: CollectionProductRelation) => ({
+      id: Number(pc.product.id),
       name: pc.product.name,
-      price: Number(pc.product.price),
-      image: pc.product.image,
+      description: pc.product.description || "",
+      descriptionHtml: pc.product.descriptionHtml,
+      handle: pc.product.handle,
+      price: pc.product.price.toString(),
+      stock: pc.product.stock,
+      reservedStock: pc.product.reservedStock,
       slug: pc.product.slug!,
-      category: {
-        name: pc.product.category!.name
-      }
-    } satisfies ProductWithCategory));
+      isActive: pc.product.isActive,
+      status: pc.product.status,
+      image: pc.product.image,
+      sku: pc.product.sku,
+      inventoryTracking: pc.product.inventoryTracking,
+      lowStockThreshold: pc.product.lowStockThreshold,
+      images: pc.product.images.map((img: PrismaProductImage) => ({
+        id: Number(img.id),
+        url: img.url,
+        order: img.order,
+        productId: Number(img.productId),
+        createdAt: img.createdAt,
+        updatedAt: img.updatedAt
+      })),
+      variants: pc.product.variants.map((variant: PrismaProductVariant) => ({
+        id: Number(variant.id),
+        name: variant.name,
+        sku: variant.sku || "",
+        price: variant.price.toString(),
+        compareAtPrice: variant.compareAtPrice?.toString() || null,
+        stock: variant.stock,
+        reservedStock: variant.reservedStock,
+        options: {},
+        images: [],
+        inventoryTracking: variant.inventoryTracking,
+        lowStockThreshold: variant.lowStockThreshold,
+        productId: Number(variant.productId),
+        isActive: variant.isActive,
+        barcode: variant.barcode,
+        weight: variant.weight?.toString() || null,
+        weightUnit: variant.weightUnit,
+        dimensions: typeof variant.dimensions === 'object' ? variant.dimensions as Record<string, any> : null
+      })),
+      category: pc.product.category,
+      categoryId: pc.product.categoryId,
+      createdAt: pc.product.createdAt,
+      updatedAt: pc.product.updatedAt
+    } satisfies ProductType));
 
   return {
     id: collection.id,

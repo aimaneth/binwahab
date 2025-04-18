@@ -9,18 +9,8 @@ import { formatPrice } from "@/lib/utils";
 import { ImageWithFallback } from "@/components/ui/image-with-fallback";
 import { CollectionCard } from "@/components/collections/collection-card";
 import { MapPin, ArrowRight } from "lucide-react";
-
-interface Product {
-  id: string;
-  name: string;
-  price: number;
-  slug: string;
-  images: { url: string }[];
-  category: {
-    id: string;
-    name: string;
-  };
-}
+import { ProductCard } from "@/components/shop/product-card";
+import { Product as FullProduct } from "@/types/product";
 
 interface Collection {
   id: string;
@@ -29,7 +19,7 @@ interface Collection {
   image: string | null;
   image2: string | null;
   slug: string;
-  products: Product[];
+  products: FullProduct[];
 }
 
 const DEFAULT_COLLECTION_IMAGE = "/images/fallback-collection.jpg";
@@ -171,43 +161,14 @@ export default function HomePage() {
           ) : featuredCollections.length > 0 ? (
             <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6">
               {featuredCollections.flatMap(collection => 
-                collection.products.map(product => {
-                  const imageUrl = product.images && product.images.length > 0 
-                    ? product.images[0].url 
-                    : "/images/fallback-product.jpg";
-                  
-                  return (
-                    <Card key={product.id} className="overflow-hidden">
-                      <Link href={`/shop/products/${product.slug || `product-${product.id}`}`}>
-                        <div className="relative aspect-[3/4]">
-                          <ImageWithFallback
-                            src={imageUrl}
-                            alt={product.name}
-                            fill
-                            className="object-cover"
-                            type="product"
-                          />
-                        </div>
-                      </Link>
-                      <CardContent className="p-4">
-                        <Link href={`/shop/products/${product.slug || `product-${product.id}`}`}>
-                          <h3 className="font-semibold hover:underline">{product.name}</h3>
-                        </Link>
-                        <p className="mt-2 font-semibold">{formatPrice(product.price)}</p>
-                      </CardContent>
-                      <CardFooter className="p-4 pt-0">
-                        <Button className="w-full" asChild>
-                          <Link href={`/shop/products/${product.slug || `product-${product.id}`}`}>View Details</Link>
-                        </Button>
-                      </CardFooter>
-                    </Card>
-                  );
-                })
+                collection.products.map(product => (
+                  <ProductCard key={product.id} product={product} />
+                ))
               )}
             </div>
           ) : (
-            <div className="text-center py-12">
-              <p className="text-muted-foreground">No featured collections available.</p>
+            <div className="text-center py-8">
+              <p className="text-muted-foreground">No featured products available.</p>
             </div>
           )}
         </div>
@@ -253,9 +214,15 @@ export default function HomePage() {
       {/* Complete Collections Products */}
       <section className="py-16 px-4 md:px-6">
         <div className="container mx-auto">
+          <div className="flex justify-between items-center mb-8">
+            <h2 className="text-3xl font-bold">Complete Collections</h2>
+            <Button variant="outline" asChild>
+              <Link href="/collections">View All Collections</Link>
+            </Button>
+          </div>
           {isLoading ? (
             <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6">
-              {[1, 2, 3, 4, 5, 6, 7, 8].map((i) => (
+              {[1, 2, 3, 4].map((i) => (
                 <div key={i} className="animate-pulse">
                   <div className="aspect-square bg-gray-200 rounded-lg" />
                   <div className="mt-4 space-y-2">
@@ -269,42 +236,13 @@ export default function HomePage() {
           ) : completeCollections.length > 0 ? (
             <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6">
               {completeCollections.flatMap(collection => 
-                collection.products.map(product => {
-                  const imageUrl = product.images && product.images.length > 0 
-                    ? product.images[0].url 
-                    : "/images/fallback-product.jpg";
-                  
-                  return (
-                    <Card key={product.id} className="overflow-hidden">
-                      <Link href={`/shop/products/${product.slug || `product-${product.id}`}`}>
-                        <div className="relative aspect-[3/4]">
-                          <ImageWithFallback
-                            src={imageUrl}
-                            alt={product.name}
-                            fill
-                            className="object-cover"
-                            type="product"
-                          />
-                        </div>
-                      </Link>
-                      <CardContent className="p-4">
-                        <Link href={`/shop/products/${product.slug || `product-${product.id}`}`}>
-                          <h3 className="font-semibold hover:underline">{product.name}</h3>
-                        </Link>
-                        <p className="mt-2 font-semibold">{formatPrice(product.price)}</p>
-                      </CardContent>
-                      <CardFooter className="p-4 pt-0">
-                        <Button className="w-full" asChild>
-                          <Link href={`/shop/products/${product.slug || `product-${product.id}`}`}>View Details</Link>
-                        </Button>
-                      </CardFooter>
-                    </Card>
-                  );
-                })
+                collection.products.map(product => (
+                  <ProductCard key={product.id} product={product} />
+                ))
               )}
             </div>
           ) : (
-            <div className="text-center py-12">
+            <div className="text-center py-8">
               <p className="text-muted-foreground">No complete collections available.</p>
             </div>
           )}
