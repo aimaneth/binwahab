@@ -27,12 +27,7 @@ export async function GET() {
       orderBy: {
         createdAt: "desc",
       },
-      select: {
-        id: true,
-        name: true,
-        description: true,
-        price: true,
-        image: true,
+      include: {
         category: {
           select: {
             name: true
@@ -54,8 +49,32 @@ export async function GET() {
           select: {
             url: true
           }
+        },
+        variants: {
+          where: {
+            isActive: true
+          },
+          select: {
+            id: true,
+            name: true,
+            sku: true,
+            price: true,
+            compareAtPrice: true,
+            stock: true,
+            reservedStock: true,
+            options: true,
+            images: true,
+            inventoryTracking: true,
+            lowStockThreshold: true,
+            productId: true,
+            isActive: true,
+            barcode: true,
+            weight: true,
+            weightUnit: true,
+            dimensions: true
+          }
         }
-      },
+      }
     });
 
     console.log("Raw products from database:", JSON.stringify(products, null, 2));
@@ -71,15 +90,46 @@ export async function GET() {
       }
       
       console.log(`Product ${product.id} images:`, images);
+
+      // Transform variants
+      const variants = product.variants.map(variant => ({
+        id: Number(variant.id),
+        name: variant.name,
+        sku: variant.sku,
+        price: variant.price.toString(),
+        compareAtPrice: variant.compareAtPrice?.toString() || null,
+        stock: variant.stock,
+        reservedStock: variant.reservedStock,
+        options: variant.options as Record<string, string>,
+        images: variant.images as string[],
+        inventoryTracking: variant.inventoryTracking,
+        lowStockThreshold: variant.lowStockThreshold,
+        productId: Number(variant.productId),
+        isActive: variant.isActive,
+        barcode: variant.barcode,
+        weight: variant.weight?.toString() || null,
+        weightUnit: variant.weightUnit,
+        dimensions: variant.dimensions as Record<string, any> | null
+      }));
       
       return {
         id: product.id.toString(),
         name: product.name,
         description: product.description,
-        price: Number(product.price),
+        price: product.price.toString(), // Keep price as string
+        stock: product.stock,
+        reservedStock: product.reservedStock,
         images: images,
-        category: product.category?.name || "",
-        collection: product.collections[0]?.collection.name || ""
+        variants: variants,
+        category: product.category ? {
+          name: product.category.name
+        } : null,
+        collection: product.collections[0]?.collection.name || "",
+        isActive: product.isActive,
+        status: product.status,
+        categoryId: product.categoryId,
+        createdAt: product.createdAt,
+        updatedAt: product.updatedAt
       };
     });
 
