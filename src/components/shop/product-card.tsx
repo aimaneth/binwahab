@@ -14,8 +14,9 @@ interface ProductCardProps {
 }
 
 export function ProductCard({ product }: ProductCardProps) {
+  // Handle image URL - if it's an object with url property, use that, otherwise use the string
   const imageUrl = product.images && product.images.length > 0 
-    ? product.images[0].url 
+    ? (typeof product.images[0] === 'string' ? product.images[0] : product.images[0].url)
     : product.image || "/images/fallback-product.jpg";
   
   // Ensure we have a valid slug, fallback to product ID if not
@@ -24,15 +25,16 @@ export function ProductCard({ product }: ProductCardProps) {
   // Check if product is out of stock
   const hasVariants = Array.isArray(product.variants) && product.variants.length > 0;
   const isOutOfStock = hasVariants
-    ? product.variants.every(variant => !variant.isActive || variant.stock <= 0)
+    ? product.variants.every(variant => variant.stock <= 0)
     : product.stock <= 0;
 
-  // Get available sizes from variants
+  // Get available sizes from variants that have stock
   const availableSizes = hasVariants
     ? product.variants
-        .filter(variant => variant.stock > 0 && variant.isActive)
+        .filter(variant => variant.stock > 0)
         .map(variant => variant.options?.Size)
-        .filter((size, index, self) => size && self.indexOf(size) === index)
+        .filter(Boolean)
+        .filter((size, index, self) => self.indexOf(size) === index)
         .sort((a, b) => {
           const sizeOrder: Record<string, number> = { 'S': 1, 'M': 2, 'L': 3, 'XL': 4, 'XXL': 5 };
           return (sizeOrder[a] ?? 99) - (sizeOrder[b] ?? 99);
@@ -66,7 +68,7 @@ export function ProductCard({ product }: ProductCardProps) {
           <p className="text-sm text-muted-foreground">{product.category.name}</p>
         )}
         <div className="mt-2 flex items-center justify-between">
-          <p className="font-semibold">{formatPrice(Number(product.price))}</p>
+          <p className="font-semibold">{formatPrice(product.price)}</p>
           {availableSizes.length > 0 && (
             <div className="flex gap-1 flex-wrap">
               {availableSizes.map((size) => (

@@ -26,6 +26,7 @@ type CollectionWithProducts = {
   name: string;
   description: string | null;
   image: string | null;
+  image2: string | null;
   products: ProductType[];
 };
 
@@ -108,6 +109,7 @@ async function getCollection(collectionId: string): Promise<CollectionWithProduc
     name: collection.name,
     description: collection.description,
     image: collection.image,
+    image2: collection.image2,
     products: validProducts
   };
 }

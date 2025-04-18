@@ -10,6 +10,7 @@ const collectionSchema = z.object({
   description: z.string().optional(),
   descriptionHtml: z.string().optional(),
   image: z.string().optional(),
+  image2: z.string().optional(),
   isActive: z.boolean().default(true),
   showOnHomePage: z.boolean().default(false),
   displaySection: z.enum(["FEATURED", "COMPLETE", "NONE"]).default("NONE"),
@@ -55,6 +56,7 @@ type TransformedCollection = {
   description: string | null;
   descriptionHtml: string | null;
   image: string | null;
+  image2: string | null;
   isActive: boolean;
   showOnHomePage: boolean;
   displaySection: DisplaySection;
@@ -127,6 +129,7 @@ export async function GET(req: Request) {
         description: collection.description,
         descriptionHtml: collection.descriptionHtml,
         image: collection.image,
+        image2: collection.image2,
         isActive: collection.isActive,
         showOnHomePage: collection.showOnHomePage,
         displaySection: collection.displaySection,
