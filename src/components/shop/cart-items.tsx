@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
@@ -10,6 +9,7 @@ import { formatPrice } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
+import { ImageWithFallback } from "@/components/ui/image-with-fallback";
 import { 
   Bookmark,
   Heart,
@@ -134,13 +134,11 @@ export function CartItems({ items }: CartItemsProps) {
                 <div className="flex gap-6">
                   {/* Product Image */}
                   <div className="relative w-24 h-24 flex-shrink-0">
-                    <Image
-                      src={item.variant?.image || item.product.image || '/placeholder.png'}
+                    <ImageWithFallback
+                      src={item.variant?.image || item.product.image || ''}
                       alt={item.product.name}
                       fill
                       className="object-cover rounded-md"
-                      sizes="(max-width: 768px) 100px, 96px"
-                      priority={false}
                     />
                   </div>
 
