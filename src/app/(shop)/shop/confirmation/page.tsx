@@ -90,7 +90,7 @@ export default function ConfirmationPage() {
                   <Link href="/shop">Continue Shopping</Link>
                 </Button>
                 <Button asChild variant="outline">
-                  <Link href="/account/orders">View Orders</Link>
+                  <Link href="/orders">View Orders</Link>
                 </Button>
               </div>
             </div>

@@ -31,6 +31,7 @@ import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Separator } from "@/components/ui/separator"
 import { formatPrice } from "@/lib/utils"
+import { Input } from "@/components/ui/input"
 
 interface OrderItem {
   id: string
@@ -61,6 +62,7 @@ interface Order {
   paymentMethod: "CREDIT_CARD" | "DEBIT_CARD" | "BANK_TRANSFER" | "E_WALLET"
   paymentStatus: "PENDING" | "PAID" | "FAILED" | "REFUNDED"
   createdAt: string
+  trackingNumber: string | null
   shippingAddress: {
     street: string
     city: string
@@ -81,6 +83,7 @@ export default function OrderDetailsPage({
   const [order, setOrder] = useState<Order | null>(null)
   const [loading, setLoading] = useState(true)
   const [updating, setUpdating] = useState(false)
+  const [trackingNumber, setTrackingNumber] = useState("")
 
   useEffect(() => {
     if (session?.user?.role !== "ADMIN") {
@@ -131,6 +134,39 @@ export default function OrderDetailsPage({
       setUpdating(false)
     }
   }
+
+  const updateTrackingNumber = async () => {
+    try {
+      setUpdating(true)
+      const response = await fetch(`/api/admin/orders/${params.id}`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ trackingNumber }),
+      })
+
+      if (!response.ok) {
+        throw new Error("Failed to update tracking number")
+      }
+
+      const updatedOrder = await response.json()
+      setOrder(updatedOrder)
+      toast.success("Tracking number updated successfully")
+      router.refresh()
+    } catch (error) {
+      toast.error("Failed to update tracking number")
+      console.error(error)
+    } finally {
+      setUpdating(false)
+    }
+  }
+
+  useEffect(() => {
+    if (order?.trackingNumber) {
+      setTrackingNumber(order.trackingNumber)
+    }
+  }, [order?.trackingNumber])
 
   const getStatusColor = (status: Order["status"]) => {
     switch (status) {
@@ -365,6 +401,34 @@ export default function OrderDetailsPage({
                   {order.status}
                 </Badge>
               </div>
+              {(order.status === "PROCESSING" || order.status === "SHIPPED" || order.status === "DELIVERED") && (
+                <div>
+                  <div className="font-medium mb-2">Tracking Number</div>
+                  <div className="flex gap-2">
+                    <Input
+                      placeholder="Enter tracking number"
+                      value={trackingNumber}
+                      onChange={(e) => setTrackingNumber(e.target.value)}
+                      disabled={updating}
+                    />
+                    <Button 
+                      onClick={updateTrackingNumber}
+                      disabled={updating || !trackingNumber || trackingNumber === order.trackingNumber}
+                    >
+                      {updating ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        "Update"
+                      )}
+                    </Button>
+                  </div>
+                  {order.trackingNumber && (
+                    <p className="text-sm text-muted-foreground mt-2">
+                      Current tracking number: {order.trackingNumber}
+                    </p>
+                  )}
+                </div>
+              )}
             </div>
           </CardContent>
         </Card>

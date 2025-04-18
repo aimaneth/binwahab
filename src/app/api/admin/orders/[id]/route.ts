@@ -83,7 +83,9 @@ export async function PATCH(
     }
 
     const body = await req.json()
-    const { status, paymentStatus } = body
+    const { status, paymentStatus, trackingNumber } = body
+
+    console.log('Updating order with:', { orderId: params.id, status, paymentStatus, trackingNumber });
 
     // Validate status if provided
     if (status) {
@@ -106,6 +108,12 @@ export async function PATCH(
         "REFUNDED",
       ])
       paymentStatusSchema.parse(paymentStatus)
+    }
+
+    // Validate tracking number if provided
+    if (trackingNumber) {
+      const trackingNumberSchema = z.string().min(1, "Tracking number is required")
+      trackingNumberSchema.parse(trackingNumber)
     }
 
     // Start transaction
@@ -146,6 +154,8 @@ export async function PATCH(
       if (!order) {
         throw new Error("Order not found")
       }
+
+      console.log('Found order:', { orderId: order.id, currentStatus: order.status, currentTrackingNumber: order.trackingNumber });
 
       // Handle stock updates based on status change
       if (status === "CANCELLED" && order.status !== "CANCELLED") {
@@ -216,6 +226,7 @@ export async function PATCH(
         data: {
           ...(status && { status }),
           ...(paymentStatus && { paymentStatus }),
+          ...(trackingNumber && { trackingNumber }),
         },
         include: {
           user: {
@@ -237,14 +248,16 @@ export async function PATCH(
         },
       })
 
+      console.log('Updated order:', { orderId: updatedOrder.id, newStatus: updatedOrder.status, newTrackingNumber: updatedOrder.trackingNumber });
+
       return updatedOrder
     })
 
     // Send email notification to customer outside transaction
-    if (result.user.email && status) {
+    if (result.user.email && result.status) {
       await sendOrderStatusEmail({
         orderId: result.id,
-        status: status as OrderStatus,
+        status: result.status as OrderStatus,
         items: result.items.map((item) => ({
           productName: item.product?.name || "Unknown Product",
           quantity: item.quantity,

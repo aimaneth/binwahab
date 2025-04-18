@@ -36,6 +36,11 @@ interface Order {
   total: number;
   items: OrderItem[];
   createdAt: string;
+  trackingNumber: string | null;
+  user: {
+    name: string | null;
+    email: string;
+  };
   shippingAddress: {
     street: string;
     city: string;
@@ -184,14 +189,25 @@ export default function OrdersPage() {
                     <p className="text-sm text-muted-foreground">
                       {format(new Date(order.createdAt), "PPP")}
                     </p>
+                    <p className="text-sm text-muted-foreground mt-1">
+                      {order.user?.name || order.user?.email}
+                    </p>
                   </div>
-                  <Badge
-                    variant="secondary"
-                    className={`${getStatusColor(order.status)} flex items-center gap-1`}
-                  >
-                    {getStatusIcon(order.status)}
-                    {order.status}
-                  </Badge>
+                  <div className="flex flex-col items-end gap-2">
+                    <Badge
+                      variant="secondary"
+                      className={`${getStatusColor(order.status)} flex items-center gap-1`}
+                    >
+                      {getStatusIcon(order.status)}
+                      {order.status}
+                    </Badge>
+                    {order.trackingNumber && (order.status === "SHIPPED" || order.status === "DELIVERED") && (
+                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                        <Truck className="h-4 w-4" />
+                        <span>Tracking: {order.trackingNumber}</span>
+                      </div>
+                    )}
+                  </div>
                 </div>
               </CardHeader>
               <CardContent>
@@ -236,6 +252,15 @@ export default function OrdersPage() {
                       {order.shippingAddress.city}, {order.shippingAddress.state} {order.shippingAddress.zipCode}<br />
                       {order.shippingAddress.country}
                     </p>
+                    {order.trackingNumber && (order.status === "SHIPPED" || order.status === "DELIVERED") && (
+                      <div className="mt-2">
+                        <h4 className="font-medium text-foreground mb-1">Tracking Number</h4>
+                        <p className="text-sm text-muted-foreground flex items-center gap-2">
+                          <Truck className="h-4 w-4" />
+                          {order.trackingNumber}
+                        </p>
+                      </div>
+                    )}
                   </div>
                 </div>
               </CardContent>

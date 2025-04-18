@@ -23,6 +23,13 @@ export async function GET(req: Request) {
         status: true,
         createdAt: true,
         updatedAt: true,
+        trackingNumber: true,
+        user: {
+          select: {
+            name: true,
+            email: true,
+          }
+        },
         items: {
           select: {
             id: true,
@@ -75,6 +82,8 @@ export async function GET(req: Request) {
         status: order.status,
         createdAt: order.createdAt,
         updatedAt: order.updatedAt,
+        trackingNumber: order.trackingNumber,
+        user: order.user,
         shippingAddress: order.shippingAddress,
         items: order.items.map((item) => ({
           id: item.id,
