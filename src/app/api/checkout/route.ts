@@ -151,9 +151,6 @@ export async function POST(request: Request) {
       success_url: `https://binwahab.vercel.app/checkout/success?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `https://binwahab.vercel.app/shop/cart`,
       customer_email: session.user.email || undefined,
-      shipping_address_collection: {
-        allowed_countries: ['MY'],
-      },
       metadata: {
         userId: session.user.id,
         shippingAddressId: address.id,
