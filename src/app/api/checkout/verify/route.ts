@@ -13,6 +13,7 @@ export async function GET(request: Request) {
     const session = await getServerSession(authOptions);
 
     if (!sessionId) {
+      console.error("Missing session_id in request");
       return NextResponse.json(
         { error: "Session ID is required" },
         { status: 400 }
@@ -20,6 +21,7 @@ export async function GET(request: Request) {
     }
 
     if (!session?.user?.id) {
+      console.error("No authenticated user found");
       return NextResponse.json(
         { error: "Unauthorized" },
         { status: 401 }
@@ -27,9 +29,19 @@ export async function GET(request: Request) {
     }
 
     // Retrieve the Checkout Session
-    const checkoutSession = await stripe.checkout.sessions.retrieve(sessionId);
+    let checkoutSession;
+    try {
+      checkoutSession = await stripe.checkout.sessions.retrieve(sessionId);
+    } catch (stripeError: any) {
+      console.error("Stripe session retrieval error:", stripeError.message);
+      return NextResponse.json(
+        { error: "Failed to retrieve checkout session from Stripe" },
+        { status: 400 }
+      );
+    }
     
     if (!checkoutSession) {
+      console.error("No checkout session found for ID:", sessionId);
       return NextResponse.json(
         { error: "Checkout session not found" },
         { status: 404 }
@@ -38,6 +50,7 @@ export async function GET(request: Request) {
 
     // Check payment status first
     if (checkoutSession.payment_status !== "paid") {
+      console.error("Payment not completed. Status:", checkoutSession.payment_status);
       return NextResponse.json({
         success: false,
         status: "unpaid",
@@ -87,6 +100,7 @@ export async function GET(request: Request) {
     // Get shipping address from session metadata
     const metadata = checkoutSession.metadata;
     if (!metadata?.shippingAddressId) {
+      console.error("Missing shippingAddressId in session metadata");
       return NextResponse.json(
         { error: "Missing shipping address in session" },
         { status: 400 }
@@ -102,6 +116,7 @@ export async function GET(request: Request) {
     });
 
     if (!address) {
+      console.error("Invalid shipping address. ID:", metadata.shippingAddressId, "User:", session.user.id);
       return NextResponse.json(
         { error: "Invalid shipping address" },
         { status: 400 }
@@ -112,8 +127,11 @@ export async function GET(request: Request) {
     let orderItems: any[] = [];
     try {
       orderItems = metadata.items ? JSON.parse(metadata.items) : [];
+      if (!Array.isArray(orderItems) || orderItems.length === 0) {
+        throw new Error("Invalid or empty order items array");
+      }
     } catch (error) {
-      console.error("Error parsing order items from metadata:", error);
+      console.error("Error parsing order items from metadata:", error, "Raw items:", metadata.items);
       return NextResponse.json(
         { error: "Invalid order items data" },
         { status: 400 }
@@ -121,60 +139,83 @@ export async function GET(request: Request) {
     }
 
     // Create order with items and shipping address
-    const order = await prisma.order.create({
-      data: {
-        userId: session.user.id,
-        total: checkoutSession.amount_total ? checkoutSession.amount_total / 100 : 0,
-        status: "PROCESSING",
-        paymentMethod: "CREDIT_CARD",
-        paymentStatus: "PAID",
-        stripePaymentIntentId: paymentIntentId,
-        stripeSessionId: sessionId,
-        amountSubtotal: checkoutSession.amount_subtotal,
-        amountTotal: checkoutSession.amount_total,
-        currency: checkoutSession.currency || "myr",
-        shippingAddressId: metadata.shippingAddressId,
-        items: {
-          createMany: {
-            data: orderItems.map(item => ({
-              productId: item.productId,
-              variantId: item.variantId,
-              quantity: item.quantity,
-              price: item.price
-            }))
-          }
-        }
-      },
-      include: {
-        items: {
-          include: {
-            product: true,
-            variant: true
+    let order;
+    try {
+      order = await prisma.order.create({
+        data: {
+          userId: session.user.id,
+          total: checkoutSession.amount_total ? checkoutSession.amount_total / 100 : 0,
+          status: "PROCESSING",
+          paymentMethod: "CREDIT_CARD",
+          paymentStatus: "PAID",
+          stripePaymentIntentId: paymentIntentId,
+          stripeSessionId: sessionId,
+          amountSubtotal: checkoutSession.amount_subtotal,
+          amountTotal: checkoutSession.amount_total,
+          currency: checkoutSession.currency || "myr",
+          shippingAddressId: metadata.shippingAddressId,
+          items: {
+            createMany: {
+              data: orderItems.map(item => ({
+                productId: item.productId,
+                variantId: item.variantId,
+                quantity: item.quantity,
+                price: item.price
+              }))
+            }
           }
         },
-        shippingAddress: true
-      }
-    });
+        include: {
+          items: {
+            include: {
+              product: true,
+              variant: true
+            }
+          },
+          shippingAddress: true
+        }
+      });
+    } catch (prismaError: any) {
+      console.error("Error creating order:", prismaError.message, "Order data:", {
+        userId: session.user.id,
+        sessionId,
+        items: orderItems
+      });
+      return NextResponse.json(
+        { error: "Failed to create order in database" },
+        { status: 500 }
+      );
+    }
 
     // Update stock levels using the already parsed orderItems
-    await Promise.all(orderItems.map(async (item: any) => {
-      if (item.variantId) {
-        await prisma.productVariant.update({
-          where: { id: item.variantId },
-          data: { stock: { decrement: item.quantity } }
-        });
-      } else if (item.productId) {
-        await prisma.product.update({
-          where: { id: item.productId },
-          data: { stock: { decrement: item.quantity } }
-        });
-      }
-    }));
+    try {
+      await Promise.all(orderItems.map(async (item: any) => {
+        if (item.variantId) {
+          await prisma.productVariant.update({
+            where: { id: item.variantId },
+            data: { stock: { decrement: item.quantity } }
+          });
+        } else if (item.productId) {
+          await prisma.product.update({
+            where: { id: item.productId },
+            data: { stock: { decrement: item.quantity } }
+          });
+        }
+      }));
+    } catch (stockError: any) {
+      console.error("Error updating stock levels:", stockError.message, "Items:", orderItems);
+      // Don't return error here as order is already created
+    }
 
     // Clear the user's cart after successful order creation
-    await prisma.cart.delete({
-      where: { userId: session.user.id }
-    });
+    try {
+      await prisma.cart.delete({
+        where: { userId: session.user.id }
+      });
+    } catch (cartError: any) {
+      console.error("Error clearing cart:", cartError.message, "User:", session.user.id);
+      // Don't return error here as it's not critical
+    }
 
     // Get order with related data
     const orderWithDetails = await prisma.order.findUnique({
@@ -190,7 +231,11 @@ export async function GET(request: Request) {
     });
 
     if (!orderWithDetails) {
-      throw new Error("Order not found after creation");
+      console.error("Order not found after creation. Order ID:", order.id);
+      return NextResponse.json(
+        { error: "Order not found after creation" },
+        { status: 500 }
+      );
     }
 
     const shippingAddress = await prisma.address.findUnique({
@@ -198,7 +243,11 @@ export async function GET(request: Request) {
     });
 
     if (!shippingAddress) {
-      throw new Error("Shipping address not found");
+      console.error("Shipping address not found after order creation. Address ID:", metadata.shippingAddressId);
+      return NextResponse.json(
+        { error: "Shipping address not found" },
+        { status: 500 }
+      );
     }
 
     return NextResponse.json({
@@ -221,10 +270,14 @@ export async function GET(request: Request) {
       },
       message: "Order processed successfully"
     });
-  } catch (error) {
-    console.error("Error processing order:", error);
+  } catch (error: any) {
+    console.error("Unhandled error processing order:", {
+      error: error.message,
+      stack: error.stack,
+      name: error.name
+    });
     return NextResponse.json(
-      { error: "Failed to process order" },
+      { error: "Failed to process order. Please contact support if you believe this is an error." },
       { status: 500 }
     );
   }
