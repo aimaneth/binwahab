@@ -34,6 +34,15 @@ export async function GET(
             product: {
               select: {
                 name: true,
+                price: true,
+              },
+            },
+            variant: {
+              select: {
+                id: true,
+                name: true,
+                options: true,
+                price: true,
               },
             },
           },
@@ -46,7 +55,16 @@ export async function GET(
       return new NextResponse("Order not found", { status: 404 })
     }
 
-    return NextResponse.json(order)
+    // Transform the response to include the correct price
+    const transformedOrder = {
+      ...order,
+      items: order.items.map(item => ({
+        ...item,
+        price: item.variant?.price || item.product?.price || 0,
+      })),
+    }
+
+    return NextResponse.json(transformedOrder)
   } catch (error) {
     console.error("[ORDER_GET]", error)
     return new NextResponse("Internal error", { status: 500 })
@@ -110,6 +128,13 @@ export async function PATCH(
                 select: {
                   id: true,
                   name: true,
+                },
+              },
+              variant: {
+                select: {
+                  id: true,
+                  name: true,
+                  options: true,
                 },
               },
             },

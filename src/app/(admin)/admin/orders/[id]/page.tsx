@@ -13,7 +13,8 @@ import {
   Clock,
   CreditCard,
   MapPin,
-  User
+  User,
+  Loader2
 } from "lucide-react"
 import { toast } from "sonner"
 
@@ -37,7 +38,14 @@ interface OrderItem {
   price: number
   product: {
     name: string
+    price: number
   }
+  variant?: {
+    id: string
+    name: string
+    options: Record<string, string>
+    price: number
+  } | null
 }
 
 interface Order {
@@ -54,12 +62,10 @@ interface Order {
   paymentStatus: "PENDING" | "PAID" | "FAILED" | "REFUNDED"
   createdAt: string
   shippingAddress: {
-    fullName: string
-    addressLine1: string
-    addressLine2?: string
+    street: string
     city: string
     state: string
-    postalCode: string
+    zipCode: string
     country: string
     phone: string
   }
@@ -74,6 +80,7 @@ export default function OrderDetailsPage({
   const router = useRouter()
   const [order, setOrder] = useState<Order | null>(null)
   const [loading, setLoading] = useState(true)
+  const [updating, setUpdating] = useState(false)
 
   useEffect(() => {
     if (session?.user?.role !== "ADMIN") {
@@ -95,6 +102,33 @@ export default function OrderDetailsPage({
       console.error(error)
     } finally {
       setLoading(false)
+    }
+  }
+
+  const updateOrderStatus = async (newStatus: Order["status"]) => {
+    try {
+      setUpdating(true)
+      const response = await fetch(`/api/admin/orders/${params.id}`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ status: newStatus }),
+      })
+
+      if (!response.ok) {
+        throw new Error("Failed to update order status")
+      }
+
+      const updatedOrder = await response.json()
+      setOrder(updatedOrder)
+      toast.success(`Order marked as ${newStatus.toLowerCase()}`)
+      router.refresh()
+    } catch (error) {
+      toast.error("Failed to update order status")
+      console.error(error)
+    } finally {
+      setUpdating(false)
     }
   }
 
@@ -179,13 +213,43 @@ export default function OrderDetailsPage({
           <ArrowLeft className="h-4 w-4" />
           Back to Orders
         </Button>
-        <div>
+        <div className="flex-1">
           <h1 className="text-3xl font-bold tracking-tight">
             Order #{order.id}
           </h1>
           <p className="text-muted-foreground">
             Created on {format(new Date(order.createdAt), "PPP")}
           </p>
+        </div>
+        <div className="flex items-center gap-2">
+          {order.status === "PROCESSING" && (
+            <Button
+              onClick={() => updateOrderStatus("SHIPPED")}
+              disabled={updating}
+              className="gap-2"
+            >
+              {updating ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Truck className="h-4 w-4" />
+              )}
+              Mark as Shipped
+            </Button>
+          )}
+          {order.status === "SHIPPED" && (
+            <Button
+              onClick={() => updateOrderStatus("DELIVERED")}
+              disabled={updating}
+              className="gap-2"
+            >
+              {updating ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <CheckCircle2 className="h-4 w-4" />
+              )}
+              Mark as Delivered
+            </Button>
+          )}
         </div>
       </div>
 
@@ -223,24 +287,29 @@ export default function OrderDetailsPage({
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="space-y-2">
-              <div>
-                <div className="font-medium">{order.shippingAddress.fullName}</div>
-                <div className="text-sm text-muted-foreground">
-                  {order.shippingAddress.addressLine1}
-                  {order.shippingAddress.addressLine2 && (
-                    <>, {order.shippingAddress.addressLine2}</>
-                  )}
+            <div className="space-y-4">
+              <div className="grid gap-4">
+                <div>
+                  <div className="font-medium">Name</div>
+                  <div className="text-sm text-muted-foreground">
+                    {order.user.name || order.user.email}
+                  </div>
                 </div>
-                <div className="text-sm text-muted-foreground">
-                  {order.shippingAddress.city}, {order.shippingAddress.state}{" "}
-                  {order.shippingAddress.postalCode}
+                <div>
+                  <div className="font-medium">Phone</div>
+                  <div className="text-sm text-muted-foreground">
+                    {order.shippingAddress.phone}
+                  </div>
                 </div>
-                <div className="text-sm text-muted-foreground">
-                  {order.shippingAddress.country}
-                </div>
-                <div className="text-sm text-muted-foreground">
-                  {order.shippingAddress.phone}
+                <div>
+                  <div className="font-medium">Address</div>
+                  <div className="text-sm text-muted-foreground">
+                    <p>{order.shippingAddress.street}</p>
+                    <p>
+                      {order.shippingAddress.city}, {order.shippingAddress.state} {order.shippingAddress.zipCode}
+                    </p>
+                    <p>{order.shippingAddress.country}</p>
+                  </div>
                 </div>
               </div>
             </div>
@@ -310,6 +379,7 @@ export default function OrderDetailsPage({
             <TableHeader>
               <TableRow>
                 <TableHead>Product</TableHead>
+                <TableHead>Options</TableHead>
                 <TableHead>Quantity</TableHead>
                 <TableHead>Price</TableHead>
                 <TableHead className="text-right">Total</TableHead>
@@ -319,6 +389,20 @@ export default function OrderDetailsPage({
               {order.items.map((item) => (
                 <TableRow key={item.id}>
                   <TableCell>{item.product.name}</TableCell>
+                  <TableCell>
+                    {item.variant?.options ? (
+                      <div className="text-sm text-muted-foreground">
+                        {Object.entries(item.variant.options).map(([key, value], index, arr) => (
+                          <span key={key}>
+                            {key}: {value}
+                            {index < arr.length - 1 ? ', ' : ''}
+                          </span>
+                        ))}
+                      </div>
+                    ) : (
+                      <span className="text-sm text-muted-foreground">-</span>
+                    )}
+                  </TableCell>
                   <TableCell>{item.quantity}</TableCell>
                   <TableCell>{formatPrice(item.price)}</TableCell>
                   <TableCell className="text-right">
@@ -327,7 +411,7 @@ export default function OrderDetailsPage({
                 </TableRow>
               ))}
               <TableRow>
-                <TableCell colSpan={3} className="text-right font-medium">
+                <TableCell colSpan={4} className="text-right font-medium">
                   Total
                 </TableCell>
                 <TableCell className="text-right font-medium">

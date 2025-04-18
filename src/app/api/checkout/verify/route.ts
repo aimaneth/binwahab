@@ -57,6 +57,15 @@ export async function GET(request: Request) {
           { stripePaymentIntentId: paymentIntentId }
         ]
       },
+      include: {
+        items: {
+          include: {
+            product: true,
+            variant: true,
+          }
+        },
+        shippingAddress: true
+      }
     });
 
     if (existingOrder) {
@@ -64,6 +73,13 @@ export async function GET(request: Request) {
         success: true,
         status: "paid",
         orderId: existingOrder.id,
+        total: existingOrder.total,
+        items: existingOrder.items.map(item => ({
+          name: item.variant?.name || item.product?.name || 'Unknown Product',
+          quantity: item.quantity,
+          price: Number(item.price)
+        })),
+        shippingAddress: existingOrder.shippingAddress,
         message: "Order already processed"
       });
     }
@@ -104,7 +120,7 @@ export async function GET(request: Request) {
       );
     }
 
-    // Create a new order
+    // Create order with items and shipping address
     const order = await prisma.order.create({
       data: {
         userId: session.user.id,
@@ -117,31 +133,23 @@ export async function GET(request: Request) {
         amountSubtotal: checkoutSession.amount_subtotal,
         amountTotal: checkoutSession.amount_total,
         currency: checkoutSession.currency || "myr",
-        shippingAddressId: address.id,
+        shippingAddressId: metadata.shippingAddressId,
         items: {
-          create: orderItems.map((item: any) => {
-            const lineItem = checkoutSession.line_items?.data?.find(
-              (li: any) => li.price?.product?.metadata?.productId === item.productId
-            );
-            const price = lineItem?.price?.unit_amount 
-              ? lineItem.price.unit_amount / 100 
-              : 0;
-
-            return {
+          createMany: {
+            data: orderItems.map(item => ({
               productId: item.productId,
-              variantId: item.variantId || undefined,
+              variantId: item.variantId,
               quantity: item.quantity,
-              price,
-              currency: checkoutSession.currency || "myr"
-            };
-          })
+              price: item.price
+            }))
+          }
         }
       },
       include: {
         items: {
           include: {
             product: true,
-            variant: true,
+            variant: true
           }
         },
         shippingAddress: true
@@ -163,36 +171,60 @@ export async function GET(request: Request) {
       }
     }));
 
-    // Clear the user's cart
-    const cart = await prisma.cart.findUnique({
+    // Clear the user's cart after successful order creation
+    await prisma.cart.delete({
       where: { userId: session.user.id }
     });
 
-    if (cart) {
-      await prisma.cartItem.deleteMany({
-        where: { cartId: cart.id }
-      });
+    // Get order with related data
+    const orderWithDetails = await prisma.order.findUnique({
+      where: { id: order.id },
+      include: {
+        items: {
+          include: {
+            product: true,
+            variant: true
+          }
+        }
+      }
+    });
+
+    if (!orderWithDetails) {
+      throw new Error("Order not found after creation");
+    }
+
+    const shippingAddress = await prisma.address.findUnique({
+      where: { id: metadata.shippingAddressId }
+    });
+
+    if (!shippingAddress) {
+      throw new Error("Shipping address not found");
     }
 
     return NextResponse.json({
       success: true,
       status: "paid",
-      orderId: order.id,
-      total: order.total,
-      items: order.items.map(item => ({
-        name: item.variant?.name || item.product?.name || 'Unknown Product',
+      orderId: orderWithDetails.id,
+      total: orderWithDetails.total,
+      items: orderWithDetails.items.map(item => ({
+        name: item.product?.name || '',
         quantity: item.quantity,
         price: Number(item.price)
       })),
-      shippingAddress: order.shippingAddress
+      shippingAddress: {
+        street: shippingAddress.street,
+        city: shippingAddress.city,
+        state: shippingAddress.state,
+        zipCode: shippingAddress.zipCode,
+        country: shippingAddress.country,
+        phone: shippingAddress.phone
+      },
+      message: "Order processed successfully"
     });
   } catch (error) {
-    console.error("Verify payment error:", error);
+    console.error("Error processing order:", error);
     return NextResponse.json(
-      { 
-        error: "Failed to verify payment status",
-        message: error instanceof Error ? error.message : "Unknown error occurred"
-      },
+      { error: "Failed to process order" },
       { status: 500 }
     );
   }
