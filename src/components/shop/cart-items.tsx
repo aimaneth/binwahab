@@ -149,9 +149,16 @@ export function CartItems({ items }: CartItemsProps) {
                           {item.product.name}
                         </h3>
                         {item.variant && (
-                          <p className="mt-1 text-sm text-muted-foreground">
-                            SKU: {item.variant.sku}
-                          </p>
+                          <div className="mt-1 space-y-1">
+                            <p className="text-sm text-muted-foreground">
+                              SKU: {item.variant.sku}
+                            </p>
+                            {item.variant.options && Object.entries(item.variant.options).map(([key, value]) => (
+                              <p key={key} className="text-sm text-muted-foreground">
+                                {key}: {value}
+                              </p>
+                            ))}
+                          </div>
                         )}
                         <p className="mt-1 text-sm font-medium text-foreground">
                           {formatPrice(itemTotal)}

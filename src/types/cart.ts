@@ -16,5 +16,6 @@ export interface CartItem {
     price: string | number; // Match Prisma Decimal
     name: string;
     image?: string;
+    options?: Record<string, string>; // Add options field
   };
 } 
