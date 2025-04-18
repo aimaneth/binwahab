@@ -134,10 +134,13 @@ export function CartItems({ items }: CartItemsProps) {
                 <div className="flex gap-6">
                   {/* Product Image */}
                   <div className="relative w-24 h-24 flex-shrink-0">
-                    <img
-                      src={item.variant?.image || item.product.image || ''}
+                    <Image
+                      src={item.variant?.image || item.product.image || '/placeholder.png'}
                       alt={item.product.name}
-                      className="w-full h-full object-cover rounded-md"
+                      fill
+                      className="object-cover rounded-md"
+                      sizes="(max-width: 768px) 100px, 96px"
+                      priority={false}
                     />
                   </div>
 
