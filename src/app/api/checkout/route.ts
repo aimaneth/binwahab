@@ -166,6 +166,7 @@ export async function POST(request: Request) {
           productId: item.id,
           variantId: item.variantId,
           quantity: item.quantity,
+          price: item.price * 100, // Store price in cents to match Stripe's format
         }))),
       },
     });

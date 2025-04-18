@@ -160,7 +160,7 @@ export async function GET(request: Request) {
                 productId: item.productId,
                 variantId: item.variantId,
                 quantity: item.quantity,
-                price: item.price
+                price: item.price / 100
               }))
             }
           }
