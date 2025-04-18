@@ -75,7 +75,7 @@ export default async function CartPage() {
       sku: item.variant.sku,
       name: item.variant.name,
       price: Number(item.variant.price),
-      image: item.variant.images[0] || undefined,
+      image: item.variant.images && item.variant.images.length > 0 ? item.variant.images[0] : undefined,
       options: item.variant.options as Record<string, string> || undefined,
     } : undefined,
   }));
