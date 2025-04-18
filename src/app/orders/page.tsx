@@ -5,6 +5,7 @@ import { useSession } from "next-auth/react";
 import { redirect } from "next/navigation";
 import { ShoppingBag, Package, Truck, CheckCircle2, XCircle, Clock } from "lucide-react";
 import Link from "next/link";
+import Image from "next/image";
 import { format } from "date-fns";
 import { formatPrice } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
@@ -190,11 +191,13 @@ export default function OrdersPage() {
                   <div className="grid gap-4">
                     {order.items.map((item) => (
                       <div key={item.id} className="flex items-center gap-4">
-                        <div className="h-16 w-16 overflow-hidden rounded-lg">
-                          <img
-                            src={item.product.image || "/placeholder-product.jpg"}
+                        <div className="relative h-16 w-16 overflow-hidden rounded-lg">
+                          <Image
+                            src={item.product.image || "/images/fallback-product.jpg"}
                             alt={item.product.name}
-                            className="h-full w-full object-cover"
+                            fill
+                            className="object-cover"
+                            sizes="64px"
                           />
                         </div>
                         <div className="flex-1">
