@@ -10,29 +10,29 @@ datasource db {
 }
 
 model User {
-  id              String           @id @default(cuid())
-  name            String?
-  email           String           @unique
-  password        String?
-  createdAt       DateTime         @default(now())
-  emailVerified   DateTime?
-  image           String?
-  updatedAt       DateTime         @default(now())
-  role            UserRole         @default(USER)
-  stripeCustomerId String?         @unique
-  accounts        Account[]
-  addToCartEvents AddToCartEvent[]
-  addresses       Address[]
-  cart            Cart?
-  cartItems       CartItem[]
-  media           Media[]
-  orders          Order[]
-  productViews    ProductView[]
-  returns         Return[]
-  reviews         Review[]
-  sessions        Session[]
-  wishlist        Wishlist?
-  wishlistItems   WishlistItem[]
+  id               String           @id @default(cuid())
+  name             String?
+  email            String           @unique
+  password         String?
+  createdAt        DateTime         @default(now())
+  emailVerified    DateTime?
+  image            String?
+  updatedAt        DateTime         @default(now())
+  role             UserRole         @default(USER)
+  stripeCustomerId String?          @unique
+  accounts         Account[]
+  addToCartEvents  AddToCartEvent[]
+  addresses        Address[]
+  cart             Cart?
+  cartItems        CartItem[]
+  media            Media[]
+  orders           Order[]
+  productViews     ProductView[]
+  returns          Return[]
+  reviews          Review[]
+  sessions         Session[]
+  wishlist         Wishlist?
+  wishlistItems    WishlistItem[]
 }
 
 model Account {
@@ -89,31 +89,31 @@ model Category {
 }
 
 model Collection {
-  id              String              @id @default(cuid())
+  id              String               @id @default(cuid())
   name            String
-  handle          String              @unique
   description     String?
   image           String?
-  createdAt       DateTime            @default(now())
-  updatedAt       DateTime            @updatedAt
+  createdAt       DateTime             @default(now())
+  updatedAt       DateTime             @updatedAt
   conditions      Json?
-  isActive        Boolean             @default(true)
-  order           Int                 @default(0)
+  isActive        Boolean              @default(true)
+  order           Int                  @default(0)
   seoDescription  String?
   seoKeywords     String?
   seoTitle        String?
-  type            CollectionType      @default(MANUAL)
-  showOnHomePage  Boolean             @default(false)
+  type            CollectionType       @default(MANUAL)
+  showOnHomePage  Boolean              @default(false)
   image2          String?
-  displaySection  DisplaySection      @default(NONE)
-  sortBy          CollectionSortOption @default(MANUAL)
+  displaySection  DisplaySection       @default(NONE)
+  handle          String               @unique
   descriptionHtml String?
-  publishedAt     DateTime?
-  metaTitle       String?
   metaDescription String?
   metaKeywords    String?
+  metaTitle       String?
   ogImage         String?
+  publishedAt     DateTime?
   twitterImage    String?
+  sortBy          CollectionSortOption @default(MANUAL)
   rules           CollectionRule[]
   products        ProductCollection[]
 }
@@ -148,14 +148,15 @@ model Product {
   image                 String?
   descriptionHtml       String?
   sku                   String?                @unique
-  handle                String?                @unique
   inventoryTracking     Boolean                @default(false)
   lowStockThreshold     Int                    @default(5)
+  handle                String?                @unique
   addToCartEvents       AddToCartEvent[]
   cartItems             CartItem[]
   inventoryTransactions InventoryTransaction[]
   orderItems            OrderItem[]
   category              Category?              @relation(fields: [categoryId], references: [id])
+  analytics             ProductAnalytics?
   collections           ProductCollection[]
   images                ProductImage[]
   variants              ProductVariant[]
@@ -164,7 +165,6 @@ model Product {
   returnItems           ReturnItem[]
   reviews               Review[]
   wishlistItems         WishlistItem[]
-  analytics            ProductAnalytics?
 }
 
 model ProductImage {
@@ -222,29 +222,29 @@ model ProductCollection {
 }
 
 model Order {
-  id                   String        @id @default(cuid())
-  userId               String
-  status               OrderStatus   @default(PENDING)
-  total                Float
-  shippingAddressId    String
-  paymentMethod        PaymentMethod
-  paymentStatus        PaymentStatus @default(PENDING)
-  createdAt            DateTime      @default(now())
-  updatedAt            DateTime      @updatedAt
-  trackingNumber       String?
-  couponId             String?
-  discountAmount       Float?        @default(0)
-  stripePaymentIntentId String?      @unique
-  stripeSessionId      String?       @unique
-  currency             String        @default("myr")
-  amountSubtotal       Int?         // Amount in cents before tax/shipping
-  amountTotal          Int?         // Final amount in cents including tax/shipping
-  coupon               Coupon?       @relation(fields: [couponId], references: [id])
-  shippingAddress      Address       @relation(fields: [shippingAddressId], references: [id])
-  user                 User          @relation(fields: [userId], references: [id])
-  items                OrderItem[]
-  notes                OrderNote[]
-  returns              Return[]
+  id                    String        @id @default(cuid())
+  userId                String
+  status                OrderStatus   @default(PENDING)
+  total                 Float
+  shippingAddressId     String
+  paymentMethod         PaymentMethod
+  paymentStatus         PaymentStatus @default(PENDING)
+  createdAt             DateTime      @default(now())
+  updatedAt             DateTime      @updatedAt
+  trackingNumber        String?
+  couponId              String?
+  discountAmount        Float?        @default(0)
+  stripePaymentIntentId String?       @unique
+  stripeSessionId       String?       @unique
+  currency              String        @default("myr")
+  amountSubtotal        Int?
+  amountTotal           Int?
+  coupon                Coupon?       @relation(fields: [couponId], references: [id])
+  shippingAddress       Address       @relation(fields: [shippingAddressId], references: [id])
+  user                  User          @relation(fields: [userId], references: [id])
+  items                 OrderItem[]
+  notes                 OrderNote[]
+  returns               Return[]
 }
 
 model OrderItem {
@@ -256,9 +256,9 @@ model OrderItem {
   id            Int             @id @default(autoincrement())
   productId     Int?
   variantId     Int?
+  currency      String          @default("myr")
   stripePriceId String?
-  currency      String         @default("myr")
-  unitAmount    Int?          // Amount in cents
+  unitAmount    Int?
   order         Order           @relation(fields: [orderId], references: [id], onDelete: Cascade)
   product       Product?        @relation(fields: [productId], references: [id])
   variant       ProductVariant? @relation(fields: [variantId], references: [id])
@@ -326,28 +326,28 @@ model OrderNote {
 }
 
 model ShippingZone {
-  id        String    @id @default(cuid())
+  id        String         @id @default(cuid())
   name      String
+  isActive  Boolean        @default(true)
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
   type      String
-  isActive  Boolean   @default(true)
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
   rates     ShippingRate[]
 }
 
 model ShippingRate {
-  id            String    @id @default(cuid())
-  zone          ShippingZone @relation(fields: [zoneId], references: [id])
+  id            String       @id @default(cuid())
   zoneId        String
   name          String
-  price         Decimal   @db.Decimal(10, 2)
-  minOrderValue Decimal?  @db.Decimal(10, 2)
-  maxOrderValue Decimal?  @db.Decimal(10, 2)
-  minWeight     Decimal?  @db.Decimal(10, 2)
-  maxWeight     Decimal?  @db.Decimal(10, 2)
-  isActive      Boolean   @default(true)
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  price         Decimal      @db.Decimal(10, 2)
+  minOrderValue Decimal?     @db.Decimal(10, 2)
+  maxOrderValue Decimal?     @db.Decimal(10, 2)
+  minWeight     Decimal?     @db.Decimal(10, 2)
+  maxWeight     Decimal?     @db.Decimal(10, 2)
+  isActive      Boolean      @default(true)
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+  zone          ShippingZone @relation(fields: [zoneId], references: [id])
 }
 
 model InventoryTransaction {

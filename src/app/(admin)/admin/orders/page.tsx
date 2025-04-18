@@ -69,12 +69,10 @@ interface Order {
   paymentStatus: "PENDING" | "PAID" | "FAILED" | "REFUNDED"
   createdAt: string
   shippingAddress: {
-    fullName: string
-    addressLine1: string
-    addressLine2?: string
+    street: string
     city: string
     state: string
-    postalCode: string
+    zipCode: string
     country: string
     phone: string
   }
@@ -155,6 +153,7 @@ export default function OrdersPage() {
     hasNextPage: false,
     hasPrevPage: false,
   })
+  const [isExactOrderIdSearch, setIsExactOrderIdSearch] = useState(false)
 
   useEffect(() => {
     if (session?.user?.role !== "ADMIN") {
@@ -185,6 +184,15 @@ export default function OrdersPage() {
     } finally {
       setLoading(false)
     }
+  }
+
+  const handleSearch = (value: string) => {
+    setSearchQuery(value)
+    // Reset pagination to first page when searching
+    setPagination(prev => ({
+      ...prev,
+      currentPage: 1
+    }))
   }
 
   const getStatusColor = (status: Order["status"]) => {
@@ -237,15 +245,23 @@ export default function OrdersPage() {
   }
 
   const filteredOrders = orders
-    .filter((order) => {
-      if (!searchQuery) return true
-      const searchLower = searchQuery.toLowerCase()
+    .filter(order => {
+      if (!searchQuery) return true;
+      
+      const searchLower = searchQuery.toLowerCase();
+      const userEmail = order.user?.email?.toLowerCase() || "";
+      const userName = order.user?.name?.toLowerCase() || "";
+      const orderId = order.id.toLowerCase();
+      const phone = order.shippingAddress?.phone?.toLowerCase() || "";
+      const address = `${order.shippingAddress?.street} ${order.shippingAddress?.city} ${order.shippingAddress?.state} ${order.shippingAddress?.zipCode} ${order.shippingAddress?.country}`.toLowerCase();
+      
       return (
-        order.id.toLowerCase().includes(searchLower) ||
-        order.user.name?.toLowerCase().includes(searchLower) ||
-        order.user.email?.toLowerCase().includes(searchLower) ||
-        order.shippingAddress.fullName.toLowerCase().includes(searchLower)
-      )
+        orderId.includes(searchLower) ||
+        userName.includes(searchLower) ||
+        userEmail.includes(searchLower) ||
+        phone.includes(searchLower) ||
+        address.includes(searchLower)
+      );
     })
     .filter(ORDER_STATUS_TABS.find(tab => tab.id === activeTab)?.filter || (() => true))
 
@@ -287,7 +303,7 @@ export default function OrdersPage() {
                 placeholder="Search orders by ID, customer name, or email..."
                 className="pl-8"
                 value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
+                onChange={(e) => handleSearch(e.target.value)}
               />
             </div>
           </div>
@@ -348,13 +364,21 @@ export default function OrdersPage() {
                               className="cursor-pointer hover:bg-muted/50 transition-colors group"
                             >
                               <TableCell className="font-medium">
-                                #{order.id}
+                                <div className="flex items-center gap-2">
+                                  #{order.id}
+                                  {order.id.toLowerCase() === searchQuery.toLowerCase() && (
+                                    <Badge variant="secondary">Exact Match</Badge>
+                                  )}
+                                </div>
                               </TableCell>
                               <TableCell>
                                 <div>
-                                  <p className="font-medium">{order.shippingAddress.fullName}</p>
+                                  <p className="font-medium">{order.user.name || 'Guest User'}</p>
                                   <p className="text-sm text-muted-foreground">
                                     {order.user.email}
+                                  </p>
+                                  <p className="text-xs text-muted-foreground mt-1">
+                                    {order.shippingAddress.street}, {order.shippingAddress.city}, {order.shippingAddress.state} {order.shippingAddress.zipCode}, {order.shippingAddress.country}
                                   </p>
                                 </div>
                               </TableCell>
