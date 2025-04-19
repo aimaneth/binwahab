@@ -6,7 +6,11 @@ import { Search } from "lucide-react";
 import { useDebounce } from "@/hooks/use-debounce";
 import { useEffect, useState } from "react";
 
-export function SearchInput() {
+interface SearchInputProps {
+  baseUrl?: string;
+}
+
+export function SearchInput({ baseUrl = "/shop" }: SearchInputProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [search, setSearch] = useState(searchParams.get("q") || "");
@@ -19,8 +23,8 @@ export function SearchInput() {
     } else {
       params.delete("q");
     }
-    router.push(`/shop?${params.toString()}`);
-  }, [debouncedSearch, router, searchParams]);
+    router.push(`${baseUrl}?${params.toString()}`);
+  }, [debouncedSearch, router, searchParams, baseUrl]);
 
   return (
     <div className="relative">

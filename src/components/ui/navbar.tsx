@@ -79,7 +79,7 @@ export function Navbar() {
 
           {/* Desktop Navigation */}
           <div className="hidden sm:flex sm:items-center sm:justify-center flex-1">
-            <div className="flex items-center space-x-6">
+            <div className="flex items-center gap-6">
               <Link
                 href="/shop"
                 className="text-sm text-muted-foreground hover:text-foreground transition-colors"
@@ -88,51 +88,46 @@ export function Navbar() {
               </Link>
               
               {/* Categories Dropdowns */}
-              {categories.map((category) => (
-                <NavigationMenu key={category.id}>
-                  <NavigationMenuList>
-                    <NavigationMenuItem>
-                      <NavigationMenuTrigger className="text-sm text-muted-foreground hover:text-foreground transition-colors">
-                        {category.name}
-                      </NavigationMenuTrigger>
-                      <NavigationMenuContent>
-                        <ul className="grid w-[400px] gap-3 p-4 md:w-[500px] md:grid-cols-2 lg:w-[600px]">
-                          {isLoading ? (
-                            <li className="px-4 py-2 text-sm text-muted-foreground">Loading...</li>
-                          ) : category.collections.length > 0 ? (
-                            category.collections.map((collection) => (
-                              <Link
-                                key={collection.id}
-                                href={`/collections/${collection.handle}`}
-                                className="block select-none space-y-1 rounded-md p-3 leading-none no-underline outline-none transition-colors hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground"
-                              >
-                                <div className="text-sm font-medium leading-none">
+              <div className="flex items-center gap-2">
+                {categories.map((category) => (
+                  <NavigationMenu key={category.id}>
+                    <NavigationMenuList className="gap-2">
+                      <NavigationMenuItem>
+                        <NavigationMenuTrigger className="text-sm text-muted-foreground hover:text-foreground transition-colors">
+                          {category.name}
+                        </NavigationMenuTrigger>
+                        <NavigationMenuContent>
+                          <ul className="min-w-[200px] p-2">
+                            {isLoading ? (
+                              <li className="px-2 py-1.5 text-sm text-muted-foreground">Loading...</li>
+                            ) : category.collections.length > 0 ? (
+                              category.collections.map((collection) => (
+                                <Link
+                                  key={collection.id}
+                                  href={`/collections/${collection.handle}`}
+                                  className="block select-none rounded-sm px-2 py-1.5 text-sm outline-none transition-colors hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground"
+                                >
                                   {collection.name}
-                                </div>
-                                {collection.description && (
-                                  <p className="line-clamp-2 text-sm leading-snug text-muted-foreground">
-                                    {collection.description}
-                                  </p>
-                                )}
+                                </Link>
+                              ))
+                            ) : (
+                              <li className="px-2 py-1.5 text-sm text-muted-foreground">No collections found</li>
+                            )}
+                            <li className="mt-2 pt-2 border-t">
+                              <Link
+                                href={`/shop/category/${category.id}`}
+                                className="block px-2 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground rounded-sm"
+                              >
+                                View All {category.name}
                               </Link>
-                            ))
-                          ) : (
-                            <li className="px-4 py-2 text-sm text-muted-foreground">No collections found</li>
-                          )}
-                          <li className="col-span-2">
-                            <Link
-                              href={`/shop/category/${category.id}`}
-                              className="block px-4 py-2 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground rounded-md"
-                            >
-                              View All {category.name}
-                            </Link>
-                          </li>
-                        </ul>
-                      </NavigationMenuContent>
-                    </NavigationMenuItem>
-                  </NavigationMenuList>
-                </NavigationMenu>
-              ))}
+                            </li>
+                          </ul>
+                        </NavigationMenuContent>
+                      </NavigationMenuItem>
+                    </NavigationMenuList>
+                  </NavigationMenu>
+                ))}
+              </div>
               
               <Link
                 href="/shop/collections"
@@ -143,7 +138,7 @@ export function Navbar() {
             </div>
           </div>
 
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-3">
             <ThemeToggle />
             <Link href="/shop/cart" className="relative">
               <ShoppingCart className="h-6 w-6" />
@@ -230,9 +225,6 @@ export function Navbar() {
         )}
       >
         <div className="space-y-1 px-4 pb-3 pt-2">
-          <div className="px-3 py-2">
-            <ThemeToggle />
-          </div>
           <Link
             href="/shop"
             className="block px-3 py-2 text-sm font-medium text-muted-foreground hover:bg-muted hover:text-foreground rounded-md"
@@ -250,33 +242,26 @@ export function Navbar() {
                       {category.name}
                     </NavigationMenuTrigger>
                     <NavigationMenuContent>
-                      <ul className="grid w-full gap-3 p-4">
+                      <ul className="w-full p-2">
                         {isLoading ? (
-                          <li className="px-4 py-2 text-sm text-muted-foreground">Loading...</li>
+                          <li className="px-2 py-1.5 text-sm text-muted-foreground">Loading...</li>
                         ) : category.collections.length > 0 ? (
                           category.collections.map((collection) => (
                             <Link
                               key={collection.id}
                               href={`/collections/${collection.handle}`}
-                              className="block select-none space-y-1 rounded-md p-3 leading-none no-underline outline-none transition-colors hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground"
+                              className="block select-none rounded-sm px-2 py-1.5 text-sm outline-none transition-colors hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground"
                             >
-                              <div className="text-sm font-medium leading-none">
-                                {collection.name}
-                              </div>
-                              {collection.description && (
-                                <p className="line-clamp-2 text-sm leading-snug text-muted-foreground">
-                                  {collection.description}
-                                </p>
-                              )}
+                              {collection.name}
                             </Link>
                           ))
                         ) : (
-                          <li className="px-4 py-2 text-sm text-muted-foreground">No collections found</li>
+                          <li className="px-2 py-1.5 text-sm text-muted-foreground">No collections found</li>
                         )}
-                        <li>
+                        <li className="mt-2 pt-2 border-t">
                           <Link
                             href={`/shop/category/${category.id}`}
-                            className="block px-4 py-2 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground rounded-md"
+                            className="block px-2 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground rounded-sm"
                           >
                             View All {category.name}
                           </Link>
