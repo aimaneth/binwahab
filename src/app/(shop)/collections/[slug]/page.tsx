@@ -2,7 +2,7 @@ import { Metadata } from "next";
 import { ProductGrid } from "@/components/shop/product-grid";
 import { ShopFilters } from "@/components/shop/shop-filters";
 import { prisma } from "@/lib/prisma";
-import { Product as PrismaProduct, ProductImage, ProductVariant as PrismaVariant, Category as PrismaCategory, Collection } from "@prisma/client";
+import { Product as PrismaProduct, ProductImage, ProductVariant as PrismaVariant, Category as PrismaCategory, Collection, Prisma } from "@prisma/client";
 import { Product } from "@/types/product";
 import { notFound } from "next/navigation";
 
@@ -47,39 +47,48 @@ export default async function CollectionPage({ params, searchParams }: Collectio
   let error: string | null = null;
 
   try {
-    // Fetch collection and its products
+    // Fetch collection
     collection = await prisma.collection.findUnique({
-      where: { handle: params.slug },
-      include: {
-        products: {
-          include: {
-            product: true
-          }
-        }
-      }
+      where: { handle: params.slug }
     });
 
     if (!collection) {
       return notFound();
     }
 
-    const dbProducts = await prisma.product.findMany({
-      where: {
-        status: "ACTIVE",
+    // Build the where conditions
+    const conditions: Prisma.ProductWhereInput[] = [
+      { status: "ACTIVE" },
+      {
         collections: {
           some: {
             collectionId: collection.id
           }
-        },
-        ...(searchParams.category ? {
-          categoryId: searchParams.category as string
-        } : {}),
-        ...(searchParams.search ? {
-          OR: [
-            { name: { contains: searchParams.search as string, mode: 'insensitive' } },
-            { description: { contains: searchParams.search as string, mode: 'insensitive' } },
-          ]
-        } : {}),
+        }
+      }
+    ];
+
+    // Add category filter if present
+    if (searchParams.category) {
+      conditions.push({
+        categoryId: searchParams.category as string
+      });
+    }
+
+    // Add search filter if present
+    if (searchParams.search) {
+      conditions.push({
+        OR: [
+          { name: { contains: searchParams.search as string, mode: 'insensitive' } },
+          { description: { contains: searchParams.search as string, mode: 'insensitive' } }
+        ]
+      });
+    }
+
+    // Fetch products with collection filter always applied
+    const dbProducts = await prisma.product.findMany({
+      where: {
+        AND: conditions
       },
       include: {
         category: true,
