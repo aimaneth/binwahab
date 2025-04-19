@@ -137,16 +137,16 @@ export default function HomePage() {
       </section>
 
       {/* Featured Collections Products */}
-      <section className="py-16 px-4 md:px-6 bg-muted/30">
-        <div className="container mx-auto">
-          <div className="flex justify-between items-center mb-8">
-            <h2 className="text-3xl font-bold">Featured Collections</h2>
-            <Button variant="outline" asChild>
+      <section className="py-16 px-2 sm:px-4 md:px-6 bg-muted/30">
+        <div className="container px-0">
+          <div className="flex flex-col sm:flex-row sm:items-center gap-4 sm:gap-0 sm:justify-between mb-8 px-2 sm:px-0">
+            <h2 className="text-2xl sm:text-3xl font-bold">Featured Collections</h2>
+            <Button variant="outline" size="sm" className="w-full sm:w-auto" asChild>
               <Link href="/collections">View All Collections</Link>
             </Button>
           </div>
           {isLoading ? (
-            <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6">
+            <div className="grid grid-cols-2 gap-x-4 gap-y-8 md:grid-cols-3 lg:grid-cols-4 md:gap-x-6 md:gap-y-10">
               {[1, 2, 3, 4].map((i) => (
                 <div key={i} className="animate-pulse">
                   <div className="aspect-square bg-gray-200 rounded-lg" />
@@ -159,7 +159,7 @@ export default function HomePage() {
               ))}
             </div>
           ) : featuredCollections.length > 0 ? (
-            <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6">
+            <div className="grid grid-cols-2 gap-x-4 gap-y-8 md:grid-cols-3 lg:grid-cols-4 md:gap-x-6 md:gap-y-10">
               {featuredCollections.flatMap(collection => 
                 collection.products.map(product => (
                   <ProductCard key={product.id} product={product} />
@@ -196,7 +196,7 @@ export default function HomePage() {
                     <p className="text-lg md:text-xl line-clamp-2">{completeCollections[0].description}</p>
                     <Button size="lg" variant="outline" className="bg-white text-black hover:bg-white/90" asChild>
                       <Link href={`/collections/${completeCollections[0].slug}`}>
-                        Explore Collection
+                        View Collection
                       </Link>
                     </Button>
                   </div>
@@ -206,22 +206,22 @@ export default function HomePage() {
           </div>
         ) : (
           <div className="w-full h-full bg-muted flex items-center justify-center">
-            <p className="text-muted-foreground">No complete collections available.</p>
+            <p className="text-muted-foreground">No best selling available.</p>
           </div>
         )}
       </section>
 
-      {/* Complete Collections Products */}
-      <section className="py-16 px-4 md:px-6">
-        <div className="container mx-auto">
-          <div className="flex justify-between items-center mb-8">
-            <h2 className="text-3xl font-bold">Complete Collections</h2>
-            <Button variant="outline" asChild>
-              <Link href="/collections">View All Collections</Link>
+      {/* New Arrival Products */}
+      <section className="py-16 px-2 sm:px-4 md:px-6">
+        <div className="container px-0">
+          <div className="flex flex-col sm:flex-row sm:items-center gap-4 sm:gap-0 sm:justify-between mb-8 px-2 sm:px-0">
+            <h2 className="text-2xl sm:text-3xl font-bold">Best Selling</h2>
+            <Button variant="outline" size="sm" className="w-full sm:w-auto" asChild>
+              <Link href="/collections">View All Best Sellings</Link>
             </Button>
           </div>
           {isLoading ? (
-            <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6">
+            <div className="grid grid-cols-2 gap-x-4 gap-y-8 md:grid-cols-3 lg:grid-cols-4 md:gap-x-6 md:gap-y-10">
               {[1, 2, 3, 4].map((i) => (
                 <div key={i} className="animate-pulse">
                   <div className="aspect-square bg-gray-200 rounded-lg" />
@@ -234,7 +234,7 @@ export default function HomePage() {
               ))}
             </div>
           ) : completeCollections.length > 0 ? (
-            <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6">
+            <div className="grid grid-cols-2 gap-x-4 gap-y-8 md:grid-cols-3 lg:grid-cols-4 md:gap-x-6 md:gap-y-10">
               {completeCollections.flatMap(collection => 
                 collection.products.map(product => (
                   <ProductCard key={product.id} product={product} />
@@ -243,7 +243,7 @@ export default function HomePage() {
             </div>
           ) : (
             <div className="text-center py-8">
-              <p className="text-muted-foreground">No complete collections available.</p>
+              <p className="text-muted-foreground">No new arrivals available.</p>
             </div>
           )}
         </div>
