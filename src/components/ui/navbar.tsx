@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { ShoppingBag, Menu, X, User, LogOut, LayoutDashboard, ChevronDown, ShoppingCart } from "lucide-react";
 import { useState, useEffect } from "react";
-import { cn } from "@/utils/cn";
+import { cn } from "@/lib/utils";
 import { useSession, signOut } from "next-auth/react";
 import {
   DropdownMenu,
@@ -15,23 +15,34 @@ import {
 import { Collection } from "@prisma/client";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { useCartCount } from "@/hooks/use-cart-count";
+import {
+  NavigationMenu,
+  NavigationMenuContent,
+  NavigationMenuItem,
+  NavigationMenuList,
+  NavigationMenuTrigger,
+} from "@/components/ui/navigation-menu";
+
+interface Category {
+  id: string;
+  name: string;
+  collections: Collection[];
+}
 
 export function Navbar() {
   const [isOpen, setIsOpen] = useState(false);
   const { data: session } = useSession();
-  const [categories, setCategories] = useState<{ id: string; name: string; collections: Collection[] }[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const cartCount = useCartCount();
 
   useEffect(() => {
     const fetchCategoriesAndCollections = async () => {
       try {
-        // Fetch all categories
         const categoriesResponse = await fetch('/api/categories');
         if (!categoriesResponse.ok) throw new Error('Failed to fetch categories');
         const categoriesData = await categoriesResponse.json();
 
-        // Fetch collections for each category
         const categoriesWithCollections = await Promise.all(
           categoriesData.map(async (category: { id: string; name: string }) => {
             const collectionsResponse = await fetch(`/api/collections?category=${category.id}`);
@@ -78,31 +89,49 @@ export function Navbar() {
               
               {/* Categories Dropdowns */}
               {categories.map((category) => (
-                <DropdownMenu key={category.id}>
-                  <DropdownMenuTrigger className="text-sm text-muted-foreground hover:text-foreground transition-colors flex items-center">
-                    {category.name}
-                    <ChevronDown className="ml-1 h-4 w-4" />
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="start" className="w-56">
-                    {isLoading ? (
-                      <DropdownMenuItem disabled>Loading...</DropdownMenuItem>
-                    ) : category.collections.length > 0 ? (
-                      category.collections.map((collection) => (
-                        <DropdownMenuItem key={collection.id} asChild>
-                          <Link href={`/shop/collection/${collection.id}`}>
-                            {collection.name}
-                          </Link>
-                        </DropdownMenuItem>
-                      ))
-                    ) : (
-                      <DropdownMenuItem disabled>No collections found</DropdownMenuItem>
-                    )}
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem asChild>
-                      <Link href={`/shop/category/${category.id}`}>View All {category.name}</Link>
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
+                <NavigationMenu key={category.id}>
+                  <NavigationMenuList>
+                    <NavigationMenuItem>
+                      <NavigationMenuTrigger className="text-sm text-muted-foreground hover:text-foreground transition-colors">
+                        {category.name}
+                      </NavigationMenuTrigger>
+                      <NavigationMenuContent>
+                        <ul className="grid w-[400px] gap-3 p-4 md:w-[500px] md:grid-cols-2 lg:w-[600px]">
+                          {isLoading ? (
+                            <li className="px-4 py-2 text-sm text-muted-foreground">Loading...</li>
+                          ) : category.collections.length > 0 ? (
+                            category.collections.map((collection) => (
+                              <Link
+                                key={collection.id}
+                                href={`/collections/${collection.handle}`}
+                                className="block select-none space-y-1 rounded-md p-3 leading-none no-underline outline-none transition-colors hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground"
+                              >
+                                <div className="text-sm font-medium leading-none">
+                                  {collection.name}
+                                </div>
+                                {collection.description && (
+                                  <p className="line-clamp-2 text-sm leading-snug text-muted-foreground">
+                                    {collection.description}
+                                  </p>
+                                )}
+                              </Link>
+                            ))
+                          ) : (
+                            <li className="px-4 py-2 text-sm text-muted-foreground">No collections found</li>
+                          )}
+                          <li className="col-span-2">
+                            <Link
+                              href={`/shop/category/${category.id}`}
+                              className="block px-4 py-2 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground rounded-md"
+                            >
+                              View All {category.name}
+                            </Link>
+                          </li>
+                        </ul>
+                      </NavigationMenuContent>
+                    </NavigationMenuItem>
+                  </NavigationMenuList>
+                </NavigationMenu>
               ))}
               
               <Link
@@ -214,30 +243,49 @@ export function Navbar() {
           {/* Categories Mobile */}
           {categories.map((category) => (
             <div key={category.id} className="space-y-1">
-              <div className="px-3 py-2 text-sm font-medium text-muted-foreground">
-                {category.name}
-              </div>
-              {isLoading ? (
-                <div className="px-6 py-2 text-sm text-gray-500">Loading...</div>
-              ) : category.collections.length > 0 ? (
-                category.collections.map((collection) => (
-                  <Link
-                    key={collection.id}
-                    href={`/shop/collection/${collection.id}`}
-                    className="block px-6 py-2 text-sm text-gray-600 hover:bg-gray-50 hover:text-black rounded-md"
-                  >
-                    {collection.name}
-                  </Link>
-                ))
-              ) : (
-                <div className="px-6 py-2 text-sm text-gray-500">No collections found</div>
-              )}
-              <Link
-                href={`/shop/category/${category.id}`}
-                className="block px-6 py-2 text-sm font-medium text-muted-foreground hover:bg-muted hover:text-foreground rounded-md"
-              >
-                View All {category.name}
-              </Link>
+              <NavigationMenu>
+                <NavigationMenuList>
+                  <NavigationMenuItem>
+                    <NavigationMenuTrigger className="text-sm text-muted-foreground hover:text-foreground transition-colors w-full justify-start">
+                      {category.name}
+                    </NavigationMenuTrigger>
+                    <NavigationMenuContent>
+                      <ul className="grid w-full gap-3 p-4">
+                        {isLoading ? (
+                          <li className="px-4 py-2 text-sm text-muted-foreground">Loading...</li>
+                        ) : category.collections.length > 0 ? (
+                          category.collections.map((collection) => (
+                            <Link
+                              key={collection.id}
+                              href={`/collections/${collection.handle}`}
+                              className="block select-none space-y-1 rounded-md p-3 leading-none no-underline outline-none transition-colors hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground"
+                            >
+                              <div className="text-sm font-medium leading-none">
+                                {collection.name}
+                              </div>
+                              {collection.description && (
+                                <p className="line-clamp-2 text-sm leading-snug text-muted-foreground">
+                                  {collection.description}
+                                </p>
+                              )}
+                            </Link>
+                          ))
+                        ) : (
+                          <li className="px-4 py-2 text-sm text-muted-foreground">No collections found</li>
+                        )}
+                        <li>
+                          <Link
+                            href={`/shop/category/${category.id}`}
+                            className="block px-4 py-2 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground rounded-md"
+                          >
+                            View All {category.name}
+                          </Link>
+                        </li>
+                      </ul>
+                    </NavigationMenuContent>
+                  </NavigationMenuItem>
+                </NavigationMenuList>
+              </NavigationMenu>
             </div>
           ))}
           

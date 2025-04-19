@@ -17,6 +17,7 @@ async function getCollections() {
       name: true,
       description: true,
       image: true,
+      handle: true,
       products: {
         select: {
           product: {
@@ -34,6 +35,7 @@ async function getCollections() {
     name: collection.name,
     description: collection.description,
     image: collection.image,
+    handle: collection.handle,
     productCount: collection.products.length,
   }));
 }
@@ -69,7 +71,7 @@ export default async function CollectionsPage() {
             {collections.map((collection) => (
               <Link 
                 key={collection.id} 
-                href={`/shop/collection/${collection.id}`}
+                href={`/collections/${collection.handle}`}
                 className="group relative overflow-hidden rounded-xl bg-white border border-gray-100 hover:border-gray-200 transition-all duration-300 hover:shadow-xl"
               >
                 <div className="aspect-h-1 aspect-w-1 w-full overflow-hidden bg-gray-100">
