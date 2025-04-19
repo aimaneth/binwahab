@@ -26,7 +26,12 @@ import {
 interface Category {
   id: string;
   name: string;
-  collections: Collection[];
+  collections: {
+    id: string;
+    name: string;
+    handle: string;
+    description: string | null;
+  }[];
 }
 
 export function Navbar() {
@@ -46,7 +51,9 @@ export function Navbar() {
         const categoriesWithCollections = await Promise.all(
           categoriesData.map(async (category: { id: string; name: string }) => {
             const collectionsResponse = await fetch(`/api/collections?category=${category.id}`);
-            const collections = collectionsResponse.ok ? await collectionsResponse.json() : [];
+            if (!collectionsResponse.ok) throw new Error('Failed to fetch collections');
+            const collections = await collectionsResponse.json();
+            console.log('Collections for category:', category.name, collections);
             return {
               ...category,
               collections
@@ -104,7 +111,7 @@ export function Navbar() {
                               category.collections.map((collection) => (
                                 <Link
                                   key={collection.id}
-                                  href={`/collections/${collection.handle}`}
+                                  href={`/shop?collection=${collection.id}&category=${category.id}`}
                                   className="block select-none rounded-sm px-2 py-1.5 text-sm outline-none transition-colors hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground"
                                 >
                                   {collection.name}
@@ -249,7 +256,7 @@ export function Navbar() {
                           category.collections.map((collection) => (
                             <Link
                               key={collection.id}
-                              href={`/collections/${collection.handle}`}
+                              href={`/shop?collection=${collection.id}&category=${category.id}`}
                               className="block select-none rounded-sm px-2 py-1.5 text-sm outline-none transition-colors hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground"
                             >
                               {collection.name}

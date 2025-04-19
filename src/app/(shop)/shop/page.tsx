@@ -34,6 +34,13 @@ export default async function ShopPage({ searchParams }: ShopPageProps) {
         ...(searchParams.category ? {
           categoryId: searchParams.category as string
         } : {}),
+        ...(searchParams.collection ? {
+          collections: {
+            some: {
+              collectionId: searchParams.collection as string
+            }
+          }
+        } : {}),
         ...(searchParams.search ? {
           OR: [
             { name: { contains: searchParams.search as string, mode: 'insensitive' } },

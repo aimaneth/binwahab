@@ -94,6 +94,7 @@ type TransformedCollection = {
   name: string;
   description: string | null;
   descriptionHtml: string | null;
+  handle: string;
   image: string | null;
   image2: string | null;
   isActive: boolean;
@@ -241,6 +242,7 @@ export async function GET(req: Request) {
         name: collection.name,
         description: collection.description,
         descriptionHtml: collection.descriptionHtml,
+        handle: collection.handle,
         image: collection.image,
         image2: collection.image2,
         isActive: collection.isActive,
