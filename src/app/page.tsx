@@ -83,7 +83,7 @@ export default function HomePage() {
   return (
     <div className="flex flex-col min-h-screen">
       {/* Hero Banner with Featured Collections */}
-      <section className="relative h-screen w-full">
+      <section className="relative h-[60vh] sm:h-[70vh] w-full">
         {isLoading ? (
           <div className="w-full h-full bg-muted animate-pulse" />
         ) : featuredCollections.length > 0 ? (
@@ -115,10 +115,10 @@ export default function HomePage() {
                     </div>
                   )}
                 </div>
-                <div className="absolute inset-0 bg-black/40 flex items-center justify-center p-8">
-                  <div className="text-center text-white space-y-4 max-w-xl">
-                    <h2 className="text-3xl md:text-4xl font-bold">{featuredCollections[0].name}</h2>
-                    <p className="text-lg line-clamp-2">{featuredCollections[0].description}</p>
+                <div className="absolute inset-0 bg-black/40 flex items-center justify-center p-6 sm:p-8">
+                  <div className="text-center text-white space-y-3 sm:space-y-4 max-w-xl">
+                    <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold">{featuredCollections[0].name}</h2>
+                    <p className="text-base sm:text-lg line-clamp-2">{featuredCollections[0].description}</p>
                     <Button size="lg" variant="outline" className="bg-white text-black hover:bg-white/90" asChild>
                       <Link href={`/collections/${featuredCollections[0].slug}`}>
                         Shop Now
