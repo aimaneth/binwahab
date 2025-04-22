@@ -18,7 +18,7 @@ interface Collection {
   description: string | null;
   image: string | null;
   image2: string | null;
-  slug: string;
+  handle: string;
   products: FullProduct[];
 }
 
@@ -120,7 +120,7 @@ export default function HomePage() {
                     <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold">{featuredCollections[0].name}</h2>
                     <p className="text-base sm:text-lg line-clamp-2">{featuredCollections[0].description}</p>
                     <Button size="lg" variant="outline" className="bg-white text-black hover:bg-white/90" asChild>
-                      <Link href={`/collections/${featuredCollections[0].slug}`}>
+                      <Link href={`/collections/${featuredCollections[0].handle}`}>
                         Shop Now
                       </Link>
                     </Button>
@@ -195,7 +195,7 @@ export default function HomePage() {
                     <h2 className="text-4xl md:text-5xl font-bold">{completeCollections[0].name}</h2>
                     <p className="text-lg md:text-xl line-clamp-2">{completeCollections[0].description}</p>
                     <Button size="lg" variant="outline" className="bg-white text-black hover:bg-white/90" asChild>
-                      <Link href={`/collections/${completeCollections[0].slug}`}>
+                      <Link href={`/collections/${completeCollections[0].handle}`}>
                         View Collection
                       </Link>
                     </Button>
