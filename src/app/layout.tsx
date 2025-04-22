@@ -14,8 +14,7 @@ import { cn } from "@/lib/utils";
 import { ThemeProvider } from "@/components/providers/theme-provider";
 import { fontSans } from "@/lib/fonts";
 import { measureWebVitals } from "@/lib/performance";
-import Script from "next/script";
-import { scriptLoadingConfig } from "@/lib/performance";
+import { GoogleAnalytics } from "@/components/analytics/google-analytics";
 import OptimizedLayout from "@/components/layout/optimized-layout";
 
 const inter = Inter({
@@ -99,12 +98,8 @@ export default async function RootLayout({
           <Toaster />
         </ThemeProvider>
 
-        {/* Analytics script with performance optimization */}
-        <Script
-          src="https://www.googletagmanager.com/gtag/js"
-          strategy={scriptLoadingConfig.analytics.strategy}
-          defer={scriptLoadingConfig.analytics.defer}
-        />
+        {/* Analytics */}
+        <GoogleAnalytics />
       </body>
     </html>
   );

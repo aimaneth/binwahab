@@ -1,7 +1,5 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
-import { prisma } from '@/lib/prisma';
-import { redis } from '@/lib/redis';
 import { nanoid } from 'nanoid';
 import UAParser from 'ua-parser-js';
 
@@ -29,41 +27,9 @@ function addSecurityHeaders(response: NextResponse) {
   return response;
 }
 
-async function trackPageView(request: NextRequest): Promise<string | null> {
-  if (!redis) {
-    console.warn('Redis not available for page view tracking');
-    return null;
-  }
-
-  try {
-    const page = request.nextUrl.pathname;
-    const date = new Date().toISOString().split('T')[0];
-    const sessionId = request.cookies.get('session_id')?.value || nanoid();
-    const userAgent = request.headers.get('user-agent') || '';
-    const parser = new UAParser(userAgent);
-    const deviceType = parser.getDevice().type || 'unknown';
-    const browser = parser.getBrowser().name || 'unknown';
-
-    const pageKey = `page:${date}:${page}`;
-    const uniqueKey = `unique:${date}:${page}:${sessionId}`;
-
-    const isNewVisitor = await redis.get(uniqueKey) === null;
-
-    const operations = [
-      redis.incr(`${pageKey}:views`),
-      isNewVisitor ? redis.setex(uniqueKey, 86400, '1') : null, // 24 hours TTL
-      isNewVisitor ? redis.incr(`${pageKey}:unique`) : null,
-      redis.sadd(`${pageKey}:devices`, deviceType),
-      redis.sadd(`${pageKey}:browsers`, browser),
-    ].filter((op): op is Promise<any> => op !== null);
-
-    await Promise.all(operations);
-
-    return sessionId;
-  } catch (error) {
-    console.error('Error tracking page view:', error);
-    return null;
-  }
+function trackPageView(request: NextRequest): string {
+  const sessionId = request.cookies.get('session_id')?.value || nanoid();
+  return sessionId;
 }
 
 export async function middleware(request: NextRequest) {
@@ -74,18 +40,18 @@ export async function middleware(request: NextRequest) {
     }
 
     const response = NextResponse.next();
-    const sessionId = await trackPageView(request);
+    const sessionId = trackPageView(request);
 
-    if (sessionId) {
-      response.cookies.set('session_id', sessionId, {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'lax',
-        maxAge: 60 * 60 * 24 * 30, // 30 days
-      });
-    }
+    // Set session cookie
+    response.cookies.set('session_id', sessionId, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: 60 * 60 * 24 * 30, // 30 days
+    });
 
-    return response;
+    // Add security headers
+    return addSecurityHeaders(response);
   } catch (error) {
     console.error('[MIDDLEWARE_ERROR]', error);
     return NextResponse.next();
