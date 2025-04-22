@@ -25,6 +25,16 @@ const inter = Inter({
   variable: "--font-sans",
 });
 
+export const viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 5,
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "white" },
+    { media: "(prefers-color-scheme: dark)", color: "black" },
+  ],
+};
+
 export const metadata: Metadata = {
   title: "BINWAHAB - Malaysian Traditional Fashion",
   description: "Discover elegant baju melayu, kurta, and kebaya designs",
@@ -46,15 +56,6 @@ export const metadata: Metadata = {
     title: "BINWAHAB - Malaysian Traditional Fashion",
     description: "Discover elegant baju melayu, kurta, and kebaya designs",
   },
-  viewport: {
-    width: "device-width",
-    initialScale: 1,
-    maximumScale: 5,
-  },
-  themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "white" },
-    { media: "(prefers-color-scheme: dark)", color: "black" },
-  ],
 };
 
 export default async function RootLayout({
