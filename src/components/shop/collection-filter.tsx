@@ -44,7 +44,7 @@ export function CollectionFilter() {
   const createQueryString = useCallback(
     (name: string, value: string) => {
       const params = new URLSearchParams(searchParams.toString());
-      if (value) {
+      if (value && value !== 'all') {
         params.set(name, value);
       } else {
         params.delete(name);
@@ -58,9 +58,11 @@ export function CollectionFilter() {
     return null;
   }
 
+  const currentValue = searchParams.get('collection') || 'all';
+
   return (
     <Select
-      value={searchParams.get('collection') ?? ''}
+      value={currentValue}
       onValueChange={(value) => {
         router.push(
           `${pathname}?${createQueryString('collection', value)}`
@@ -71,7 +73,7 @@ export function CollectionFilter() {
         <SelectValue placeholder="All Collections" />
       </SelectTrigger>
       <SelectContent>
-        <SelectItem value="">All Collections</SelectItem>
+        <SelectItem value="all">All Collections</SelectItem>
         {collections.map((collection) => (
           <SelectItem key={collection.id} value={collection.id}>
             {collection.name}
