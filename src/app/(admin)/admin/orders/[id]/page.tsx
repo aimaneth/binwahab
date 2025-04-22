@@ -325,27 +325,27 @@ export default function OrderDetailsPage({
           <CardContent>
             <div className="space-y-4">
               <div className="grid gap-4">
-                <div>
+              <div>
                   <div className="font-medium">Name</div>
-                  <div className="text-sm text-muted-foreground">
+                <div className="text-sm text-muted-foreground">
                     {order.user.name || order.user.email}
                   </div>
                 </div>
                 <div>
                   <div className="font-medium">Phone</div>
-                  <div className="text-sm text-muted-foreground">
+                <div className="text-sm text-muted-foreground">
                     {order.shippingAddress.phone}
                   </div>
                 </div>
                 <div>
                   <div className="font-medium">Address</div>
-                  <div className="text-sm text-muted-foreground">
+                <div className="text-sm text-muted-foreground">
                     <p>{order.shippingAddress.street}</p>
                     <p>
                       {order.shippingAddress.city}, {order.shippingAddress.state} {order.shippingAddress.zipCode}
                     </p>
                     <p>{order.shippingAddress.country}</p>
-                  </div>
+                </div>
                 </div>
               </div>
             </div>

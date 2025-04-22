@@ -365,7 +365,7 @@ export default function OrdersPage() {
                             >
                               <TableCell className="font-medium">
                                 <div className="flex items-center gap-2">
-                                  #{order.id}
+                                #{order.id}
                                   {order.id.toLowerCase() === searchQuery.toLowerCase() && (
                                     <Badge variant="secondary">Exact Match</Badge>
                                   )}

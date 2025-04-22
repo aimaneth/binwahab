@@ -83,55 +83,55 @@ export function ProfileForm({ user }: ProfileFormProps) {
 
       <Separator />
 
-      <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+    <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
         <div className="grid gap-6 sm:grid-cols-2">
-          <div className="space-y-2">
-            <Label htmlFor="name">Full name</Label>
-            <Input
-              {...register("name")}
-              id="name"
-              type="text"
+      <div className="space-y-2">
+        <Label htmlFor="name">Full name</Label>
+        <Input
+          {...register("name")}
+          id="name"
+          type="text"
               placeholder="Enter your full name"
-            />
-            {errors.name && (
-              <p className="text-sm text-destructive">{errors.name.message}</p>
-            )}
-          </div>
+        />
+        {errors.name && (
+          <p className="text-sm text-destructive">{errors.name.message}</p>
+        )}
+      </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="email">Email address</Label>
-            <Input
-              {...register("email")}
-              id="email"
-              type="email"
-              disabled
-              className="bg-muted"
-            />
-            {errors.email && (
-              <p className="text-sm text-destructive">{errors.email.message}</p>
-            )}
-            <p className="text-xs text-muted-foreground">
-              Email cannot be changed
-            </p>
+      <div className="space-y-2">
+        <Label htmlFor="email">Email address</Label>
+        <Input
+          {...register("email")}
+          id="email"
+          type="email"
+          disabled
+          className="bg-muted"
+        />
+        {errors.email && (
+          <p className="text-sm text-destructive">{errors.email.message}</p>
+        )}
+        <p className="text-xs text-muted-foreground">
+          Email cannot be changed
+        </p>
           </div>
-        </div>
+      </div>
 
         <div className="flex items-center gap-4">
-          <Button type="submit" disabled={isLoading}>
-            {isLoading ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Saving...
-              </>
-            ) : (
-              "Save changes"
-            )}
-          </Button>
+      <Button type="submit" disabled={isLoading}>
+        {isLoading ? (
+          <>
+            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            Saving...
+          </>
+        ) : (
+          "Save changes"
+        )}
+      </Button>
           <Button type="button" variant="outline" onClick={() => router.push("/profile/change-password")}>
             Change Password
           </Button>
         </div>
-      </form>
+    </form>
     </div>
   );
 } 

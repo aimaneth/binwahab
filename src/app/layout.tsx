@@ -13,12 +13,48 @@ import { ourFileRouter } from "@/lib/uploadthing";
 import { cn } from "@/lib/utils";
 import { ThemeProvider } from "@/components/providers/theme-provider";
 import { fontSans } from "@/lib/fonts";
+import { measureWebVitals } from "@/lib/performance";
+import Script from "next/script";
+import { scriptLoadingConfig } from "@/lib/performance";
+import OptimizedLayout from "@/components/layout/optimized-layout";
 
-const inter = Inter({ subsets: ["latin"] });
+const inter = Inter({
+  subsets: ["latin"],
+  display: "swap",
+  preload: true,
+  variable: "--font-sans",
+});
 
 export const metadata: Metadata = {
   title: "BINWAHAB - Malaysian Traditional Fashion",
   description: "Discover elegant baju melayu, kurta, and kebaya designs",
+  metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL || "https://binwahab.vercel.app"),
+  robots: {
+    index: true,
+    follow: true,
+  },
+  openGraph: {
+    type: "website",
+    locale: "en_US",
+    url: "/",
+    title: "BINWAHAB - Malaysian Traditional Fashion",
+    description: "Discover elegant baju melayu, kurta, and kebaya designs",
+    siteName: "BINWAHAB",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "BINWAHAB - Malaysian Traditional Fashion",
+    description: "Discover elegant baju melayu, kurta, and kebaya designs",
+  },
+  viewport: {
+    width: "device-width",
+    initialScale: 1,
+    maximumScale: 5,
+  },
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "white" },
+    { media: "(prefers-color-scheme: dark)", color: "black" },
+  ],
 };
 
 export default async function RootLayout({
@@ -30,18 +66,44 @@ export default async function RootLayout({
 
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className={cn("min-h-screen bg-background font-sans antialiased", fontSans.variable)}>
+      <head>
+        <link
+          rel="preconnect"
+          href="https://fonts.googleapis.com"
+          crossOrigin="anonymous"
+        />
+        <link
+          rel="preconnect"
+          href="https://fonts.gstatic.com"
+          crossOrigin="anonymous"
+        />
+        <meta name="apple-mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+        <meta name="format-detection" content="telephone=no" />
+        <meta name="mobile-web-app-capable" content="yes" />
+        <meta name="msapplication-tap-highlight" content="no" />
+      </head>
+      <body className={cn("min-h-screen bg-background font-sans antialiased", inter.variable)}>
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
           <NextSSRPlugin routerConfig={extractRouterConfig(ourFileRouter)} />
           <SessionProvider session={session}>
-            <div className="min-h-screen flex flex-col">
-              <Navbar />
-              <main className="flex-1">{children}</main>
-              <Footer />
-            </div>
+            <OptimizedLayout>
+              <div className="min-h-screen flex flex-col">
+                <Navbar />
+                <main className="flex-1">{children}</main>
+                <Footer />
+              </div>
+            </OptimizedLayout>
           </SessionProvider>
           <Toaster />
         </ThemeProvider>
+
+        {/* Analytics script with performance optimization */}
+        <Script
+          src="https://www.googletagmanager.com/gtag/js"
+          strategy={scriptLoadingConfig.analytics.strategy}
+          defer={scriptLoadingConfig.analytics.defer}
+        />
       </body>
     </html>
   );
