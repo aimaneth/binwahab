@@ -2,26 +2,33 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { z } from "zod";
+import { Prisma } from "@prisma/client";
+import { redis } from "@/lib/redis";
+import type { Redis } from "ioredis";
 
-const bulkUpdateSchema = z.object({
-  variantIds: z.array(z.number()),
-  data: z.object({
-    price: z.number().optional(),
-    compareAtPrice: z.number().nullable().optional(),
-    stock: z.number().optional(),
-    lowStockThreshold: z.number().optional(),
-    isActive: z.boolean().optional(),
-    inventoryTracking: z.boolean().optional(),
-  }),
-});
+const BATCH_SIZE = 100;
+const CACHE_TTL = 300; // 5 minutes
 
-const bulkDeleteSchema = z.object({
-  variantIds: z.array(z.number()),
-});
+type BulkVariantOperation = {
+  id?: number;
+  name: string;
+  sku: string;
+  price: number;
+  stock: number;
+  options?: Record<string, any>;
+  inventoryTracking?: boolean;
+  lowStockThreshold?: number;
+};
 
-export async function PUT(
-  req: Request,
+type BulkOperationResult = {
+  success: boolean;
+  id?: number;
+  name?: string;
+  error?: string;
+};
+
+export async function POST(
+  request: Request,
   { params }: { params: { productId: string } }
 ) {
   try {
@@ -30,113 +37,257 @@ export async function PUT(
       return new NextResponse("Unauthorized", { status: 401 });
     }
 
-    const body = await req.json();
-    const { variantIds, data } = bulkUpdateSchema.parse(body);
+    const { operation, variants } = await request.json();
+    const productId = parseInt(params.productId);
 
-    // Convert numeric values to Decimal strings for Prisma
-    const prismaData = {
-      ...data,
-      price: data.price !== undefined ? data.price.toString() : undefined,
-      compareAtPrice: data.compareAtPrice !== undefined ? data.compareAtPrice?.toString() : undefined,
-    };
-
-    // Create inventory transactions for stock updates if needed
-    if (data.stock !== undefined) {
-      await Promise.all(
-        variantIds.map(async (variantId) => {
-          const variant = await prisma.productVariant.findUnique({
-            where: { id: variantId },
-            select: { stock: true },
-          });
-
-          if (!variant) return;
-
-          const stockDiff = data.stock! - variant.stock;
-          if (stockDiff !== 0) {
-            await prisma.inventoryTransaction.create({
-              data: {
-                variantId,
-                quantity: Math.abs(stockDiff),
-                type: stockDiff > 0 ? "ADJUSTMENT" : "ADJUSTMENT",
-                notes: "Bulk update adjustment",
-              },
-            });
-          }
-        })
-      );
+    if (!operation || !variants || !Array.isArray(variants)) {
+      return new NextResponse("Invalid request body", { status: 400 });
     }
 
-    // Update all selected variants
-    await prisma.productVariant.updateMany({
-      where: {
-        id: { in: variantIds },
-        productId: parseInt(params.productId),
-      },
-      data: prismaData,
+    // Generate operation ID for tracking
+    const operationId = `bulk_variant_${operation}_${Date.now()}`;
+    
+    // Start background processing
+    processBulkOperation(operationId, operation, variants, productId).catch(console.error);
+
+    return NextResponse.json({ 
+      success: true, 
+      operationId,
+      message: "Bulk variant operation started" 
     });
-
-    return NextResponse.json({ success: true });
   } catch (error) {
-    if (error instanceof z.ZodError) {
-      return new NextResponse(JSON.stringify(error.errors), { status: 400 });
-    }
-    console.error("[VARIANTS_BULK_UPDATE]", error);
+    console.error("[BULK_VARIANTS_POST]", error);
     return new NextResponse("Internal error", { status: 500 });
   }
 }
 
-export async function DELETE(
-  req: Request,
-  { params }: { params: { productId: string } }
-) {
+export async function GET(request: Request) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user || session.user.role !== "ADMIN") {
-      return new NextResponse("Unauthorized", { status: 401 });
+    const { searchParams } = new URL(request.url);
+    const operationId = searchParams.get("operationId");
+    
+    if (operationId && redis) {
+      const status = await redis.get(`bulk_op:${operationId}`);
+      if (status) {
+        return NextResponse.json(JSON.parse(status));
+      }
+      return new NextResponse("Operation not found", { status: 404 });
     }
 
-    const body = await req.json();
-    const { variantIds } = bulkDeleteSchema.parse(body);
-
-    // Check if any variants have orders or are in carts
-    const variantsInUse = await prisma.productVariant.findMany({
-      where: {
-        id: { in: variantIds },
-        OR: [
-          { orderItems: { some: {} } },
-          { cartItems: { some: {} } },
-        ],
-      },
-      select: {
-        id: true,
-        sku: true,
-      },
-    });
-
-    if (variantsInUse.length > 0) {
-      return new NextResponse(
-        JSON.stringify({
-          message: "Some variants cannot be deleted because they are in use",
-          variants: variantsInUse,
-        }),
-        { status: 400 }
-      );
-    }
-
-    // Delete all selected variants
-    await prisma.productVariant.deleteMany({
-      where: {
-        id: { in: variantIds },
-        productId: parseInt(params.productId),
-      },
-    });
-
-    return NextResponse.json({ success: true });
+    return new NextResponse("Missing operationId or Redis not available", { status: 400 });
   } catch (error) {
-    if (error instanceof z.ZodError) {
-      return new NextResponse(JSON.stringify(error.errors), { status: 400 });
-    }
-    console.error("[VARIANTS_BULK_DELETE]", error);
+    console.error("[BULK_VARIANTS_GET]", error);
     return new NextResponse("Internal error", { status: 500 });
   }
+}
+
+async function processBulkOperation(
+  operationId: string, 
+  operation: string, 
+  variants: BulkVariantOperation[], 
+  productId: number
+) {
+  let results: BulkOperationResult[] = [];
+  let processed = 0;
+  const total = variants.length;
+
+  try {
+    switch (operation) {
+      case "create":
+        results = await createVariants(variants, productId, operationId, updateProgress);
+        break;
+      case "update":
+        results = await updateVariants(variants, productId, operationId, updateProgress);
+        break;
+      case "delete":
+        results = await deleteVariants(variants, productId, operationId, updateProgress);
+        break;
+    }
+
+    // Store final results if Redis is available
+    if (redis) {
+      await redis.setex(
+        `bulk_op:${operationId}`,
+        CACHE_TTL,
+        JSON.stringify({
+          status: "completed",
+          processed: total,
+          total,
+          results
+        })
+      );
+    }
+  } catch (error) {
+    if (redis) {
+      await redis.setex(
+        `bulk_op:${operationId}`,
+        CACHE_TTL,
+        JSON.stringify({
+          status: "failed",
+          processed,
+          total,
+          error: (error as Error).message
+        })
+      );
+    }
+  }
+}
+
+async function updateProgress(operationId: string, processed: number, total: number) {
+  if (redis) {
+    await redis.setex(
+      `bulk_op:${operationId}`,
+      CACHE_TTL,
+      JSON.stringify({
+        status: "processing",
+        processed,
+        total
+      })
+    );
+  }
+}
+
+async function createVariants(
+  variants: BulkVariantOperation[],
+  productId: number,
+  operationId: string,
+  progressCallback: (operationId: string, processed: number, total: number) => Promise<void>
+): Promise<BulkOperationResult[]> {
+  const results: BulkOperationResult[] = [];
+  const total = variants.length;
+
+  // Process in batches
+  for (let i = 0; i < variants.length; i += BATCH_SIZE) {
+    const batch = variants.slice(i, i + BATCH_SIZE);
+    
+    await prisma.$transaction(async (tx) => {
+      for (const variant of batch) {
+        try {
+          const newVariant = await tx.productVariant.create({
+            data: {
+              name: variant.name,
+              sku: variant.sku,
+              price: new Prisma.Decimal(variant.price),
+              stock: variant.stock,
+              options: variant.options || {},
+              productId: productId,
+              inventoryTracking: variant.inventoryTracking ?? true,
+              lowStockThreshold: variant.lowStockThreshold ?? 5,
+            },
+          });
+          
+          results.push({ success: true, id: newVariant.id, name: newVariant.name });
+        } catch (error) {
+          results.push({ success: false, name: variant.name, error: (error as Error).message });
+        }
+      }
+    });
+    
+    await progressCallback(operationId, i + batch.length, total);
+  }
+
+  return results;
+}
+
+async function updateVariants(
+  variants: BulkVariantOperation[],
+  productId: number,
+  operationId: string,
+  progressCallback: (operationId: string, processed: number, total: number) => Promise<void>
+): Promise<BulkOperationResult[]> {
+  const results: BulkOperationResult[] = [];
+  const total = variants.length;
+
+  for (let i = 0; i < variants.length; i += BATCH_SIZE) {
+    const batch = variants.slice(i, i + BATCH_SIZE);
+    
+    await prisma.$transaction(async (tx) => {
+      for (const variant of batch) {
+        try {
+          if (!variant.id) {
+            throw new Error("Variant ID is required for update operation");
+          }
+          const variantId = Number(variant.id);
+          if (isNaN(variantId)) {
+            throw new Error("Invalid variant ID");
+          }
+          const updatedVariant = await tx.productVariant.update({
+            where: {
+              id: variantId,
+              productId: productId,
+            },
+            data: {
+              name: variant.name,
+              sku: variant.sku,
+              price: new Prisma.Decimal(variant.price),
+              stock: variant.stock,
+              options: variant.options,
+              inventoryTracking: variant.inventoryTracking,
+              lowStockThreshold: variant.lowStockThreshold,
+            },
+          });
+          
+          results.push({ success: true, id: updatedVariant.id, name: updatedVariant.name });
+        } catch (error) {
+          results.push({ 
+            success: false, 
+            id: variant.id, 
+            name: variant.name, 
+            error: (error as Error).message 
+          });
+        }
+      }
+    });
+    
+    await progressCallback(operationId, i + batch.length, total);
+  }
+
+  return results;
+}
+
+async function deleteVariants(
+  variants: BulkVariantOperation[],
+  productId: number,
+  operationId: string,
+  progressCallback: (operationId: string, processed: number, total: number) => Promise<void>
+): Promise<BulkOperationResult[]> {
+  const results: BulkOperationResult[] = [];
+  const total = variants.length;
+
+  for (let i = 0; i < variants.length; i += BATCH_SIZE) {
+    const batch = variants.slice(i, i + BATCH_SIZE);
+    
+    await prisma.$transaction(async (tx) => {
+      for (const variant of batch) {
+        try {
+          if (!variant.id) {
+            throw new Error("Variant ID is required for delete operation");
+          }
+          const variantId = Number(variant.id);
+          if (isNaN(variantId)) {
+            throw new Error("Invalid variant ID");
+          }
+          const deletedVariant = await tx.productVariant.delete({
+            where: {
+              id: variantId,
+              productId: productId,
+            },
+          });
+          
+          results.push({ success: true, id: deletedVariant.id, name: deletedVariant.name });
+        } catch (error) {
+          results.push({ 
+            success: false, 
+            id: variant.id, 
+            name: variant.name, 
+            error: (error as Error).message 
+          });
+        }
+      }
+    });
+    
+    await progressCallback(operationId, i + batch.length, total);
+  }
+
+  return results;
 } 

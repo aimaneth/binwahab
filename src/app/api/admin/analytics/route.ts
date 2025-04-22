@@ -7,6 +7,9 @@ import { prisma } from "@/lib/prisma";
 import { OrderStatus } from "@prisma/client";
 import { formatPrice } from "@/lib/utils";
 import { addDays, format, subDays } from "date-fns";
+import { redis } from "@/lib/redis";
+
+const CACHE_TTL = 5 * 60; // 5 minutes cache
 
 export async function GET(req: Request) {
   try {
@@ -15,216 +18,224 @@ export async function GET(req: Request) {
       return new NextResponse("Unauthorized", { status: 401 });
     }
 
-    // Get date range from query parameters or default to last 30 days
     const { searchParams } = new URL(req.url);
-    const startDate = searchParams.get("startDate");
-    const endDate = searchParams.get("endDate");
+    const start = new Date(searchParams.get("start") || new Date(Date.now() - 30 * 24 * 60 * 60 * 1000));
+    const end = new Date(searchParams.get("end") || new Date());
 
-    const now = new Date();
-    const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+    // Try to get cached data first
+    const cacheKey = `analytics:${start.toISOString()}:${end.toISOString()}`;
+    let cachedData = null;
+    
+    if (redis) {
+      cachedData = await redis.get(cacheKey);
+    }
 
-    const start = startDate ? new Date(startDate) : thirtyDaysAgo;
-    const end = endDate ? new Date(endDate) : now;
+    if (cachedData) {
+      return NextResponse.json(JSON.parse(cachedData));
+    }
 
-    // Get sales data by day
-    const salesByDay = await prisma.order.groupBy({
-      by: ["createdAt"],
-      where: {
-        createdAt: {
-          gte: start,
-          lte: end,
-        },
-        status: OrderStatus.DELIVERED,
-      },
-      _sum: {
-        total: true,
-      },
-      orderBy: {
-        createdAt: "asc",
-      },
-    });
+    // If no cached data, calculate analytics
+    const analytics = await calculateAnalytics(start, end);
 
-    // Get sales data by category
-    const orders = await prisma.order.findMany({
-      where: {
-        createdAt: {
-          gte: start,
-          lte: end,
-        },
-        status: OrderStatus.DELIVERED,
-      },
-      include: {
-        items: {
-          include: {
-            product: {
-              include: {
-                category: true,
-              },
-            },
-          },
-        },
-      },
-    });
+    // Cache the results if Redis is available
+    if (redis) {
+      await redis.setex(cacheKey, CACHE_TTL, JSON.stringify(analytics));
+    }
 
-    // Calculate sales by category
-    const salesByCategory = orders.reduce((acc, order) => {
-      order.items.forEach(item => {
-        if (item.product?.category?.name) {
-          const categoryName = item.product.category.name;
-          acc[categoryName] = (acc[categoryName] || 0) + (item.quantity * item.price);
-        }
-      });
-      return acc;
-    }, {} as Record<string, number>);
-
-    // Get customer acquisition data
-    const customersByDay = await prisma.user.groupBy({
-      by: ["createdAt"],
-      where: {
-        role: "USER",
-        createdAt: {
-          gte: start,
-          lte: end,
-        },
-      },
-      _count: true,
-      orderBy: {
-        createdAt: "asc",
-      },
-    });
-
-    // Get top products
-    const topProducts = await prisma.orderItem.groupBy({
-      by: ["productId"],
-      where: {
-        productId: {
-          not: null,
-        },
-        order: {
-          createdAt: {
-            gte: start,
-            lte: end,
-          },
-          status: OrderStatus.DELIVERED,
-        },
-      },
-      _sum: {
-        quantity: true,
-      },
-      orderBy: {
-        _sum: {
-          quantity: "desc",
-        },
-      },
-      take: 10,
-    });
-
-    const topProductsWithDetails = await Promise.all(
-      topProducts
-        .filter(item => item.productId !== null)
-        .map(async (item) => {
-          const product = await prisma.product.findUnique({
-            where: { id: item.productId! },
-            select: {
-              name: true,
-              price: true,
-              image: true,
-              category: {
-                select: {
-                  name: true,
-                },
-              },
-            },
-          });
-
-          const quantity = item._sum.quantity || 0;
-          const price = product?.price ? Number(product.price) : 0;
-
-          return {
-            ...product,
-            totalSold: quantity,
-            revenue: quantity * price,
-          };
-        })
-    );
-
-    // Get collections with their analytics
-    const collections = await prisma.collection.findMany({
-      select: {
-        id: true,
-        name: true,
-        type: true,
-        products: {
-          select: {
-            product: {
-              select: {
-                id: true,
-                name: true,
-                price: true,
-              },
-            },
-          },
-        },
-      },
-    });
-
-    // Calculate collection analytics based on their products' performance
-    const collectionsWithAnalytics = await Promise.all(
-      collections.map(async (collection) => {
-        // Get all orders that contain products from this collection
-        const collectionOrders = await prisma.order.findMany({
-          where: {
-            items: {
-              some: {
-                productId: {
-                  in: collection.products.map(p => p.product.id),
-                },
-              },
-            },
-            createdAt: {
-              gte: start,
-              lte: end,
-            },
-            status: OrderStatus.DELIVERED,
-          },
-          include: {
-            items: {
-              where: {
-                productId: {
-                  in: collection.products.map(p => p.product.id),
-                },
-              },
-            },
-          },
-        });
-
-        // Calculate metrics
-        const totalViews = Math.floor(Math.random() * 10000); // This would come from your analytics service
-        const totalClicks = Math.floor(Math.random() * 1000); // This would come from your analytics service
-        const totalConversions = collectionOrders.reduce((sum, order) => 
-          sum + order.items.reduce((itemSum, item) => itemSum + item.quantity, 0), 0
-        );
-
-        return {
-          ...collection,
-          totalViews,
-          totalClicks,
-          totalConversions,
-          averageClickThroughRate: totalViews > 0 ? (totalClicks / totalViews) * 100 : 0,
-          conversionRate: totalClicks > 0 ? (totalConversions / totalClicks) * 100 : 0,
-        };
-      })
-    );
-
-    return NextResponse.json({
-      salesByDay,
-      salesByCategory,
-      customersByDay,
-      topProducts: topProductsWithDetails,
-      collections: collectionsWithAnalytics,
-    });
+    return NextResponse.json(analytics);
   } catch (error) {
-    console.error("Error in analytics route:", error);
-    return new NextResponse("Internal Server Error", { status: 500 });
+    console.error("[ANALYTICS_GET]", error);
+    return new NextResponse("Internal error", { status: 500 });
   }
+}
+
+async function getSalesAnalytics(start: Date, end: Date) {
+  const orders = await prisma.order.findMany({
+    where: {
+      createdAt: { gte: start, lte: end },
+      status: OrderStatus.DELIVERED,
+    },
+    include: {
+      items: {
+        include: {
+          product: {
+            include: {
+              category: true
+            }
+          }
+        }
+      }
+    }
+  });
+
+  const salesByDay = orders.reduce((acc, order) => {
+    const day = order.createdAt.toISOString().split('T')[0];
+    acc[day] = (acc[day] || 0) + order.items.reduce((sum, item) => sum + (item.quantity * item.price), 0);
+    return acc;
+  }, {} as Record<string, number>);
+
+  const salesByCategory = orders.reduce((acc, order) => {
+    order.items.forEach(item => {
+      if (item.product?.category?.name) {
+        const categoryName = item.product.category.name;
+        acc[categoryName] = (acc[categoryName] || 0) + (item.quantity * item.price);
+      }
+    });
+    return acc;
+  }, {} as Record<string, number>);
+
+  return { salesByDay, salesByCategory };
+}
+
+async function getCustomerAnalytics(start: Date, end: Date) {
+  const customersByDay = await prisma.user.groupBy({
+    by: ["createdAt"],
+    where: {
+      role: "USER",
+      createdAt: { gte: start, lte: end },
+    },
+    _count: true,
+    orderBy: { createdAt: "asc" },
+  });
+
+  return { customersByDay };
+}
+
+async function getProductAnalytics(start: Date, end: Date) {
+  const topProducts = await prisma.$queryRaw`
+    SELECT 
+      p.id,
+      p.name,
+      p.price,
+      SUM(oi.quantity) as total_quantity,
+      SUM(oi.quantity * oi.price) as total_revenue
+    FROM Product p
+    JOIN OrderItem oi ON p.id = oi.productId
+    JOIN Order o ON oi.orderId = o.id
+    WHERE o.createdAt BETWEEN ${start} AND ${end}
+      AND o.status = ${OrderStatus.DELIVERED}
+    GROUP BY p.id, p.name, p.price
+    ORDER BY total_revenue DESC
+    LIMIT 10
+  `;
+
+  return { topProducts };
+}
+
+async function getViewsAnalytics(start: Date, end: Date) {
+  const pageViews = await prisma.productView.count({
+    where: {
+      createdAt: {
+        gte: start,
+        lte: end,
+      },
+    },
+  });
+
+  // Count unique sessions by grouping
+  const uniqueSessionsResult = await prisma.productView.groupBy({
+    by: ['sessionId'],
+    where: {
+      createdAt: {
+        gte: start,
+        lte: end,
+      },
+      sessionId: {
+        not: null,
+      },
+    },
+  });
+
+  const uniqueVisitors = uniqueSessionsResult.length;
+
+  return {
+    pageViews,
+    uniqueVisitors,
+  };
+}
+
+async function getCollectionAnalytics(start: Date, end: Date) {
+  const collections = await prisma.collection.findMany({
+    include: {
+      products: {
+        include: {
+          product: true
+        }
+      }
+    }
+  });
+
+  const collectionAnalytics = await Promise.all(
+    collections.map(async (collection) => {
+      const productIds = collection.products.map(p => p.product.id);
+      
+      const [sales, views] = await Promise.all([
+        prisma.orderItem.aggregate({
+          where: {
+            productId: { in: productIds },
+            order: {
+              createdAt: { gte: start, lte: end },
+              status: OrderStatus.DELIVERED
+            }
+          },
+          _sum: {
+            quantity: true,
+            price: true
+          }
+        }),
+        prisma.pageView.aggregate({
+          where: {
+            page: `/collections/${collection.id}`,
+            timestamp: { gte: start, lte: end }
+          },
+          _sum: {
+            views: true,
+            uniqueVisitors: true
+          }
+        })
+      ]);
+
+      return {
+        id: collection.id,
+        name: collection.name,
+        type: collection.type,
+        totalViews: views._sum.views || 0,
+        totalUniqueVisitors: views._sum.uniqueVisitors || 0,
+        totalSales: sales._sum.quantity || 0,
+        totalRevenue: sales._sum.price || 0,
+        conversionRate: views._sum.uniqueVisitors 
+          ? ((sales._sum.quantity || 0) / views._sum.uniqueVisitors) * 100 
+          : 0
+      };
+    })
+  );
+
+  return { collections: collectionAnalytics };
+}
+
+async function calculateAnalytics(start: Date, end: Date) {
+  // Parallel execution of all analytics queries
+  const [
+    salesData,
+    customerData,
+    productData,
+    collectionData,
+    viewsData
+  ] = await Promise.all([
+    getSalesAnalytics(start, end),
+    getCustomerAnalytics(start, end),
+    getProductAnalytics(start, end),
+    getCollectionAnalytics(start, end),
+    getViewsAnalytics(start, end)
+  ]);
+
+  const analyticsData = {
+    ...salesData,
+    ...customerData,
+    ...productData,
+    ...collectionData,
+    ...viewsData
+  };
+
+  return analyticsData;
 } 

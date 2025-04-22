@@ -2,9 +2,13 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { ProductStatus, Product, ProductVariant } from "@prisma/client";
+import { ProductStatus, Product, ProductVariant, Prisma } from "@prisma/client";
 import { parse } from "csv-parse/sync";
 import { stringify } from "csv-stringify/sync";
+import { redis } from "@/lib/redis";
+
+const BATCH_SIZE = 100;
+const CACHE_TTL = 300; // 5 minutes
 
 type ProductWithRelations = Product & {
   category: { name: string } | null;
@@ -13,6 +17,13 @@ type ProductWithRelations = Product & {
 
 type ProductVariantWithProduct = ProductVariant & {
   product: Product;
+};
+
+type BulkOperationResult = {
+  success: boolean;
+  id?: string | number;
+  name?: string;
+  error?: string;
 };
 
 export async function POST(request: Request) {
@@ -36,45 +47,45 @@ export async function POST(request: Request) {
       skip_empty_lines: true,
     });
 
-    let results = [];
+    // Generate operation ID for tracking
+    const operationId = `bulk_${operation}_${Date.now()}`;
+    
+    // Start background processing
+    processBulkOperation(operationId, operation, records).catch(console.error);
 
-    switch (operation) {
-      case "import":
-        results = await importProducts(records);
-        break;
-      case "status_update":
-        results = await updateProductStatus(records);
-        break;
-      case "category_assignment":
-        results = await assignCategories(records);
-        break;
-      case "price_update":
-        results = await updatePrices(records);
-        break;
-      case "variant_creation":
-        results = await createVariants(records);
-        break;
-      default:
-        return new NextResponse("Invalid operation", { status: 400 });
-    }
-
-    return NextResponse.json({ success: true, results });
+    return NextResponse.json({ 
+      success: true, 
+      operationId,
+      message: "Bulk operation started" 
+    });
   } catch (error) {
     console.error("[BULK_PRODUCTS_POST]", error);
     return new NextResponse("Internal error", { status: 500 });
   }
 }
 
+// Status endpoint to check operation progress
 export async function GET(request: Request) {
   try {
+    const { searchParams } = new URL(request.url);
+    const operationId = searchParams.get("operationId");
+    
+    if (operationId && redis) {
+      const status = await redis.get(`bulk_op:${operationId}`);
+      if (status) {
+        return NextResponse.json(JSON.parse(status));
+      }
+      return new NextResponse("Operation not found", { status: 404 });
+    }
+
     const session = await getServerSession(authOptions);
     if (!session?.user || session.user.role !== "ADMIN") {
       return new NextResponse("Unauthorized", { status: 401 });
     }
 
-    const { searchParams } = new URL(request.url);
-    const type = searchParams.get("type") || "all";
-    const format = searchParams.get("format") || "csv";
+    const { searchParams: originalSearchParams } = new URL(request.url);
+    const type = originalSearchParams.get("type") || "all";
+    const format = originalSearchParams.get("format") || "csv";
 
     let products: (ProductWithRelations | ProductVariantWithProduct)[] = [];
     let fields: string[] = [];
@@ -164,113 +175,246 @@ export async function GET(request: Request) {
   }
 }
 
-// Helper functions for bulk operations
-async function importProducts(records: any[]) {
-  const results = [];
-  
-  for (const record of records) {
-    try {
-      const productData = {
-        name: record.name,
-        description: record.description,
-        handle: record.name.toLowerCase().replace(/[^a-z0-9]+/g, '-'),
-        price: parseFloat(record.price),
-        stock: parseInt(record.stock),
-        status: record.status as ProductStatus,
-        categoryId: record.categoryId,
-      };
-      const product = await prisma.product.create({
-        data: productData,
-      });
-      
-      results.push({ success: true, id: product.id, name: product.name });
-    } catch (error) {
-      results.push({ success: false, name: record.name, error: (error as Error).message });
+async function processBulkOperation(operationId: string, operation: string, records: any[]) {
+  let results: BulkOperationResult[] = [];
+  let processed = 0;
+  const total = records.length;
+
+  try {
+    switch (operation) {
+      case "import":
+        results = await importProducts(records, operationId, updateProgress);
+        break;
+      case "status_update":
+        results = await updateProductStatus(records, operationId, updateProgress);
+        break;
+      case "category_assignment":
+        results = await assignCategories(records, operationId, updateProgress);
+        break;
+      case "price_update":
+        results = await updatePrices(records, operationId, updateProgress);
+        break;
+      case "variant_creation":
+        results = await createVariants(records, operationId, updateProgress);
+        break;
     }
+
+    // Store final results if Redis is available
+    if (redis) {
+      await redis.setex(
+        `bulk_op:${operationId}`,
+        CACHE_TTL,
+        JSON.stringify({
+          status: "completed",
+          processed: total,
+          total,
+          results
+        })
+      );
+    }
+  } catch (error) {
+    if (redis) {
+      await redis.setex(
+        `bulk_op:${operationId}`,
+        CACHE_TTL,
+        JSON.stringify({
+          status: "failed",
+          processed,
+          total,
+          error: (error as Error).message
+        })
+      );
+    }
+  }
+}
+
+async function updateProgress(operationId: string, processed: number, total: number) {
+  if (redis) {
+    await redis.setex(
+      `bulk_op:${operationId}`,
+      CACHE_TTL,
+      JSON.stringify({
+        status: "processing",
+        processed,
+        total
+      })
+    );
+  }
+}
+
+async function importProducts(
+  records: any[], 
+  operationId: string,
+  progressCallback: (operationId: string, processed: number, total: number) => Promise<void>
+): Promise<BulkOperationResult[]> {
+  const results: BulkOperationResult[] = [];
+  const total = records.length;
+  
+  // Process in batches
+  for (let i = 0; i < records.length; i += BATCH_SIZE) {
+    const batch = records.slice(i, i + BATCH_SIZE);
+    
+    await prisma.$transaction(async (tx) => {
+      for (const record of batch) {
+        try {
+          const productData = {
+            name: record.name,
+            description: record.description,
+            handle: record.name.toLowerCase().replace(/[^a-z0-9]+/g, '-'),
+            price: new Prisma.Decimal(record.price),
+            stock: parseInt(record.stock),
+            status: record.status as ProductStatus,
+            categoryId: record.categoryId,
+          };
+          
+          const product = await tx.product.create({
+            data: productData,
+          });
+          
+          results.push({ success: true, id: product.id, name: product.name });
+        } catch (error) {
+          results.push({ success: false, name: record.name, error: (error as Error).message });
+        }
+      }
+    });
+    
+    await progressCallback(operationId, i + batch.length, total);
   }
   
   return results;
 }
 
-async function updateProductStatus(records: any[]) {
-  const results = [];
+async function updateProductStatus(
+  records: any[],
+  operationId: string,
+  progressCallback: (operationId: string, processed: number, total: number) => Promise<void>
+): Promise<BulkOperationResult[]> {
+  const results: BulkOperationResult[] = [];
+  const total = records.length;
   
-  for (const record of records) {
-    try {
-      const product = await prisma.product.update({
-        where: { id: record.id },
-        data: { status: record.status as ProductStatus },
-      });
-      
-      results.push({ success: true, id: product.id, name: product.name });
-    } catch (error) {
-      results.push({ success: false, id: record.id, error: (error as Error).message });
-    }
+  for (let i = 0; i < records.length; i += BATCH_SIZE) {
+    const batch = records.slice(i, i + BATCH_SIZE);
+    
+    await prisma.$transaction(async (tx) => {
+      for (const record of batch) {
+        try {
+          const product = await tx.product.update({
+            where: { id: record.id },
+            data: { status: record.status as ProductStatus },
+          });
+          
+          results.push({ success: true, id: product.id, name: product.name });
+        } catch (error) {
+          results.push({ success: false, id: record.id, error: (error as Error).message });
+        }
+      }
+    });
+    
+    await progressCallback(operationId, i + batch.length, total);
   }
   
   return results;
 }
 
-async function assignCategories(records: any[]) {
-  const results = [];
+async function assignCategories(
+  records: any[],
+  operationId: string,
+  progressCallback: (operationId: string, processed: number, total: number) => Promise<void>
+): Promise<BulkOperationResult[]> {
+  const results: BulkOperationResult[] = [];
+  const total = records.length;
   
-  for (const record of records) {
-    try {
-      const product = await prisma.product.update({
-        where: { id: record.id },
-        data: { categoryId: record.categoryId },
-      });
-      
-      results.push({ success: true, id: product.id, name: product.name });
-    } catch (error) {
-      results.push({ success: false, id: record.id, error: (error as Error).message });
-    }
+  for (let i = 0; i < records.length; i += BATCH_SIZE) {
+    const batch = records.slice(i, i + BATCH_SIZE);
+    
+    await prisma.$transaction(async (tx) => {
+      for (const record of batch) {
+        try {
+          const product = await tx.product.update({
+            where: { id: record.id },
+            data: { categoryId: record.categoryId },
+          });
+          
+          results.push({ success: true, id: product.id, name: product.name });
+        } catch (error) {
+          results.push({ success: false, id: record.id, error: (error as Error).message });
+        }
+      }
+    });
+    
+    await progressCallback(operationId, i + batch.length, total);
   }
   
   return results;
 }
 
-async function updatePrices(records: any[]) {
-  const results = [];
+async function updatePrices(
+  records: any[],
+  operationId: string,
+  progressCallback: (operationId: string, processed: number, total: number) => Promise<void>
+): Promise<BulkOperationResult[]> {
+  const results: BulkOperationResult[] = [];
+  const total = records.length;
   
-  for (const record of records) {
-    try {
-      const product = await prisma.product.update({
-        where: { id: record.id },
-        data: { price: parseFloat(record.price) },
-      });
-      
-      results.push({ success: true, id: product.id, name: product.name });
-    } catch (error) {
-      results.push({ success: false, id: record.id, error: (error as Error).message });
-    }
+  for (let i = 0; i < records.length; i += BATCH_SIZE) {
+    const batch = records.slice(i, i + BATCH_SIZE);
+    
+    await prisma.$transaction(async (tx) => {
+      for (const record of batch) {
+        try {
+          const product = await tx.product.update({
+            where: { id: record.id },
+            data: { price: new Prisma.Decimal(record.price) },
+          });
+          
+          results.push({ success: true, id: product.id, name: product.name });
+        } catch (error) {
+          results.push({ success: false, id: record.id, error: (error as Error).message });
+        }
+      }
+    });
+    
+    await progressCallback(operationId, i + batch.length, total);
   }
   
   return results;
 }
 
-async function createVariants(records: any[]) {
-  const results = [];
+async function createVariants(
+  records: any[],
+  operationId: string,
+  progressCallback: (operationId: string, processed: number, total: number) => Promise<void>
+): Promise<BulkOperationResult[]> {
+  const results: BulkOperationResult[] = [];
+  const total = records.length;
   
-  for (const record of records) {
-    try {
-      const variant = await prisma.productVariant.create({
-        data: {
-          name: record.name,
-          sku: record.sku,
-          price: parseFloat(record.price),
-          stock: parseInt(record.stock),
-          options: record.options ? JSON.parse(record.options) : {},
-          productId: parseInt(record.productId),
-          inventoryTracking: record.inventoryTracking !== "false",
-          lowStockThreshold: record.lowStockThreshold ? parseInt(record.lowStockThreshold) : 5,
-        },
-      });
-      
-      results.push({ success: true, id: variant.id, name: variant.name });
-    } catch (error) {
-      results.push({ success: false, name: record.name, error: (error as Error).message });
-    }
+  for (let i = 0; i < records.length; i += BATCH_SIZE) {
+    const batch = records.slice(i, i + BATCH_SIZE);
+    
+    await prisma.$transaction(async (tx) => {
+      for (const record of batch) {
+        try {
+          const variant = await tx.productVariant.create({
+            data: {
+              name: record.name,
+              sku: record.sku,
+              price: new Prisma.Decimal(record.price),
+              stock: parseInt(record.stock),
+              options: record.options ? JSON.parse(record.options) : {},
+              productId: parseInt(record.productId),
+              inventoryTracking: record.inventoryTracking !== "false",
+              lowStockThreshold: record.lowStockThreshold ? parseInt(record.lowStockThreshold) : 5,
+            },
+          });
+          
+          results.push({ success: true, id: variant.id, name: variant.name });
+        } catch (error) {
+          results.push({ success: false, name: record.name, error: (error as Error).message });
+        }
+      }
+    });
+    
+    await progressCallback(operationId, i + batch.length, total);
   }
   
   return results;

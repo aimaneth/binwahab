@@ -564,6 +564,22 @@ model ProductAnalytics {
   @@index([productId])
 }
 
+model PageView {
+  id              String   @id @default(cuid())
+  page            String
+  views           Int      @default(0)
+  uniqueVisitors  Int      @default(0)
+  timestamp       DateTime @default(now())
+  sessionId       String?
+  userId          String?
+  deviceType      String?
+  browser         String?
+  country         String?
+  
+  @@index([page, timestamp])
+  @@index([timestamp])
+}
+
 enum Role {
   USER
   ADMIN

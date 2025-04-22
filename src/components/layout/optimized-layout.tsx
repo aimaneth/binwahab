@@ -1,3 +1,5 @@
+'use client';
+
 import { ReactNode } from 'react';
 import { Inter } from 'next/font/google';
 import { measureWebVitals } from '@/lib/performance';
