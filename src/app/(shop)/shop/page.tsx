@@ -18,15 +18,27 @@ interface ShopPageProps {
 
 type ProductWithRelations = PrismaProduct & {
   images: ProductImage[];
-  variants: (PrismaVariant & { images: ProductImage[] })[];
+  variants: PrismaVariant[];
   category: PrismaCategory | null;
 };
 
 export default async function ShopPage({ searchParams }: ShopPageProps) {
   let products: Product[] = [];
   let error: string | null = null;
+  let collectionName: string | null = null;
 
   try {
+    // If collection is selected, get its name
+    if (searchParams.collection) {
+      const collection = await prisma.collection.findUnique({
+        where: { id: searchParams.collection as string },
+        select: { name: true }
+      });
+      if (collection) {
+        collectionName = collection.name;
+      }
+    }
+
     // Fetch products based on search parameters
     const dbProducts = await prisma.product.findMany({
       where: {
@@ -64,50 +76,49 @@ export default async function ShopPage({ searchParams }: ShopPageProps) {
         : { createdAt: 'desc' },
     });
 
-    // Convert Prisma products to our Product type
     products = (dbProducts as ProductWithRelations[]).map(product => ({
       id: product.id,
       name: product.name,
-      description: product.description,
+      description: product.description || "",
       descriptionHtml: product.descriptionHtml,
       handle: product.handle || '',
-      price: String(product.price),
+      price: product.price.toString(),
       stock: product.stock,
       reservedStock: product.reservedStock,
-      slug: product.slug || `product-${product.id}`,
+      slug: product.slug || product.handle || `product-${product.id}`,
       isActive: product.isActive,
-      status: product.status as "ACTIVE" | "DRAFT" | "ARCHIVED",
+      status: product.status,
       image: product.image,
       sku: product.sku,
       inventoryTracking: product.inventoryTracking,
       lowStockThreshold: product.lowStockThreshold,
-      images: product.images.map(img => ({
-        id: img.id,
-        url: img.url,
-        order: img.order,
-        productId: img.productId,
-        createdAt: img.createdAt,
-        updatedAt: img.updatedAt
+      images: product.images.map(image => ({
+        id: image.id,
+        url: image.url,
+        productId: image.productId,
+        order: image.order,
+        createdAt: image.createdAt,
+        updatedAt: image.updatedAt
       })),
       variants: product.variants.map(variant => ({
         id: variant.id,
         name: variant.name,
-        sku: variant.sku,
-        price: String(variant.price),
-        compareAtPrice: variant.compareAtPrice ? String(variant.compareAtPrice) : null,
+        price: variant.price.toString(),
         stock: variant.stock,
-        reservedStock: variant.reservedStock,
+        sku: variant.sku,
+        isActive: variant.isActive,
         options: variant.options as Record<string, string>,
-        images: variant.images,
+        images: variant.images || [],
         inventoryTracking: variant.inventoryTracking,
         lowStockThreshold: variant.lowStockThreshold,
         productId: variant.productId,
-        isActive: variant.isActive,
         barcode: variant.barcode,
-        weight: variant.weight ? String(variant.weight) : null,
+        weight: variant.weight ? variant.weight.toString() : null,
         weightUnit: variant.weightUnit,
         dimensions: variant.dimensions as Record<string, any>,
-        attributes: variant.options as Record<string, any>
+        attributes: variant.options as Record<string, any>,
+        reservedStock: variant.reservedStock,
+        compareAtPrice: variant.compareAtPrice ? variant.compareAtPrice.toString() : null
       })),
       category: product.category ? {
         id: product.category.id,
@@ -138,7 +149,9 @@ export default async function ShopPage({ searchParams }: ShopPageProps) {
       <div className="flex flex-col gap-8">
         <div className="flex flex-col gap-6">
           <div className="flex items-center justify-between">
-            <h1 className="text-3xl font-bold">Shop</h1>
+            <h1 className="text-3xl font-bold">
+              {collectionName ? collectionName : "Shop"}
+            </h1>
           </div>
           <ShopFilters />
         </div>
