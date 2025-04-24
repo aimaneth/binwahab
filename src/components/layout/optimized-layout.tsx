@@ -1,16 +1,10 @@
 'use client';
 
 import { ReactNode } from 'react';
-import { Inter } from 'next/font/google';
 import { measureWebVitals } from '@/lib/performance';
 import Script from 'next/script';
 import { scriptLoadingConfig } from '@/lib/performance';
-
-const inter = Inter({
-  subsets: ['latin'],
-  display: 'swap',
-  preload: true,
-});
+import { fontSans } from '@/lib/fonts';
 
 interface OptimizedLayoutProps {
   children: ReactNode;
@@ -22,19 +16,10 @@ export default function OptimizedLayout({ children }: OptimizedLayoutProps) {
 
   return (
     <>
-      {/* Preload critical assets */}
-      <link
-        rel="preload"
-        href="/fonts/inter.woff2"
-        as="font"
-        type="font/woff2"
-        crossOrigin="anonymous"
-      />
-      
       {/* Apply performance-optimized font */}
       <style jsx global>{`
         :root {
-          --font-sans: ${inter.style.fontFamily};
+          --font-sans: ${fontSans.style.fontFamily};
         }
       `}</style>
 
@@ -52,7 +37,7 @@ export default function OptimizedLayout({ children }: OptimizedLayoutProps) {
       />
 
       {/* Main content */}
-      <div className={inter.className}>
+      <div className={fontSans.className}>
         {children}
       </div>
     </>
