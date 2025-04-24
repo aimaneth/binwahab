@@ -2,9 +2,7 @@ import { Metadata } from "next";
 import Link from "next/link";
 import Image from "next/image";
 import { ArrowRight } from "lucide-react";
-import { PrismaClient } from "@prisma/client";
-
-const prisma = new PrismaClient();
+import { prisma } from "@/lib/prisma";
 
 export const metadata: Metadata = {
   title: "Collections | BinWahab",
@@ -12,34 +10,42 @@ export const metadata: Metadata = {
 };
 
 async function getCollections() {
-  const collections = await prisma.collection.findMany({
-    orderBy: { createdAt: 'desc' },
-    select: {
-      id: true,
-      name: true,
-      description: true,
-      image: true,
-      handle: true,
-      products: {
-        select: {
-          product: {
-            select: {
-              id: true,
+  try {
+    const collections = await prisma.collection.findMany({
+      orderBy: { createdAt: 'desc' },
+      where: {
+        isActive: true
+      },
+      select: {
+        id: true,
+        name: true,
+        description: true,
+        image: true,
+        handle: true,
+        products: {
+          select: {
+            product: {
+              select: {
+                id: true,
+              }
             }
           }
         }
       }
-    }
-  });
-  
-  return collections.map(collection => ({
-    id: collection.id,
-    name: collection.name,
-    description: collection.description,
-    image: collection.image,
-    handle: collection.handle,
-    productCount: collection.products.length,
-  }));
+    });
+    
+    return collections.map(collection => ({
+      id: collection.id,
+      name: collection.name,
+      description: collection.description,
+      image: collection.image,
+      handle: collection.handle,
+      productCount: collection.products.length,
+    }));
+  } catch (error) {
+    console.error("[COLLECTIONS_GET]", error);
+    return [];
+  }
 }
 
 export default async function CollectionsPage() {
@@ -85,7 +91,9 @@ export default async function CollectionsPage() {
                         src={collection.image}
                         alt={collection.name}
                         fill
+                        sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
                         className="object-cover object-center group-hover:scale-105 transition-transform duration-700"
+                        priority={true}
                       />
                     ) : (
                       <div className="absolute inset-0 flex items-center justify-center">
