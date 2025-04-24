@@ -211,14 +211,16 @@ export default function ProductsPage() {
                             src={product.images[0].url}
                             alt={product.name}
                             className="w-full h-full object-cover"
-                            onError={(e) => {
-                              const target = e.target as HTMLImageElement;
-                              target.src = '/images/placeholder.png';
-                            }}
+                          />
+                        ) : product.image ? (
+                          <img
+                            src={product.image}
+                            alt={product.name}
+                            className="w-full h-full object-cover"
                           />
                         ) : (
                           <div className="text-muted-foreground text-xs text-center">
-                            No image
+                            No image available
                           </div>
                         )}
                       </div>
