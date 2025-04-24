@@ -17,6 +17,7 @@ import { useToast } from "@/components/ui/use-toast";
 import { useRouter } from "next/navigation";
 import { Product } from "@prisma/client";
 import { formatPrice } from "@/lib/utils";
+import { ImageWithFallback } from "@/components/ui/image-with-fallback";
 
 interface ProductImage {
   id: number;
@@ -206,23 +207,12 @@ export default function ProductsPage() {
                   >
                     <td className="p-2 align-middle">
                       <div className="w-16 h-16 rounded-md overflow-hidden bg-muted flex items-center justify-center">
-                        {product.images && product.images.length > 0 ? (
-                          <img
-                            src={product.images[0].url}
-                            alt={product.name}
-                            className="w-full h-full object-cover"
-                          />
-                        ) : product.image ? (
-                          <img
-                            src={product.image}
-                            alt={product.name}
-                            className="w-full h-full object-cover"
-                          />
-                        ) : (
-                          <div className="text-muted-foreground text-xs text-center">
-                            No image available
-                          </div>
-                        )}
+                        <ImageWithFallback
+                          src={product.images?.[0]?.url || product.image || ""}
+                          alt={product.name}
+                          className="w-full h-full object-cover"
+                          type="product"
+                        />
                       </div>
                     </td>
                     <td className="p-2 align-middle">{product.id}</td>
