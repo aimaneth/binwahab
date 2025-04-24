@@ -8,6 +8,9 @@ import { OrderStatus, User } from "@prisma/client"
 import { z } from "zod"
 import { sendOrderStatusUpdateEmail } from "@/lib/email"
 
+// Cache for 10 seconds
+export const revalidate = 10;
+
 export async function GET(req: Request) {
   try {
     const session = await getServerSession(authOptions)
@@ -20,16 +23,32 @@ export async function GET(req: Request) {
     const status = searchParams.get("status") as OrderStatus | null
     const page = parseInt(searchParams.get("page") || "1")
     const limit = parseInt(searchParams.get("limit") || "10")
+    const search = searchParams.get("search")
     const skip = (page - 1) * limit
 
     // Build filter conditions
-    const where = status ? { status } : {}
+    const where = {
+      ...(status ? { status } : {}),
+      ...(search ? {
+        OR: [
+          { id: { contains: search } },
+          { user: { email: { contains: search } } },
+          { user: { name: { contains: search } } }
+        ]
+      } : {})
+    }
 
-    // Get orders with pagination
+    // Get orders with pagination - optimized query
     const [orders, total] = await Promise.all([
       prisma.order.findMany({
         where,
-        include: {
+        select: {
+          id: true,
+          status: true,
+          total: true,
+          createdAt: true,
+          paymentStatus: true,
+          paymentMethod: true,
           user: {
             select: {
               id: true,
@@ -38,18 +57,22 @@ export async function GET(req: Request) {
             },
           },
           items: {
-            include: {
+            select: {
+              id: true,
+              quantity: true,
+              price: true,
               product: {
                 select: {
                   name: true,
                 },
               },
             },
+            take: 5, // Limit initial items load
           },
-          shippingAddress: true,
-          notes: {
-            orderBy: {
-              createdAt: "desc",
+          _count: {
+            select: {
+              items: true,
+              notes: true,
             },
           },
         },
@@ -76,6 +99,10 @@ export async function GET(req: Request) {
         limit,
         hasNextPage,
         hasPrevPage,
+      },
+    }, {
+      headers: {
+        'Cache-Control': 'public, s-maxage=10, stale-while-revalidate=59',
       },
     })
   } catch (error) {
