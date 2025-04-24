@@ -9,7 +9,7 @@ import { toast } from "sonner"
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { formatPrice } from "@/lib/utils"
+import { formatPrice, formatOrderId } from "@/lib/utils"
 
 interface Order {
   id: string
@@ -145,7 +145,7 @@ export default function OrdersPage() {
           <Card key={order.id}>
             <CardHeader>
               <div className="flex justify-between items-center">
-                <CardTitle>Order #{order.id}</CardTitle>
+                <CardTitle>Order {formatOrderId(order.id)}</CardTitle>
                 <Badge
                   variant="secondary"
                   className={`${getStatusColor(order.status)} flex items-center gap-1`}

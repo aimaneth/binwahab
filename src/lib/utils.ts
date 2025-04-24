@@ -58,3 +58,12 @@ export function formatDate(date: Date): string {
     dateStyle: "medium",
   }).format(date);
 }
+
+export function formatOrderId(orderId: string) {
+  // If it's already in the new format (BW-YYYY-NNNN), return as is
+  if (orderId.startsWith('BW-')) {
+    return orderId;
+  }
+  // For old format IDs, just show the last 8 characters
+  return `#${orderId.slice(-8)}`;
+}

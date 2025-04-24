@@ -222,7 +222,7 @@ model ProductCollection {
 }
 
 model Order {
-  id                    String        @id @default(cuid())
+  id                    String        @id @default(dbgenerated("generate_order_id()"))
   userId                String
   status                OrderStatus   @default(PENDING)
   total                 Float

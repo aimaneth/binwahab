@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { CheckCircle } from "lucide-react";
 import { stripe } from "@/lib/stripe";
 import { prisma } from "@/lib/prisma";
+import { formatOrderId } from "@/lib/utils";
 
 export const metadata: Metadata = {
   title: "Payment Successful - BINWAHAB",
@@ -95,32 +96,50 @@ export default async function PaymentSuccessPage({
     }
 
     // Create the order in our database
-    await createOrder(session, checkoutSession);
+    const order = await createOrder(session, checkoutSession);
+
+    return (
+      <main className="container mx-auto px-4 py-16">
+        <div className="max-w-2xl mx-auto text-center">
+          <div className="mb-8 flex justify-center">
+            <CheckCircle className="h-16 w-16 text-green-500" />
+          </div>
+          <h1 className="text-3xl font-bold mb-4">Thank You for Your Order!</h1>
+          <p className="text-muted-foreground mb-4">
+            Your payment has been processed successfully.
+          </p>
+          
+          <div className="bg-muted/50 p-6 rounded-lg mb-8">
+            <h2 className="text-xl font-semibold mb-2">Order Status</h2>
+            <p className="text-lg font-medium mb-1">Order {formatOrderId(order.id)}</p>
+            <p className="text-green-600 font-medium">Confirmed</p>
+          </div>
+
+          <div className="space-y-4 text-muted-foreground">
+            <div>
+              <h3 className="font-medium text-foreground">Order Confirmation</h3>
+              <p>We'll send you a confirmation email with your order details and tracking information.</p>
+            </div>
+            
+            <div>
+              <h3 className="font-medium text-foreground">Estimated Delivery</h3>
+              <p>Your order will be delivered within 3-5 business days.</p>
+            </div>
+          </div>
+
+          <div className="mt-6 flex justify-center gap-4">
+            <Button asChild variant="outline">
+              <Link href="/orders">View Orders</Link>
+            </Button>
+            <Button asChild>
+              <Link href="/shop">Continue Shopping</Link>
+            </Button>
+          </div>
+        </div>
+      </main>
+    );
   } catch (error) {
     console.error("Error processing successful payment:", error);
     redirect("/shop");
   }
-
-  return (
-    <main className="container mx-auto px-4 py-16">
-      <div className="max-w-2xl mx-auto text-center">
-        <div className="mb-8 flex justify-center">
-          <CheckCircle className="h-16 w-16 text-green-500" />
-        </div>
-        <h1 className="text-3xl font-bold mb-4">Payment Successful!</h1>
-        <p className="text-muted-foreground mb-8">
-          Thank you for your purchase. We have received your payment and are processing your order.
-          You will receive a confirmation email shortly.
-        </p>
-        <div className="mt-6 flex justify-center gap-4">
-          <Button asChild variant="outline">
-            <Link href="/orders">View Orders</Link>
-          </Button>
-          <Button asChild>
-            <Link href="/shop">Continue Shopping</Link>
-          </Button>
-        </div>
-      </div>
-    </main>
-  );
 } 
