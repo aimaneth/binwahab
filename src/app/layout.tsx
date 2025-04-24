@@ -12,6 +12,7 @@ import { extractRouterConfig } from "uploadthing/server";
 import { ourFileRouter } from "@/lib/uploadthing";
 import { cn } from "@/lib/utils";
 import { ThemeProvider } from "@/components/providers/theme-provider";
+import { CartProvider } from "@/contexts/cart-context";
 import { fontSans } from "@/lib/fonts";
 import { measureWebVitals } from "@/lib/performance";
 import { GoogleAnalytics } from "@/components/analytics/google-analytics";
@@ -87,13 +88,15 @@ export default async function RootLayout({
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
           <NextSSRPlugin routerConfig={extractRouterConfig(ourFileRouter)} />
           <SessionProvider session={session}>
-            <OptimizedLayout>
-              <div className="min-h-screen flex flex-col">
-                <Navbar />
-                <main className="flex-1">{children}</main>
-                <Footer />
-              </div>
-            </OptimizedLayout>
+            <CartProvider>
+              <OptimizedLayout>
+                <div className="min-h-screen flex flex-col">
+                  <Navbar />
+                  <main className="flex-1">{children}</main>
+                  <Footer />
+                </div>
+              </OptimizedLayout>
+            </CartProvider>
           </SessionProvider>
           <Toaster />
         </ThemeProvider>

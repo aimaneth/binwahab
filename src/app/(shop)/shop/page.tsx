@@ -1,9 +1,11 @@
 import { Metadata } from "next";
 import { ProductGrid } from "@/components/shop/product-grid";
 import { ShopFilters } from "@/components/shop/shop-filters";
-import { prisma } from "@/lib/prisma";
+import { PrismaClient } from "@prisma/client";
 import { Product as PrismaProduct, ProductImage, ProductVariant as PrismaVariant, Category as PrismaCategory } from "@prisma/client";
 import { Product } from "@/types/product";
+
+const prisma = new PrismaClient();
 
 export const dynamic = 'force-dynamic';
 

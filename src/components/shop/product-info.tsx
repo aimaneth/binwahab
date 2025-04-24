@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { toast } from "react-hot-toast";
@@ -18,6 +18,8 @@ import {
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
+import { useCart } from "@/contexts/cart-context";
+import { AddToCartAnimation } from "@/components/ui/add-to-cart-animation";
 
 interface ProductInfoProps {
   product: Product;
@@ -28,6 +30,8 @@ export function ProductInfo({ product }: ProductInfoProps) {
   const { data: session } = useSession();
   const [quantity, setQuantity] = useState(1);
   const [isLoading, setIsLoading] = useState(false);
+  const buttonRef = useRef<HTMLButtonElement>(null);
+  const { cartIconPosition, triggerAddToCartAnimation, isAnimating } = useCart();
 
   // Initialize selectedVariant only if variants exist
   const [selectedVariant, setSelectedVariant] = useState(
@@ -128,6 +132,17 @@ export function ProductInfo({ product }: ProductInfoProps) {
 
     try {
       setIsLoading(true);
+
+      // Get button position for animation
+      if (buttonRef.current) {
+        const rect = buttonRef.current.getBoundingClientRect();
+        const sourcePosition = {
+          x: rect.left + rect.width / 2,
+          y: rect.top + rect.height / 2
+        };
+        triggerAddToCartAnimation(sourcePosition);
+      }
+
       const response = await fetch("/api/cart", {
         method: "POST",
         headers: {
@@ -241,6 +256,7 @@ export function ProductInfo({ product }: ProductInfoProps) {
         </div>
 
         <Button
+          ref={buttonRef}
           onClick={handleAddToCart}
           disabled={isLoading || !inStock}
           className="mt-8 w-full"
@@ -254,6 +270,16 @@ export function ProductInfo({ product }: ProductInfoProps) {
       <div className="space-y-6 text-base text-muted-foreground">
         <div dangerouslySetInnerHTML={{ __html: product.description }} />
       </div>
+
+      {isAnimating && cartIconPosition && buttonRef.current && (
+        <AddToCartAnimation
+          sourcePosition={{
+            x: buttonRef.current.getBoundingClientRect().left + buttonRef.current.getBoundingClientRect().width / 2,
+            y: buttonRef.current.getBoundingClientRect().top + buttonRef.current.getBoundingClientRect().height / 2
+          }}
+          targetPosition={cartIconPosition}
+        />
+      )}
     </div>
   );
 }

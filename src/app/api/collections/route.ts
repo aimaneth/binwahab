@@ -1,9 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
+import { PrismaClient } from "@prisma/client";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { z } from "zod";
 import { Prisma, Collection, Product, DisplaySection, ProductImage, CollectionSortOption, ProductVariant, ProductStatus, Category } from "@prisma/client";
+
+const prisma = new PrismaClient();
 
 const collectionSchema = z.object({
   name: z.string().min(1, "Name is required"),

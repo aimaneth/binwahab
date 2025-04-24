@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { ShoppingBag, Menu, X, User, LogOut, LayoutDashboard, ChevronDown, ShoppingCart } from "lucide-react";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { cn } from "@/lib/utils";
 import { useSession, signOut } from "next-auth/react";
 import {
@@ -15,6 +15,7 @@ import {
 import { Collection } from "@prisma/client";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { useCartCount } from "@/hooks/use-cart-count";
+import { useCart } from "@/contexts/cart-context";
 import {
   NavigationMenu,
   NavigationMenuContent,
@@ -40,6 +41,8 @@ export function Navbar() {
   const [categories, setCategories] = useState<Category[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const cartCount = useCartCount();
+  const cartIconRef = useRef<HTMLDivElement>(null);
+  const { setCartIconPosition } = useCart();
 
   useEffect(() => {
     const fetchCategoriesAndCollections = async () => {
@@ -71,6 +74,28 @@ export function Navbar() {
 
     fetchCategoriesAndCollections();
   }, []);
+
+  useEffect(() => {
+    const updateCartPosition = () => {
+      if (cartIconRef.current) {
+        const rect = cartIconRef.current.getBoundingClientRect();
+        setCartIconPosition({
+          x: rect.left + rect.width / 2,
+          y: rect.top + rect.height / 2
+        });
+      }
+    };
+
+    updateCartPosition();
+
+    window.addEventListener('resize', updateCartPosition);
+    window.addEventListener('scroll', updateCartPosition);
+
+    return () => {
+      window.removeEventListener('resize', updateCartPosition);
+      window.removeEventListener('scroll', updateCartPosition);
+    };
+  }, [setCartIconPosition]);
 
   return (
     <nav className="bg-background border-b border-border sticky top-0 z-50">
@@ -148,12 +173,14 @@ export function Navbar() {
           <div className="flex items-center gap-3">
             <ThemeToggle />
             <Link href="/shop/cart" className="relative">
-              <ShoppingCart className="h-6 w-6" />
-              {cartCount > 0 && (
-                <span className="absolute -right-2 -top-2 flex h-5 w-5 items-center justify-center rounded-full bg-primary text-xs text-primary-foreground">
-                  {cartCount}
-                </span>
-              )}
+              <div ref={cartIconRef} className="relative inline-block">
+                <ShoppingCart className="h-6 w-6" />
+                {cartCount > 0 && (
+                  <span className="absolute -right-2 -top-2 flex h-5 w-5 items-center justify-center rounded-full bg-primary text-xs text-primary-foreground">
+                    {cartCount}
+                  </span>
+                )}
+              </div>
             </Link>
             
             {session ? (

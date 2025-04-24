@@ -1,11 +1,13 @@
 import { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { prisma } from "@/lib/prisma";
+import { PrismaClient } from "@prisma/client";
 import { ProductGallery } from "@/components/shop/product-gallery";
 import { ProductInfo } from "@/components/shop/product-info";
 import { Breadcrumb } from "@/components/shop/breadcrumb";
 import { RelatedProducts } from "@/components/shop/related-products";
 import { Product, ProductStatus, ProductImage, ProductVariant } from "@/types/product";
+
+const prisma = new PrismaClient();
 
 export async function generateMetadata({
   params,
