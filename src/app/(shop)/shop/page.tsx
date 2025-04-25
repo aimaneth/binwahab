@@ -81,13 +81,13 @@ export default async function ShopPage({ searchParams }: ShopPageProps) {
     products = (dbProducts as ProductWithRelations[]).map(product => ({
       id: product.id,
       name: product.name,
-      description: product.description || "",
+      description: product.description,
       descriptionHtml: product.descriptionHtml,
-      handle: product.handle || '',
+      handle: product.handle,
       price: product.price.toString(),
       stock: product.stock,
       reservedStock: product.reservedStock,
-      slug: product.slug || product.handle || `product-${product.id}`,
+      slug: product.slug,
       isActive: product.isActive,
       status: product.status,
       image: product.image,
@@ -97,30 +97,29 @@ export default async function ShopPage({ searchParams }: ShopPageProps) {
       images: product.images.map(image => ({
         id: image.id,
         url: image.url,
-        productId: image.productId,
         order: image.order,
+        productId: image.productId,
         createdAt: image.createdAt,
         updatedAt: image.updatedAt
       })),
       variants: product.variants.map(variant => ({
         id: variant.id,
         name: variant.name,
-        price: variant.price.toString(),
-        stock: variant.stock,
         sku: variant.sku,
-        isActive: variant.isActive,
+        price: variant.price.toString(),
+        compareAtPrice: variant.compareAtPrice?.toString() || null,
+        stock: variant.stock,
+        reservedStock: variant.reservedStock,
         options: variant.options as Record<string, string>,
-        images: variant.images || [],
+        images: variant.images as string[],
         inventoryTracking: variant.inventoryTracking,
         lowStockThreshold: variant.lowStockThreshold,
         productId: variant.productId,
+        isActive: variant.isActive,
         barcode: variant.barcode,
-        weight: variant.weight ? variant.weight.toString() : null,
+        weight: variant.weight?.toString(),
         weightUnit: variant.weightUnit,
-        dimensions: variant.dimensions as Record<string, any>,
-        attributes: variant.options as Record<string, any>,
-        reservedStock: variant.reservedStock,
-        compareAtPrice: variant.compareAtPrice ? variant.compareAtPrice.toString() : null
+        dimensions: variant.dimensions as Record<string, number> | null
       })),
       category: product.category ? {
         id: product.category.id,
@@ -141,6 +140,20 @@ export default async function ShopPage({ searchParams }: ShopPageProps) {
       createdAt: product.createdAt,
       updatedAt: product.updatedAt
     }));
+
+    // Sort products to show in-stock items first
+    products.sort((a, b) => {
+      const aHasStock = a.stock > 0 || a.variants.some(v => v.stock > 0);
+      const bHasStock = b.stock > 0 || b.variants.some(v => v.stock > 0);
+      
+      if (aHasStock && !bHasStock) return -1;
+      if (!aHasStock && bHasStock) return 1;
+      
+      // If both have same stock status, maintain original sort order
+      if (searchParams.sort === 'price_desc') return Number(b.price) - Number(a.price);
+      if (searchParams.sort === 'price_asc') return Number(a.price) - Number(b.price);
+      return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+    });
   } catch (err) {
     console.error("Error fetching products:", err);
     error = "Failed to load products. Please try again later.";
