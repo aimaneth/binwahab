@@ -11,6 +11,7 @@ import { ProductVariant } from "@prisma/client";
 import { ImageUpload } from "@/components/admin/image-upload";
 import { Card } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { BulkVariantActions } from "@/components/admin/bulk-variant-actions";
 
 interface ProductVariantFormProps {
   productId?: string;
@@ -219,6 +220,25 @@ export function ProductVariantForm({
       {variants.length > 0 && (
         <div className="space-y-4">
           <h3 className="font-medium">Existing Variants</h3>
+          {productId && (
+            <BulkVariantActions
+              variants={variants}
+              productId={productId}
+              onUpdate={() => {
+                fetch(`/api/admin/products/${productId}/variants`)
+                  .then(response => response.json())
+                  .then(updatedVariants => onVariantsChange(updatedVariants))
+                  .catch(error => {
+                    console.error('Failed to fetch updated variants:', error);
+                    toast({
+                      title: "Error",
+                      description: "Failed to refresh variants",
+                      variant: "destructive"
+                    });
+                  });
+              }}
+            />
+          )}
           <div className="divide-y">
             {variants.map((variant) => (
               <Card key={variant.id} className="p-4">
