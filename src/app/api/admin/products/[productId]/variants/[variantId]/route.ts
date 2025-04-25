@@ -29,7 +29,25 @@ export async function PUT(
     }
 
     const body = await req.json();
+    console.log("[VARIANT_PUT] Received update data:", body);
+    
     const data = variantUpdateSchema.parse(body);
+    console.log("[VARIANT_PUT] Validated data:", data);
+
+    // First verify the variant exists
+    const existingVariant = await prisma.productVariant.findUnique({
+      where: {
+        id: parseInt(params.variantId),
+        productId: parseInt(params.productId),
+      }
+    });
+
+    if (!existingVariant) {
+      console.error("[VARIANT_PUT] Variant not found:", params.variantId);
+      return new NextResponse("Variant not found", { status: 404 });
+    }
+
+    console.log("[VARIANT_PUT] Existing variant:", existingVariant);
 
     const variant = await prisma.productVariant.update({
       where: {
@@ -39,12 +57,14 @@ export async function PUT(
       data,
     });
 
+    console.log("[VARIANT_PUT] Updated variant:", variant);
     return NextResponse.json(variant);
   } catch (error) {
     if (error instanceof z.ZodError) {
+      console.error("[VARIANT_PUT] Validation error:", error.errors);
       return new NextResponse(JSON.stringify(error.errors), { status: 400 });
     }
-    console.error("[VARIANT_PUT]", error);
+    console.error("[VARIANT_PUT] Error:", error);
     return new NextResponse("Internal error", { status: 500 });
   }
 }
@@ -70,6 +90,35 @@ export async function DELETE(
     return new NextResponse(null, { status: 204 });
   } catch (error) {
     console.error("[VARIANT_DELETE]", error);
+    return new NextResponse("Internal error", { status: 500 });
+  }
+}
+
+// GET /api/admin/products/[productId]/variants/[variantId]
+export async function GET(
+  req: Request,
+  { params }: { params: { productId: string; variantId: string } }
+) {
+  try {
+    const session = await getServerSession(authOptions);
+    if (!session?.user || session.user.role !== "ADMIN") {
+      return new NextResponse("Unauthorized", { status: 401 });
+    }
+
+    const variant = await prisma.productVariant.findUnique({
+      where: {
+        id: parseInt(params.variantId),
+        productId: parseInt(params.productId),
+      }
+    });
+
+    if (!variant) {
+      return new NextResponse("Variant not found", { status: 404 });
+    }
+
+    return NextResponse.json(variant);
+  } catch (error) {
+    console.error("[VARIANT_GET] Error:", error);
     return new NextResponse("Internal error", { status: 500 });
   }
 } 

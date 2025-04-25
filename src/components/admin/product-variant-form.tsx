@@ -130,6 +130,8 @@ export function ProductVariantForm({
         compareAtPrice: data.compareAtPrice !== undefined ? data.compareAtPrice?.toString() : undefined,
       };
 
+      console.log("Updating variant:", variantId, "with data:", formattedData);
+
       const response = await fetch(`/api/admin/products/${productId}/variants/${variantId}`, {
         method: "PUT",
         headers: {
@@ -138,22 +140,32 @@ export function ProductVariantForm({
         body: JSON.stringify(formattedData),
       });
 
-      if (!response.ok) throw new Error("Failed to update variant");
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error("Failed to update variant:", errorText);
+        throw new Error(`Failed to update variant: ${errorText}`);
+      }
 
       const updatedVariant = await response.json();
+      console.log("Received updated variant:", updatedVariant);
       
       // Update the local state with the new variant data
       const updatedVariants = variants.map(v => 
         v.id.toString() === variantId ? { ...v, ...updatedVariant } : v
       );
+      console.log("Updating variants list:", updatedVariants);
       onVariantsChange(updatedVariants);
 
-      // Refresh the entire product data to ensure consistency
-      const productResponse = await fetch(`/api/admin/products/${productId}`);
-      if (productResponse.ok) {
-        const productData = await productResponse.json();
-        if (productData.variants) {
-          onVariantsChange(productData.variants);
+      // Verify the update was successful by fetching the variant again
+      const verifyResponse = await fetch(`/api/admin/products/${productId}/variants/${variantId}`);
+      if (verifyResponse.ok) {
+        const verifiedVariant = await verifyResponse.json();
+        console.log("Verified variant update:", verifiedVariant);
+        if (verifiedVariant.name !== updatedVariant.name) {
+          console.warn("Variant verification failed - names don't match:", {
+            expected: updatedVariant.name,
+            actual: verifiedVariant.name
+          });
         }
       }
 
@@ -165,7 +177,7 @@ export function ProductVariantForm({
       console.error("Error updating variant:", error);
       toast({
         title: "Error",
-        description: "Failed to update variant",
+        description: error instanceof Error ? error.message : "Failed to update variant",
         variant: "destructive",
       });
     } finally {
