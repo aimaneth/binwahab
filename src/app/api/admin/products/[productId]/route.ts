@@ -125,7 +125,12 @@ export async function PATCH(
         include: {
           images: true,
           variants: true,
-          collections: true
+          collections: {
+            include: {
+              collection: true
+            }
+          },
+          category: true
         }
       });
 

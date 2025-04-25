@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { z } from "zod";
 
 const variantUpdateSchema = z.object({
+  name: z.string().optional(),
   sku: z.string().optional(),
   barcode: z.string().optional(),
   price: z.number().optional(),

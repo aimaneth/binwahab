@@ -141,13 +141,28 @@ export function ProductVariantForm({
       if (!response.ok) throw new Error("Failed to update variant");
 
       const updatedVariant = await response.json();
-      onVariantsChange(variants.map(v => v.id.toString() === variantId ? updatedVariant : v));
+      
+      // Update the local state with the new variant data
+      const updatedVariants = variants.map(v => 
+        v.id.toString() === variantId ? { ...v, ...updatedVariant } : v
+      );
+      onVariantsChange(updatedVariants);
+
+      // Refresh the entire product data to ensure consistency
+      const productResponse = await fetch(`/api/admin/products/${productId}`);
+      if (productResponse.ok) {
+        const productData = await productResponse.json();
+        if (productData.variants) {
+          onVariantsChange(productData.variants);
+        }
+      }
 
       toast({
         title: "Success",
         description: "Variant updated successfully",
       });
     } catch (error) {
+      console.error("Error updating variant:", error);
       toast({
         title: "Error",
         description: "Failed to update variant",
