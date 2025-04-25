@@ -11,7 +11,7 @@ import { ProductVariant } from "@prisma/client";
 import { ImageUpload } from "@/components/admin/image-upload";
 import { Card } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { BulkVariantActions } from "@/components/admin/bulk-variant-actions";
+import { Checkbox } from "@/components/ui/checkbox";
 
 interface ProductVariantFormProps {
   productId?: string;
@@ -51,7 +51,17 @@ export function ProductVariantForm({
 }: ProductVariantFormProps) {
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
-  const [selectedVariant, setSelectedVariant] = useState<ProductVariant | null>(null);
+  const [selectedVariants, setSelectedVariants] = useState<Set<number>>(new Set());
+  const [bulkEditMode, setBulkEditMode] = useState(false);
+  const [bulkData, setBulkData] = useState({
+    name: "",
+    price: "",
+    compareAtPrice: "",
+    stock: "",
+    lowStockThreshold: "",
+    isActive: true,
+    inventoryTracking: true,
+  });
 
   const addOption = () => {
     onOptionsChange([...options, { name: "", values: [] }]);
@@ -165,6 +175,136 @@ export function ProductVariantForm({
     };
   };
 
+  const handleSelectAll = (checked: boolean) => {
+    if (checked) {
+      setSelectedVariants(new Set(variants.map(v => v.id)));
+    } else {
+      setSelectedVariants(new Set());
+    }
+  };
+
+  const handleSelectVariant = (variantId: number, checked: boolean) => {
+    const newSelected = new Set(selectedVariants);
+    if (checked) {
+      newSelected.add(variantId);
+    } else {
+      newSelected.delete(variantId);
+    }
+    setSelectedVariants(newSelected);
+  };
+
+  const handleBulkUpdate = async () => {
+    if (selectedVariants.size === 0) {
+      toast({
+        title: "Error",
+        description: "Please select at least one variant",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      const updateData: any = {};
+      if (bulkData.name) updateData.name = bulkData.name;
+      if (bulkData.price) updateData.price = parseFloat(bulkData.price);
+      if (bulkData.compareAtPrice) updateData.compareAtPrice = parseFloat(bulkData.compareAtPrice);
+      if (bulkData.stock) updateData.stock = parseInt(bulkData.stock);
+      if (bulkData.lowStockThreshold) updateData.lowStockThreshold = parseInt(bulkData.lowStockThreshold);
+      updateData.isActive = bulkData.isActive;
+      updateData.inventoryTracking = bulkData.inventoryTracking;
+
+      const response = await fetch(`/api/admin/products/${productId}/variants/bulk`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          variantIds: Array.from(selectedVariants),
+          data: updateData,
+        }),
+      });
+
+      if (!response.ok) throw new Error("Failed to update variants");
+
+      // Refresh variants
+      const updatedVariantsResponse = await fetch(`/api/admin/products/${productId}/variants`);
+      if (!updatedVariantsResponse.ok) throw new Error("Failed to fetch updated variants");
+      const updatedVariants = await updatedVariantsResponse.json();
+      onVariantsChange(updatedVariants);
+
+      toast({
+        title: "Success",
+        description: "Variants updated successfully",
+      });
+      setBulkEditMode(false);
+      setSelectedVariants(new Set());
+      setBulkData({
+        name: "",
+        price: "",
+        compareAtPrice: "",
+        stock: "",
+        lowStockThreshold: "",
+        isActive: true,
+        inventoryTracking: true,
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to update variants",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleBulkDelete = async () => {
+    if (selectedVariants.size === 0) {
+      toast({
+        title: "Error",
+        description: "Please select at least one variant",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      const response = await fetch(`/api/admin/products/${productId}/variants/bulk`, {
+        method: "DELETE",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          variantIds: Array.from(selectedVariants),
+        }),
+      });
+
+      if (!response.ok) throw new Error("Failed to delete variants");
+
+      // Refresh variants
+      const updatedVariantsResponse = await fetch(`/api/admin/products/${productId}/variants`);
+      if (!updatedVariantsResponse.ok) throw new Error("Failed to fetch updated variants");
+      const updatedVariants = await updatedVariantsResponse.json();
+      onVariantsChange(updatedVariants);
+
+      toast({
+        title: "Success",
+        description: "Variants deleted successfully",
+      });
+      setSelectedVariants(new Set());
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to delete variants",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div className="space-y-4">
@@ -219,29 +359,122 @@ export function ProductVariantForm({
 
       {variants.length > 0 && (
         <div className="space-y-4">
-          <h3 className="font-medium">Existing Variants</h3>
-          {productId && (
-            <BulkVariantActions
-              variants={variants}
-              productId={productId}
-              onUpdate={() => {
-                fetch(`/api/admin/products/${productId}/variants`)
-                  .then(response => response.json())
-                  .then(updatedVariants => onVariantsChange(updatedVariants))
-                  .catch(error => {
-                    console.error('Failed to fetch updated variants:', error);
-                    toast({
-                      title: "Error",
-                      description: "Failed to refresh variants",
-                      variant: "destructive"
-                    });
-                  });
-              }}
-            />
+          <div className="flex items-center justify-between">
+            <h3 className="font-medium">Existing Variants</h3>
+            <div className="flex items-center space-x-2">
+              <Checkbox
+                checked={selectedVariants.size === variants.length}
+                onCheckedChange={(checked) => handleSelectAll(checked as boolean)}
+              />
+              <Label>Select All</Label>
+              {selectedVariants.size > 0 && (
+                <>
+                  <Button
+                    variant="outline"
+                    onClick={() => setBulkEditMode(!bulkEditMode)}
+                  >
+                    {bulkEditMode ? "Cancel Bulk Edit" : "Bulk Edit"}
+                  </Button>
+                  <Button
+                    variant="destructive"
+                    onClick={handleBulkDelete}
+                    disabled={isLoading}
+                  >
+                    {isLoading ? "Deleting..." : "Delete Selected"}
+                  </Button>
+                </>
+              )}
+            </div>
+          </div>
+
+          {bulkEditMode && selectedVariants.size > 0 && (
+            <Card className="p-4">
+              <h4 className="font-medium mb-4">Bulk Edit Selected Variants</h4>
+              <div className="grid gap-4 md:grid-cols-2">
+                <div>
+                  <Label>Name</Label>
+                  <Input
+                    value={bulkData.name}
+                    onChange={(e) => setBulkData({ ...bulkData, name: e.target.value })}
+                    placeholder="Leave empty to keep existing"
+                  />
+                </div>
+                <div>
+                  <Label>Price</Label>
+                  <Input
+                    type="number"
+                    step="0.01"
+                    value={bulkData.price}
+                    onChange={(e) => setBulkData({ ...bulkData, price: e.target.value })}
+                    placeholder="Leave empty to keep existing"
+                  />
+                </div>
+                <div>
+                  <Label>Compare at Price</Label>
+                  <Input
+                    type="number"
+                    step="0.01"
+                    value={bulkData.compareAtPrice}
+                    onChange={(e) => setBulkData({ ...bulkData, compareAtPrice: e.target.value })}
+                    placeholder="Leave empty to keep existing"
+                  />
+                </div>
+                <div>
+                  <Label>Stock</Label>
+                  <Input
+                    type="number"
+                    value={bulkData.stock}
+                    onChange={(e) => setBulkData({ ...bulkData, stock: e.target.value })}
+                    placeholder="Leave empty to keep existing"
+                  />
+                </div>
+                <div>
+                  <Label>Low Stock Threshold</Label>
+                  <Input
+                    type="number"
+                    value={bulkData.lowStockThreshold}
+                    onChange={(e) => setBulkData({ ...bulkData, lowStockThreshold: e.target.value })}
+                    placeholder="Leave empty to keep existing"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <div className="flex items-center space-x-2">
+                    <Switch
+                      checked={bulkData.isActive}
+                      onCheckedChange={(checked) => setBulkData({ ...bulkData, isActive: checked })}
+                    />
+                    <Label>Active</Label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <Switch
+                      checked={bulkData.inventoryTracking}
+                      onCheckedChange={(checked) => setBulkData({ ...bulkData, inventoryTracking: checked })}
+                    />
+                    <Label>Inventory Tracking</Label>
+                  </div>
+                </div>
+              </div>
+              <div className="mt-4 flex justify-end">
+                <Button
+                  onClick={handleBulkUpdate}
+                  disabled={isLoading}
+                >
+                  {isLoading ? "Updating..." : "Update Selected"}
+                </Button>
+              </div>
+            </Card>
           )}
+
           <div className="divide-y">
             {variants.map((variant) => (
               <Card key={variant.id} className="p-4">
+                <div className="flex items-center justify-between mb-4">
+                  <Checkbox
+                    checked={selectedVariants.has(variant.id)}
+                    onCheckedChange={(checked) => handleSelectVariant(variant.id, checked as boolean)}
+                  />
+                  <span className="font-medium">{variant.name}</span>
+                </div>
                 <Tabs defaultValue="details" className="w-full">
                   <TabsList>
                     <TabsTrigger value="details">Details</TabsTrigger>
