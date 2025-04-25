@@ -1,12 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { signIn } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { toast } from "react-hot-toast";
+import { Eye, EyeOff } from "lucide-react";
 
 const loginSchema = z.object({
   email: z.string().email("Invalid email address"),
@@ -18,6 +19,8 @@ type LoginFormData = z.infer<typeof loginSchema>;
 export function LoginForm() {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [capsLockOn, setCapsLockOn] = useState(false);
 
   const {
     register,
@@ -26,6 +29,22 @@ export function LoginForm() {
   } = useForm<LoginFormData>({
     resolver: zodResolver(loginSchema),
   });
+
+  // Handle CAPS LOCK detection
+  const handleKeyPress = (e: KeyboardEvent) => {
+    if (e.getModifierState) {
+      setCapsLockOn(e.getModifierState("CapsLock"));
+    }
+  };
+
+  useEffect(() => {
+    window.addEventListener("keydown", handleKeyPress);
+    window.addEventListener("keyup", handleKeyPress);
+    return () => {
+      window.removeEventListener("keydown", handleKeyPress);
+      window.removeEventListener("keyup", handleKeyPress);
+    };
+  }, []);
 
   const onSubmit = async (data: LoginFormData) => {
     try {
@@ -37,7 +56,12 @@ export function LoginForm() {
       });
 
       if (result?.error) {
-        toast.error("Invalid credentials");
+        // More specific error messages
+        if (result.error.includes("credentials")) {
+          toast.error("Invalid email or password");
+        } else {
+          toast.error("An error occurred during sign in");
+        }
         return;
       }
 
@@ -45,7 +69,7 @@ export function LoginForm() {
       router.refresh();
       toast.success("Logged in successfully");
     } catch (error) {
-      toast.error("Something went wrong");
+      toast.error("Something went wrong. Please try again.");
     } finally {
       setIsLoading(false);
     }
@@ -70,20 +94,36 @@ export function LoginForm() {
             <p className="mt-1 text-sm text-red-600">{errors.email.message}</p>
           )}
         </div>
-        <div>
+        <div className="relative">
           <label htmlFor="password" className="sr-only">
             Password
           </label>
           <input
             {...register("password")}
             id="password"
-            type="password"
+            type={showPassword ? "text" : "password"}
             autoComplete="current-password"
-            className="appearance-none rounded-none relative block w-full px-3 py-2 border border-input bg-background text-foreground placeholder:text-muted-foreground rounded-b-md focus:outline-none focus:ring-2 focus:ring-ring focus:border-ring focus:z-10 sm:text-sm"
+            className="appearance-none rounded-none relative block w-full px-3 py-2 border border-input bg-background text-foreground placeholder:text-muted-foreground rounded-b-md focus:outline-none focus:ring-2 focus:ring-ring focus:border-ring focus:z-10 sm:text-sm pr-10"
             placeholder="Password"
           />
+          <button
+            type="button"
+            onClick={() => setShowPassword(!showPassword)}
+            className="absolute inset-y-0 right-0 pr-3 flex items-center"
+          >
+            {showPassword ? (
+              <EyeOff className="h-4 w-4 text-gray-400" />
+            ) : (
+              <Eye className="h-4 w-4 text-gray-400" />
+            )}
+          </button>
           {errors.password && (
             <p className="mt-1 text-sm text-red-600">{errors.password.message}</p>
+          )}
+          {capsLockOn && (
+            <p className="mt-1 text-sm text-yellow-600">
+              ⚠️ Caps Lock is ON
+            </p>
           )}
         </div>
       </div>
