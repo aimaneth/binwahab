@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { ShoppingBag, Menu, X, User, LogOut, LayoutDashboard, ChevronDown, ShoppingCart } from "lucide-react";
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { cn } from "@/lib/utils";
 import { useSession, signOut } from "next-auth/react";
 import {
@@ -40,39 +40,70 @@ export function Navbar() {
   const { data: session } = useSession();
   const [categories, setCategories] = useState<Category[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [lastUpdate, setLastUpdate] = useState(Date.now());
   const cartCount = useCartCount();
   const cartIconRef = useRef<HTMLDivElement>(null);
   const { setCartIconPosition } = useCart();
 
+  const fetchCategoriesAndCollections = useCallback(async () => {
+    try {
+      setIsLoading(true);
+      const categoriesResponse = await fetch('/api/categories', {
+        cache: 'no-store',
+        headers: {
+          'Cache-Control': 'no-cache',
+          'Pragma': 'no-cache'
+        }
+      });
+      
+      if (!categoriesResponse.ok) throw new Error('Failed to fetch categories');
+      const categoriesData = await categoriesResponse.json();
+
+      const categoriesWithCollections = await Promise.all(
+        categoriesData.map(async (category: { id: string; name: string }) => {
+          const collectionsResponse = await fetch(`/api/collections?category=${category.id}`, {
+            cache: 'no-store',
+            headers: {
+              'Cache-Control': 'no-cache',
+              'Pragma': 'no-cache'
+            }
+          });
+          if (!collectionsResponse.ok) throw new Error('Failed to fetch collections');
+          const collections = await collectionsResponse.json();
+          return {
+            ...category,
+            collections
+          };
+        })
+      );
+
+      setCategories(categoriesWithCollections);
+    } catch (error) {
+      console.error('Failed to fetch categories and collections:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
-    const fetchCategoriesAndCollections = async () => {
-      try {
-        const categoriesResponse = await fetch('/api/categories');
-        if (!categoriesResponse.ok) throw new Error('Failed to fetch categories');
-        const categoriesData = await categoriesResponse.json();
+    fetchCategoriesAndCollections();
+  }, [fetchCategoriesAndCollections, lastUpdate]);
 
-        const categoriesWithCollections = await Promise.all(
-          categoriesData.map(async (category: { id: string; name: string }) => {
-            const collectionsResponse = await fetch(`/api/collections?category=${category.id}`);
-            if (!collectionsResponse.ok) throw new Error('Failed to fetch collections');
-            const collections = await collectionsResponse.json();
-            console.log('Collections for category:', category.name, collections);
-            return {
-              ...category,
-              collections
-            };
-          })
-        );
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setLastUpdate(Date.now());
+    }, 5 * 60 * 1000);
 
-        setCategories(categoriesWithCollections);
-      } catch (error) {
-        console.error('Failed to fetch categories and collections:', error);
-      } finally {
-        setIsLoading(false);
-      }
+    const handleFocus = () => {
+      setLastUpdate(Date.now());
     };
 
-    fetchCategoriesAndCollections();
+    window.addEventListener('focus', handleFocus);
+
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('focus', handleFocus);
+    };
   }, []);
 
   useEffect(() => {
