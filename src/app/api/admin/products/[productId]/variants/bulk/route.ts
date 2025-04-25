@@ -127,6 +127,61 @@ export async function DELETE(
   }
 }
 
+export async function PUT(
+  request: Request,
+  { params }: { params: { productId: string } }
+) {
+  try {
+    const session = await getServerSession(authOptions);
+    if (!session?.user || session.user.role !== "ADMIN") {
+      return new NextResponse("Unauthorized", { status: 401 });
+    }
+
+    const { variantIds, data } = await request.json();
+    const productId = parseInt(params.productId);
+
+    if (!variantIds || !Array.isArray(variantIds) || variantIds.length === 0) {
+      return new NextResponse("Invalid request body", { status: 400 });
+    }
+
+    // Validate that all IDs are numbers
+    const validIds = variantIds.map(id => Number(id)).filter(id => !isNaN(id));
+    if (validIds.length !== variantIds.length) {
+      return new NextResponse("Invalid variant IDs", { status: 400 });
+    }
+
+    try {
+      // Update variants in batches
+      for (let i = 0; i < validIds.length; i += BATCH_SIZE) {
+        const batch = validIds.slice(i, i + BATCH_SIZE);
+        await prisma.productVariant.updateMany({
+          where: {
+            id: { in: batch },
+            productId: productId,
+          },
+          data: {
+            ...(data.name && { name: data.name }),
+            ...(data.price && { price: new Prisma.Decimal(data.price) }),
+            ...(data.compareAtPrice && { compareAtPrice: new Prisma.Decimal(data.compareAtPrice) }),
+            ...(typeof data.stock === 'number' && { stock: data.stock }),
+            ...(typeof data.lowStockThreshold === 'number' && { lowStockThreshold: data.lowStockThreshold }),
+            ...(typeof data.isActive === 'boolean' && { isActive: data.isActive }),
+            ...(typeof data.inventoryTracking === 'boolean' && { inventoryTracking: data.inventoryTracking }),
+          },
+        });
+      }
+
+      return new NextResponse(null, { status: 204 });
+    } catch (dbError) {
+      console.error("[BULK_VARIANTS_UPDATE_DB]", dbError);
+      return new NextResponse("Database error", { status: 500 });
+    }
+  } catch (error) {
+    console.error("[BULK_VARIANTS_UPDATE]", error);
+    return new NextResponse("Internal error", { status: 500 });
+  }
+}
+
 async function processBulkOperation(
   operationId: string, 
   operation: string, 

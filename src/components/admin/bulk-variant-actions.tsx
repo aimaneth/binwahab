@@ -27,6 +27,7 @@ export function BulkVariantActions({ variants, productId, onUpdate }: BulkVarian
   const [selectedVariants, setSelectedVariants] = useState<Set<number>>(new Set());
   const [isLoading, setIsLoading] = useState(false);
   const [bulkData, setBulkData] = useState({
+    name: "",
     price: "",
     compareAtPrice: "",
     stock: "",
@@ -66,6 +67,7 @@ export function BulkVariantActions({ variants, productId, onUpdate }: BulkVarian
     setIsLoading(true);
     try {
       const updateData: any = {};
+      if (bulkData.name) updateData.name = bulkData.name;
       if (bulkData.price) updateData.price = parseFloat(bulkData.price);
       if (bulkData.compareAtPrice) updateData.compareAtPrice = parseFloat(bulkData.compareAtPrice);
       if (bulkData.stock) updateData.stock = parseInt(bulkData.stock);
@@ -173,6 +175,15 @@ export function BulkVariantActions({ variants, productId, onUpdate }: BulkVarian
               </DialogHeader>
               <div className="grid gap-4 py-4">
                 <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label>Name</Label>
+                    <Input
+                      type="text"
+                      value={bulkData.name}
+                      onChange={(e) => setBulkData({ ...bulkData, name: e.target.value })}
+                      placeholder="Leave empty to keep existing"
+                    />
+                  </div>
                   <div>
                     <Label>Price</Label>
                     <Input
