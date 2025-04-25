@@ -94,22 +94,33 @@ export async function DELETE(
     const { variantIds } = await request.json();
     const productId = parseInt(params.productId);
 
-    if (!variantIds || !Array.isArray(variantIds)) {
+    if (!variantIds || !Array.isArray(variantIds) || variantIds.length === 0) {
       return new NextResponse("Invalid request body", { status: 400 });
     }
 
-    // Delete variants in batches
-    for (let i = 0; i < variantIds.length; i += BATCH_SIZE) {
-      const batch = variantIds.slice(i, i + BATCH_SIZE);
-      await prisma.productVariant.deleteMany({
-        where: {
-          id: { in: batch },
-          productId: productId,
-        },
-      });
+    // Validate that all IDs are numbers
+    const validIds = variantIds.map(id => Number(id)).filter(id => !isNaN(id));
+    if (validIds.length !== variantIds.length) {
+      return new NextResponse("Invalid variant IDs", { status: 400 });
     }
 
-    return new NextResponse(null, { status: 204 });
+    try {
+      // Delete variants in batches
+      for (let i = 0; i < validIds.length; i += BATCH_SIZE) {
+        const batch = validIds.slice(i, i + BATCH_SIZE);
+        await prisma.productVariant.deleteMany({
+          where: {
+            id: { in: batch },
+            productId: productId,
+          },
+        });
+      }
+
+      return new NextResponse(null, { status: 204 });
+    } catch (dbError) {
+      console.error("[BULK_VARIANTS_DELETE_DB]", dbError);
+      return new NextResponse("Database error", { status: 500 });
+    }
   } catch (error) {
     console.error("[BULK_VARIANTS_DELETE]", error);
     return new NextResponse("Internal error", { status: 500 });
