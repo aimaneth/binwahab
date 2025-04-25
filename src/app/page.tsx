@@ -239,7 +239,7 @@ export default function HomePage() {
                 collection.products.map(product => (
                   <ProductCard key={product.id} product={product} />
                 ))
-              )}
+              ).slice(0, 4)}
             </div>
           ) : (
             <div className="text-center py-8">
