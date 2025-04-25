@@ -81,6 +81,41 @@ export async function GET(request: Request) {
   }
 }
 
+export async function DELETE(
+  request: Request,
+  { params }: { params: { productId: string } }
+) {
+  try {
+    const session = await getServerSession(authOptions);
+    if (!session?.user || session.user.role !== "ADMIN") {
+      return new NextResponse("Unauthorized", { status: 401 });
+    }
+
+    const { variantIds } = await request.json();
+    const productId = parseInt(params.productId);
+
+    if (!variantIds || !Array.isArray(variantIds)) {
+      return new NextResponse("Invalid request body", { status: 400 });
+    }
+
+    // Delete variants in batches
+    for (let i = 0; i < variantIds.length; i += BATCH_SIZE) {
+      const batch = variantIds.slice(i, i + BATCH_SIZE);
+      await prisma.productVariant.deleteMany({
+        where: {
+          id: { in: batch },
+          productId: productId,
+        },
+      });
+    }
+
+    return new NextResponse(null, { status: 204 });
+  } catch (error) {
+    console.error("[BULK_VARIANTS_DELETE]", error);
+    return new NextResponse("Internal error", { status: 500 });
+  }
+}
+
 async function processBulkOperation(
   operationId: string, 
   operation: string, 
