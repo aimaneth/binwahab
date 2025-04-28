@@ -133,11 +133,25 @@ export function Footer() {
                 className="h-6 w-auto"
               />
               <Image
-                src="/payment-logos/unionpay.svg"
-                alt="UnionPay"
+                src="/payment-logos/tng.png"
+                alt="Touch 'n Go"
                 width={40}
                 height={24}
-                className="h-6 w-auto"
+                className="h-8 w-auto"
+              />
+              <Image
+                src="/payment-logos/boost.png"
+                alt="Boost"
+                width={40}
+                height={24}
+                className="h-8 w-auto"
+              />
+              <Image
+                src="/payment-logos/grabpay.png"
+                alt="GrabPay"
+                width={40}
+                height={24}
+                className="h-8 w-auto"
               />
               <Image
                 src="/payment-logos/fpx.svg"
