@@ -178,7 +178,7 @@ export function Navbar() {
                     )}
                             <li className="mt-2 pt-2 border-t">
                               <Link
-                                href={`/shop/category/${category.id}`}
+                                href={`/shop/collection/${category.id}`}
                                 className="block px-2 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground rounded-sm"
                               >
                                 View All {category.name}
@@ -325,8 +325,8 @@ export function Navbar() {
               )}
                         <li className="mt-2 pt-2 border-t">
               <Link
-                href={`/shop/category/${category.id}`}
-                            className="block px-2 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground rounded-sm"
+                href={`/shop/collection/${category.id}`}
+                            className="text-base font-medium text-muted-foreground hover:text-foreground"
               >
                 View All {category.name}
               </Link>

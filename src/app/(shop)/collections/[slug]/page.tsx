@@ -51,11 +51,6 @@ export default async function CollectionPage({ params, searchParams }: Collectio
     redirect('/shop');
   }
 
-  // Redirect to shop with collection and category filters
-  const searchParamsString = new URLSearchParams({
-    collection: collection.id,
-    ...(searchParams.category && { category: searchParams.category as string })
-  }).toString();
-
-  redirect(`/shop?${searchParamsString}`);
+  // Redirect to the new collection route
+  redirect(`/shop/collection/${params.slug}`);
 }
