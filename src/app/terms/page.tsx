@@ -25,7 +25,7 @@ export default function TermsPage() {
   return (
     <PolicyLayout
       heading="Terms of Service"
-      subheading="Last updated: March 15, 2024"
+      subheading="Last updated: May 10, 2024"
     >
       <div className="space-y-8">
         {/* Acceptance */}
@@ -104,11 +104,27 @@ export default function TermsPage() {
               <CreditCard className="h-6 w-6 text-primary" />
               <h2 className="text-2xl font-bold">5. Pricing and Payment</h2>
             </div>
-            <p className="text-muted-foreground">
-              All prices are subject to change without notice. We reserve the right to modify or
-              discontinue any product or service without notice. We shall not be liable to you or any
-              third party for any modification, price change, suspension, or discontinuance of the service.
-            </p>
+            <div className="space-y-4">
+              <p className="text-muted-foreground">
+                All prices are subject to change without notice. We reserve the right to modify or
+                discontinue any product or service without notice. We shall not be liable to you or any
+                third party for any modification, price change, suspension, or discontinuance of the service.
+              </p>
+              <p className="text-muted-foreground">
+                We use Curlec (Razorpay) as our primary payment processor. By making a purchase, you agree to:
+              </p>
+              <ul className="list-none space-y-2 text-muted-foreground">
+                <li>• Provide accurate and complete payment information</li>
+                <li>• Authorize us to charge your chosen payment method for your order</li>
+                <li>• Accept the terms and conditions of our payment processor</li>
+                <li>• Acknowledge that payment data is securely processed and stored by Curlec</li>
+                <li>• Understand that failed or declined transactions may require alternative payment methods</li>
+              </ul>
+              <p className="text-muted-foreground">
+                Your payment information is processed securely through Curlec's payment gateway. We do not store 
+                your complete payment details on our servers.
+              </p>
+            </div>
           </CardContent>
         </Card>
 

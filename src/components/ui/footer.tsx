@@ -158,7 +158,7 @@ export function Footer() {
                 alt="FPX"
                 width={40}
                 height={24}
-                className="h-6 w-auto"
+                className="h-5 w-auto"
               />
             </div>
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
