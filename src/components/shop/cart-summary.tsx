@@ -319,11 +319,16 @@ export function CartSummary({ items, shippingState = "Selangor" }: CartSummaryPr
 
         {/* Payment Information */}
         <div className="space-y-2">
-          <h3 className="font-medium">Payment Method</h3>
-          <div className="flex items-center gap-2 rounded-md border p-3 bg-muted/50">
-            <CreditCard className="h-5 w-5 text-primary" />
+          <h3 className="font-medium">Payment Provider</h3>
+          <div className="flex items-center gap-3 rounded-md border p-3 bg-muted/50">
+            <Image
+              src="/payment-logos/curlec.svg"
+              alt="Curlec"
+              width={70}
+              height={30}
+              className="h-8 w-auto"
+            />
             <div>
-              <p className="font-medium">Curlec (Malaysia)</p>
               <p className="text-sm text-muted-foreground">Secure direct payment with Malaysian banks</p>
             </div>
           </div>
@@ -399,7 +404,7 @@ export function CartSummary({ items, shippingState = "Selangor" }: CartSummaryPr
                 Calculating...
               </>
             ) : (
-              "Pay Now with Curlec"
+              "Proceed with payment"
             )}
           </Button>
         </div>

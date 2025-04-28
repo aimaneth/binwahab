@@ -144,8 +144,8 @@ export function CheckoutPaymentOptions({
         </p>
         <div className="flex items-center gap-3">
           <Image 
-            src="/payment-logos/stripe.svg" 
-            alt="Stripe" 
+            src="/payment-logos/curlec.svg" 
+            alt="Curlec" 
             width={50} 
             height={20} 
           />

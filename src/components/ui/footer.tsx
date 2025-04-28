@@ -150,8 +150,8 @@ export function Footer() {
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
               <span>Secured by</span>
               <Image
-                src="/payment-logos/stripe.svg"
-                alt="Stripe"
+                src="/payment-logos/curlec.svg"
+                alt="Curlec"
                 width={40}
                 height={24}
                 className="h-7 w-auto"
