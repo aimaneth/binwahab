@@ -209,10 +209,10 @@ export default function ProductsPage() {
                       <div className="w-16 h-16 rounded-md overflow-hidden bg-muted flex items-center justify-center">
                         <ImageWithFallback
                           src={product.images?.[0]?.url || product.image || ""}
-                          alt={product.name}
-                          className="w-full h-full object-cover"
+                            alt={product.name}
+                            className="w-full h-full object-cover"
                           type="product"
-                        />
+                          />
                       </div>
                     </td>
                     <td className="p-2 align-middle">{product.id}</td>

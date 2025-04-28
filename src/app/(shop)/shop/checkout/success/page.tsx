@@ -1,145 +1,115 @@
-import { Metadata } from "next";
-import Link from "next/link";
-import { getServerSession } from "next-auth";
-import { redirect } from "next/navigation";
-import { authOptions } from "@/lib/auth";
-import { Button } from "@/components/ui/button";
-import { CheckCircle } from "lucide-react";
-import { stripe } from "@/lib/stripe";
-import { prisma } from "@/lib/prisma";
-import { formatOrderId } from "@/lib/utils";
+'use client';
 
-export const metadata: Metadata = {
-  title: "Payment Successful - BINWAHAB",
-  description: "Your payment has been processed successfully",
-};
+import { useEffect, useState } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { useSession } from 'next-auth/react';
+import Link from 'next/link';
+import { CheckCircle2, ArrowRight, Receipt, Home, ShoppingBag } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 
-async function createOrder(session: any, checkoutSession: any) {
-  try {
-    // Get the shipping address ID from metadata
-    const shippingAddressId = checkoutSession.metadata.shippingAddressId;
-
-    // Verify the shipping address exists and belongs to the user
-    const address = await prisma.address.findUnique({
-      where: {
-        id: shippingAddressId,
-        userId: session.user.id
+export default function PaymentSuccessPage() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const { data: session, status } = useSession();
+  const [orderId, setOrderId] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+  
+  const paymentId = searchParams.get('payment_id');
+  
+  useEffect(() => {
+    const fetchOrderDetails = async () => {
+      if (status === 'loading') return;
+      
+      if (status === 'unauthenticated') {
+        router.push('/login');
+        return;
       }
-    });
-
-    if (!address) {
-      throw new Error("Invalid shipping address");
-    }
-
-    // Parse the items from metadata
-    const items = JSON.parse(checkoutSession.metadata.items);
-
-    // Create order
-    const order = await prisma.order.create({
-      data: {
-        userId: session.user.id,
-        total: checkoutSession.amount_total / 100,
-        status: "PROCESSING",
-        paymentStatus: "PAID",
-        paymentMethod: checkoutSession.payment_method_types[0].toUpperCase(),
-        shippingAddressId: shippingAddressId,
-        items: {
-          create: items.map((item: any) => ({
-            productId: item.productId,
-            variantId: item.variantId || null,
-            quantity: item.quantity,
-            price: checkoutSession.line_items.data.find(
-              (li: any) => li.price.product.metadata.productId === item.productId
-            )?.price.unit_amount / 100 || 0,
-          })),
-        },
-      },
-      include: {
-        items: true,
-        shippingAddress: true,
-      },
-    });
-
-    return order;
-  } catch (error) {
-    console.error("Error creating order:", error);
-    throw error;
-  }
-}
-
-export default async function PaymentSuccessPage({
-  searchParams,
-}: {
-  searchParams: { session_id?: string };
-}) {
-  const session = await getServerSession(authOptions);
-
-  if (!session?.user) {
-    redirect("/login");
-  }
-
-  if (!searchParams.session_id) {
-    redirect("/shop");
-  }
-
-  try {
-    // Retrieve the checkout session
-    const checkoutSession = await stripe.checkout.sessions.retrieve(
-      searchParams.session_id,
-      {
-        expand: ['line_items', 'line_items.data.price.product'],
+      
+      if (!paymentId) {
+        // If no payment ID is found, redirect to home page after a delay
+        setTimeout(() => {
+          router.push('/');
+        }, 5000);
+        setLoading(false);
+        return;
       }
-    );
-
-    if (checkoutSession.payment_status !== "paid") {
-      throw new Error("Payment not completed");
-    }
-
-    // Create the order in our database
-    const order = await createOrder(session, checkoutSession);
-
-    return (
-      <main className="container mx-auto px-4 py-16">
-        <div className="max-w-2xl mx-auto text-center">
-          <div className="mb-8 flex justify-center">
-            <CheckCircle className="h-16 w-16 text-green-500" />
+      
+      try {
+        // Fetch order details if needed
+        const response = await fetch(`/api/orders/by-payment?paymentId=${paymentId}`);
+        
+        if (response.ok) {
+          const data = await response.json();
+          setOrderId(data.orderId);
+        }
+      } catch (error) {
+        console.error('Error fetching order details:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    fetchOrderDetails();
+  }, [paymentId, router, status]);
+  
+  return (
+    <div className="container max-w-lg py-16">
+      <Card className="text-center">
+        <CardHeader>
+          <div className="mx-auto w-fit mb-4">
+            <CheckCircle2 className="h-16 w-16 text-green-500" />
           </div>
-          <h1 className="text-3xl font-bold mb-4">Thank You for Your Order!</h1>
-          <p className="text-muted-foreground mb-4">
-            Your payment has been processed successfully.
-          </p>
+          <CardTitle className="text-2xl">Payment Successful!</CardTitle>
+          <CardDescription>
+            Thank you for your purchase
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {paymentId && (
+            <div className="bg-muted p-4 rounded-lg text-left">
+              <p className="text-sm text-muted-foreground mb-1">Payment Reference:</p>
+              <p className="font-medium break-all">{paymentId}</p>
+            </div>
+          )}
           
-          <div className="bg-muted/50 p-6 rounded-lg mb-8">
-            <h2 className="text-xl font-semibold mb-2">Order Status</h2>
-            <p className="text-lg font-medium mb-1">Order {formatOrderId(order.id)}</p>
-            <p className="text-green-600 font-medium">Confirmed</p>
-          </div>
-
-          <div className="space-y-4 text-muted-foreground">
-            <div>
-              <h3 className="font-medium text-foreground">Order Confirmation</h3>
-              <p>We'll send you a confirmation email with your order details and tracking information.</p>
+          {orderId && (
+            <div className="bg-muted p-4 rounded-lg text-left">
+              <p className="text-sm text-muted-foreground mb-1">Order ID:</p>
+              <p className="font-medium">{orderId}</p>
             </div>
-            
-            <div>
-              <h3 className="font-medium text-foreground">Estimated Delivery</h3>
-              <p>Your order will be delivered within 3-5 business days.</p>
-            </div>
-          </div>
-
-          <div className="mt-6 flex justify-center gap-4">
-            <Button asChild variant="outline">
-              <Link href="/orders">View Orders</Link>
+          )}
+          
+          <p className="text-muted-foreground">
+            We have sent a confirmation email with your order details.
+            You can also check your order status in your account.
+          </p>
+        </CardContent>
+        <CardFooter className="flex flex-col space-y-2">
+          {orderId && (
+            <Button asChild className="w-full">
+              <Link href={`/account/orders/${orderId}`}>
+                <Receipt className="mr-2 h-4 w-4" />
+                View Order Details
+              </Link>
             </Button>
-            <Button asChild>
-              <Link href="/shop">Continue Shopping</Link>
-            </Button>
-          </div>
-        </div>
-      </main>
-    );
-  } catch (error) {
-    console.error("Error processing successful payment:", error);
-    redirect("/shop");
-  }
+          )}
+          
+          <Button asChild variant="outline" className="w-full">
+            <Link href="/shop">
+              <ShoppingBag className="mr-2 h-4 w-4" />
+              Continue Shopping
+            </Link>
+          </Button>
+          
+          <Button asChild variant="ghost" className="w-full">
+            <Link href="/">
+              <Home className="mr-2 h-4 w-4" />
+              Return to Home
+            </Link>
+          </Button>
+        </CardFooter>
+      </Card>
+    </div>
+  );
 } 

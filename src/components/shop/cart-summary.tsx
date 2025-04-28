@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Image from "next/image";
+import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { formatPrice } from "@/lib/utils";
 import { CartItem, Product, ProductVariant } from "@prisma/client";
@@ -10,6 +11,8 @@ import { Separator } from "@/components/ui/separator";
 import { ShippingAddressForm } from "./shipping-address-form";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { toast } from "sonner";
+import { useSession } from "next-auth/react";
+import { CurlecCheckout } from "./CurlecCheckout";
 
 interface CartSummaryProps {
   items: (CartItem & {
@@ -31,6 +34,8 @@ interface Address {
 }
 
 export function CartSummary({ items, shippingState = "Selangor" }: CartSummaryProps) {
+  const router = useRouter();
+  const { data: session } = useSession();
   const [shipping, setShipping] = useState<number>(0);
   const [isLoading, setIsLoading] = useState(true);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -38,6 +43,10 @@ export function CartSummary({ items, shippingState = "Selangor" }: CartSummaryPr
   const [addresses, setAddresses] = useState<Address[]>([]);
   const [selectedAddressId, setSelectedAddressId] = useState<string>();
   const [showAddressForm, setShowAddressForm] = useState(false);
+  const [curlecOrder, setCurlecOrder] = useState<{ id: string; amount: number } | null>(null);
+  const [showPayment, setShowPayment] = useState(false);
+  const [paymentComplete, setPaymentComplete] = useState(false);
+  const [paymentId, setPaymentId] = useState<string | null>(null);
 
   useEffect(() => {
     // Fetch user's addresses
@@ -159,31 +168,65 @@ export function CartSummary({ items, shippingState = "Selangor" }: CartSummaryPr
         variantId: item.variant?.id
       }));
 
-      const response = await fetch("/api/checkout", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
+      // Create an order in our database first
+      const orderResponse = await fetch('/api/checkout/session', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
           items: checkoutItems,
-          shippingAddressId: selectedAddressId
+          shippingAddressId: selectedAddressId,
+          paymentMethod: 'curlec'
         })
       });
 
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || "Failed to create checkout session");
+      if (!orderResponse.ok) {
+        const errorData = await orderResponse.json();
+        throw new Error(errorData.error || 'Failed to create order');
       }
 
-      if (data.url) {
-        window.location.href = data.url;
-      } else {
-        throw new Error("No checkout URL received");
+      const orderData = await orderResponse.json();
+
+      // Create a Curlec order
+      const curlecResponse = await fetch('/api/curlec/create-order', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          amount: total,
+          orderId: orderData.id
+        })
+      });
+
+      if (!curlecResponse.ok) {
+        const errorData = await curlecResponse.json();
+        throw new Error(errorData.error || 'Failed to create payment');
       }
+
+      const curlecData = await curlecResponse.json();
+      setCurlecOrder({
+        id: curlecData.id,
+        amount: total
+      });
+      setShowPayment(true);
+      setIsProcessing(false);
+      
     } catch (err) {
       console.error("Checkout error:", err);
       setIsProcessing(false);
       toast.error('Failed to proceed to checkout');
     }
+  };
+
+  const handlePaymentComplete = (paymentId: string) => {
+    setPaymentId(paymentId);
+    setPaymentComplete(true);
+    // Redirect to order success page
+    router.push(`/shop/checkout/success?payment_id=${paymentId}`);
+  };
+
+  const handlePaymentFailure = (error: string) => {
+    toast.error(`Payment failed: ${error}`);
+    setShowPayment(false);
+    setCurlecOrder(null);
   };
 
   if (items.length === 0) {
@@ -199,6 +242,42 @@ export function CartSummary({ items, shippingState = "Selangor" }: CartSummaryPr
   );
   const tax = subtotal * 0.06; // 6% GST
   const total = subtotal + tax + shipping;
+
+  // If we're showing the payment interface
+  if (showPayment && curlecOrder) {
+    return (
+      <div className="rounded-lg border bg-card text-card-foreground shadow-sm">
+        <div className="p-6 space-y-4">
+          <h2 className="text-lg font-semibold">Complete Your Payment</h2>
+          
+          <div className="space-y-2">
+            <div className="flex justify-between text-sm font-semibold">
+              <span>Total Amount</span>
+              <span>{formatPrice(total)}</span>
+            </div>
+          </div>
+          
+          <CurlecCheckout 
+            orderId={curlecOrder.id}
+            amount={curlecOrder.amount}
+            onPaymentComplete={handlePaymentComplete}
+            onPaymentFailure={handlePaymentFailure}
+          />
+          
+          <Button
+            variant="outline"
+            className="w-full mt-4"
+            onClick={() => {
+              setShowPayment(false);
+              setCurlecOrder(null);
+            }}
+          >
+            Cancel Payment
+          </Button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="rounded-lg border bg-card text-card-foreground shadow-sm">
@@ -235,6 +314,18 @@ export function CartSummary({ items, shippingState = "Selangor" }: CartSummaryPr
               height={20}
               className="ml-auto"
             />
+          </div>
+        </div>
+
+        {/* Payment Information */}
+        <div className="space-y-2">
+          <h3 className="font-medium">Payment Method</h3>
+          <div className="flex items-center gap-2 rounded-md border p-3 bg-muted/50">
+            <CreditCard className="h-5 w-5 text-primary" />
+            <div>
+              <p className="font-medium">Curlec (Malaysia)</p>
+              <p className="text-sm text-muted-foreground">Secure direct payment with Malaysian banks</p>
+            </div>
           </div>
         </div>
 
@@ -288,10 +379,6 @@ export function CartSummary({ items, shippingState = "Selangor" }: CartSummaryPr
 
         <div className="space-y-4">
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <CreditCard className="h-4 w-4" />
-            <span>Secure payment via Stripe</span>
-          </div>
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <Shield className="h-4 w-4" />
             <span>Protected by buyer guarantee</span>
           </div>
@@ -312,7 +399,7 @@ export function CartSummary({ items, shippingState = "Selangor" }: CartSummaryPr
                 Calculating...
               </>
             ) : (
-              "Proceed to Payment"
+              "Pay Now with Curlec"
             )}
           </Button>
         </div>

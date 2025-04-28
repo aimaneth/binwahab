@@ -46,7 +46,7 @@ export function Navbar() {
   const { setCartIconPosition } = useCart();
 
   const fetchCategoriesAndCollections = useCallback(async () => {
-    try {
+      try {
       setIsLoading(true);
       const categoriesResponse = await fetch('/api/categories', {
         cache: 'no-store',
@@ -56,11 +56,11 @@ export function Navbar() {
         }
       });
       
-      if (!categoriesResponse.ok) throw new Error('Failed to fetch categories');
-      const categoriesData = await categoriesResponse.json();
+        if (!categoriesResponse.ok) throw new Error('Failed to fetch categories');
+        const categoriesData = await categoriesResponse.json();
 
-      const categoriesWithCollections = await Promise.all(
-        categoriesData.map(async (category: { id: string; name: string }) => {
+        const categoriesWithCollections = await Promise.all(
+          categoriesData.map(async (category: { id: string; name: string }) => {
           const collectionsResponse = await fetch(`/api/collections?category=${category.id}`, {
             cache: 'no-store',
             headers: {
@@ -68,21 +68,21 @@ export function Navbar() {
               'Pragma': 'no-cache'
             }
           });
-          if (!collectionsResponse.ok) throw new Error('Failed to fetch collections');
-          const collections = await collectionsResponse.json();
-          return {
-            ...category,
-            collections
-          };
-        })
-      );
+            if (!collectionsResponse.ok) throw new Error('Failed to fetch collections');
+            const collections = await collectionsResponse.json();
+            return {
+              ...category,
+              collections
+            };
+          })
+        );
 
-      setCategories(categoriesWithCollections);
-    } catch (error) {
-      console.error('Failed to fetch categories and collections:', error);
-    } finally {
-      setIsLoading(false);
-    }
+        setCategories(categoriesWithCollections);
+      } catch (error) {
+        console.error('Failed to fetch categories and collections:', error);
+      } finally {
+        setIsLoading(false);
+      }
   }, []);
 
   useEffect(() => {
