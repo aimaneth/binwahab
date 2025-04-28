@@ -15,7 +15,7 @@ export const metadata: Metadata = {
 const faqs = [
   {
     question: "What payment methods do you accept?",
-    answer: "We accept all major credit cards (Visa, MasterCard), PayPal, and bank transfers (FPX). All payments are processed securely through our payment partners (Stripe)."
+    answer: "We accept all major credit cards (Visa, Mastercard), e-wallets (Touch 'n Go, Boost, GrabPay), and online banking (FPX). All payments are processed securely through our payment partners."
   },
   {
     question: "How long does shipping take?",
