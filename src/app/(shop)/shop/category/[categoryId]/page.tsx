@@ -266,18 +266,20 @@ interface ProductWithCategories extends Product {
 }
 
 export async function generateMetadata({ params }: { params: { categoryId: string } }): Promise<Metadata> {
-  const category = await prisma.category.findUnique({
-    where: {
-      id: params.categoryId,
-    },
+  // Try to find by slug first, then by id
+  let category = await prisma.category.findUnique({
+    where: { slug: params.categoryId },
   });
-
+  if (!category) {
+    category = await prisma.category.findUnique({
+      where: { id: params.categoryId },
+    });
+  }
   if (!category) {
     return {
       title: "Category Not Found - BINWAHAB",
     };
   }
-
   return {
     title: `${category.name} - BINWAHAB`,
     description: category.description || undefined,
@@ -285,10 +287,9 @@ export async function generateMetadata({ params }: { params: { categoryId: strin
 }
 
 export default async function CategoryPage({ params }: { params: { categoryId: string } }) {
-  const category = await prisma.category.findUnique({
-    where: {
-      id: params.categoryId,
-    },
+  // Try to find by slug first, then by id
+  let category = await prisma.category.findUnique({
+    where: { slug: params.categoryId },
     include: {
       products: {
         where: {
@@ -302,7 +303,23 @@ export default async function CategoryPage({ params }: { params: { categoryId: s
       },
     },
   });
-
+  if (!category) {
+    category = await prisma.category.findUnique({
+      where: { id: params.categoryId },
+      include: {
+        products: {
+          where: {
+            status: "ACTIVE",
+          },
+          include: {
+            category: true,
+            images: true,
+            variants: true,
+          },
+        },
+      },
+    });
+  }
   if (!category) {
     notFound();
   }
