@@ -136,21 +136,21 @@ export function Footer() {
                 src="/payment-logos/tng.png"
                 alt="Touch 'n Go"
                 width={40}
-                height={24}
+                height={22}
                 className="h-8 w-auto"
               />
               <Image
                 src="/payment-logos/boost.png"
                 alt="Boost"
                 width={40}
-                height={24}
+                height={22}
                 className="h-8 w-auto"
               />
               <Image
                 src="/payment-logos/grabpay.png"
                 alt="GrabPay"
                 width={40}
-                height={24}
+                height={22}
                 className="h-8 w-auto"
               />
               <Image
