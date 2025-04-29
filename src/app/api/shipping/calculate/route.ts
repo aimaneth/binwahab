@@ -21,6 +21,17 @@ export async function POST(req: Request) {
     const { state, orderValue, orderWeight = 0 } = shippingCalculationSchema.parse(body);
     console.log("[SHIPPING_CALC_PARSED]", { state, orderValue, orderWeight });
 
+    // Check if free shipping is enabled
+    const freeShippingSetting = await prisma.systemSetting.findUnique({
+      where: { key: 'free_shipping_enabled' }
+    });
+
+    // If free shipping is enabled, return 0 cost
+    if (freeShippingSetting?.value === 'true') {
+      console.log("[SHIPPING_CALC_RESPONSE]", { cost: 0, source: 'free_shipping_setting' });
+      return NextResponse.json({ cost: 0 });
+    }
+
     // Map state to zone type
     const zoneType = state.toLowerCase().includes('sabah') || 
                     state.toLowerCase().includes('sarawak') ? 

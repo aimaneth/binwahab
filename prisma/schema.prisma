@@ -20,6 +20,7 @@ model User {
   updatedAt        DateTime         @default(now())
   role             UserRole         @default(USER)
   stripeCustomerId String?          @unique
+  razorpayCustomerId String?        @unique
   accounts         Account[]
   addToCartEvents  AddToCartEvent[]
   addresses        Address[]
@@ -578,6 +579,13 @@ model PageView {
   
   @@index([page, timestamp])
   @@index([timestamp])
+}
+
+model SystemSetting {
+  key   String @id
+  value String
+
+  @@map("system_settings")
 }
 
 enum Role {

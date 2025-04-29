@@ -10,9 +10,10 @@ import { ShippingRatesTable } from "./rates-table";
 import { ShippingZonesTable } from "./zones-table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
+import { ShippingSettingsForm } from "./settings-form";
 
 export default function ShippingPage() {
-  const [activeTab, setActiveTab] = useState("zones");
+  const [activeTab, setActiveTab] = useState("settings");
   const [zones, setZones] = useState<ShippingZone[]>([]);
   const [rates, setRates] = useState<(ShippingRate & { zone: ShippingZone })[]>([]);
   const [selectedZone, setSelectedZone] = useState<ShippingZone | null>(null);
@@ -135,27 +136,38 @@ export default function ShippingPage() {
     <div className="container mx-auto py-10">
       <div className="flex justify-between items-center mb-8">
         <h1 className="text-3xl font-bold">Shipping Management</h1>
-        <Button
-          onClick={() => {
-            if (activeTab === "zones") {
-              setSelectedZone(null);
-              setShowZoneForm(true);
-            } else {
-              setSelectedRate(null);
-              setShowRateForm(true);
-            }
-          }}
-        >
-          <Plus className="mr-2 h-4 w-4" />
-          Add {activeTab === "zones" ? "Zone" : "Rate"}
-        </Button>
+        {activeTab !== "settings" && (
+          <Button
+            onClick={() => {
+              if (activeTab === "zones") {
+                setSelectedZone(null);
+                setShowZoneForm(true);
+              } else {
+                setSelectedRate(null);
+                setShowRateForm(true);
+              }
+            }}
+          >
+            <Plus className="mr-2 h-4 w-4" />
+            Add {activeTab === "zones" ? "Zone" : "Rate"}
+          </Button>
+        )}
       </div>
 
-      <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList>
+      <Tabs 
+        defaultValue="settings" 
+        value={activeTab} 
+        onValueChange={setActiveTab}
+      >
+        <TabsList className="mb-6">
+          <TabsTrigger value="settings">Settings</TabsTrigger>
           <TabsTrigger value="zones">Shipping Zones</TabsTrigger>
           <TabsTrigger value="rates">Shipping Rates</TabsTrigger>
         </TabsList>
+
+        <TabsContent value="settings">
+          <ShippingSettingsForm />
+        </TabsContent>
 
         <TabsContent value="zones">
           <ShippingZonesTable
