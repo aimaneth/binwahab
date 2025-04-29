@@ -80,7 +80,7 @@ export function CartItems({ items }: CartItemsProps) {
   const removeItem = async (itemId: string | number) => {
     setUpdating(itemId.toString());
     try {
-      const response = await fetch(`/api/cart?itemId=${itemId}`, {
+      const response = await fetch(`/api/cart?productId=${itemId}`, {
         method: "DELETE",
       });
 
