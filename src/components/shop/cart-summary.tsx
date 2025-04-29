@@ -289,7 +289,7 @@ export function CartSummary({ items, shippingState = "Selangor" }: CartSummaryPr
             <span>{formatPrice(subtotal)}</span>
           </div>
           <div className="flex justify-between text-sm">
-            <span>Tax (6% GST)</span>
+            <span>Tax (6% SST)</span>
             <span>{formatPrice(tax)}</span>
           </div>
           <div className="flex justify-between text-sm">
