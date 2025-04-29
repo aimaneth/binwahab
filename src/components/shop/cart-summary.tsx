@@ -192,7 +192,8 @@ export function CartSummary({ items, shippingState = "Selangor" }: CartSummaryPr
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           amount: total,
-          orderId: orderData.id
+          orderId: orderData.id,
+          shippingAddressId: selectedAddressId
         })
       });
 
