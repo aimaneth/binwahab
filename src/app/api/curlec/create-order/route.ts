@@ -25,9 +25,20 @@ export async function POST(request: Request) {
     const body = await request.json();
     const { amount, receipt, shippingAddressId, orderId } = body;
 
+    console.log('Curlec create-order request:', { amount, shippingAddressId, orderId });
+
     if (!amount) {
       return NextResponse.json(
         { error: 'Amount is required' },
+        { status: 400 }
+      );
+    }
+
+    // Validate shippingAddressId is provided when creating a new order
+    if (!orderId && !shippingAddressId) {
+      console.error('Shipping address is required for new orders');
+      return NextResponse.json(
+        { error: 'Shipping address is required' },
         { status: 400 }
       );
     }
@@ -88,28 +99,27 @@ export async function POST(request: Request) {
           }
         });
       } else {
-        // Get user information
-        const user = await prisma.user.findUnique({
-          where: { id: session.user.id },
-          include: {
-            addresses: {
-              where: { isDefault: true },
-              take: 1,
-            },
-          },
-        });
-
-        // If no shipping address provided, try to use the default address
-        let addressToUse = shippingAddressId;
-        
-        if (!addressToUse && user?.addresses && user.addresses.length > 0) {
-          addressToUse = user.addresses[0].id;
-        }
-        
-        // If still no shipping address, return error
-        if (!addressToUse) {
+        // Explicitly check if shippingAddressId exists and is valid
+        if (!shippingAddressId) {
+          console.error('Missing shipping address ID for new order');
           return NextResponse.json(
             { error: 'Shipping address is required' },
+            { status: 400 }
+          );
+        }
+
+        // Verify the shipping address exists and belongs to the user
+        const address = await prisma.address.findUnique({
+          where: {
+            id: shippingAddressId,
+            userId: session.user.id
+          }
+        });
+
+        if (!address) {
+          console.error('Invalid shipping address provided:', shippingAddressId);
+          return NextResponse.json(
+            { error: 'Invalid shipping address' },
             { status: 400 }
           );
         }
@@ -124,7 +134,7 @@ export async function POST(request: Request) {
             paymentMethod: "CREDIT_CARD", // Using a valid value from PaymentMethod enum
             // Store Curlec order ID in stripeSessionId field
             stripeSessionId: orderData.id,
-            shippingAddressId: addressToUse
+            shippingAddressId: shippingAddressId
           }
         });
       }
