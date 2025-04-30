@@ -22,34 +22,60 @@ interface OrderDetails {
 export default function CheckoutSuccessPage() {
   const [status, setStatus] = useState<string>("loading");
   const [orderDetails, setOrderDetails] = useState<OrderDetails | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const searchParams = useSearchParams();
   const session_id = searchParams.get("session_id");
+  const payment_id = searchParams.get("payment_id");
+  const order_id = searchParams.get("order_id");
 
   useEffect(() => {
     const verifyPayment = async () => {
-      if (!session_id) {
-        setStatus("error");
-        return;
-      }
-
       try {
-        const response = await fetch(`/api/checkout/verify?session_id=${session_id}`);
-        const data = await response.json();
-        
-        if (response.ok && data.orderId) {
-          setStatus(data.status);
-          setOrderDetails(data);
+        let response;
+        let data;
+
+        // Different verification paths for Stripe vs Curlec payments
+        if (session_id) {
+          // Stripe payment verification
+          response = await fetch(`/api/checkout/verify?session_id=${session_id}`);
+          data = await response.json();
+          
+          if (response.ok && data.orderId) {
+            setStatus(data.status);
+            setOrderDetails(data);
+          } else {
+            throw new Error(data.error || 'Failed to verify Stripe payment');
+          }
+        } else if (order_id) {
+          // Try to get order details directly
+          console.log('Fetching order details for:', order_id);
+          response = await fetch(`/api/orders/${order_id}`);
+          data = await response.json();
+          
+          if (response.ok && data.id) {
+            console.log('Order details:', data);
+            setStatus(data.paymentStatus === 'PAID' ? 'complete' : data.status);
+            setOrderDetails({
+              orderId: data.id,
+              status: data.paymentStatus === 'PAID' ? 'complete' : data.status,
+              total: data.total || 0,
+              items: data.items || []
+            });
+          } else {
+            throw new Error(data.error || 'Failed to fetch order details');
+          }
         } else {
-          setStatus("error");
+          throw new Error('No payment or order information provided');
         }
       } catch (error) {
         console.error("Payment verification error:", error);
         setStatus("error");
+        setError(error instanceof Error ? error.message : 'An unknown error occurred');
       }
     };
 
     verifyPayment();
-  }, [session_id]);
+  }, [session_id, payment_id, order_id]);
 
   if (status === "loading") {
     return (
@@ -64,7 +90,7 @@ export default function CheckoutSuccessPage() {
       <div className="max-w-2xl mx-auto p-6">
         <Alert variant="destructive">
           <AlertDescription>
-            We couldn't verify your payment. Please contact support if you believe this is an error.
+            {error || "We couldn't verify your payment. Please contact support if you believe this is an error."}
           </AlertDescription>
         </Alert>
         <div className="mt-6 text-center">

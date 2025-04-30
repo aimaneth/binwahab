@@ -181,33 +181,61 @@ export function CurlecCheckout({ orderId, amount, onPaymentComplete, onPaymentFa
             description: 'Payment for your order',
             image: 'https://binwahab.com/images/logo.png',
             order_id: orderId, // Order ID from the API
-            callback_url: `${baseUrl}/api/curlec/verify-payment?redirect=true`,
-            redirect: true,
+            // Remove callback_url and use handler instead since Razorpay's redirect isn't working properly
+            handler: function(response: any) {
+              // Log the response for debugging
+              console.log('Payment success:', response);
+              
+              // Verify the payment on our server
+              fetch('/api/curlec/verify-payment', {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                  razorpay_payment_id: response.razorpay_payment_id,
+                  razorpay_order_id: response.razorpay_order_id,
+                  razorpay_signature: response.razorpay_signature,
+                }),
+              })
+              .then(res => res.json())
+              .then(data => {
+                if (data.success) {
+                  // Use the orderId from the response instead of the Razorpay orderId
+                  window.location.href = `/checkout/success?payment_id=${response.razorpay_payment_id}&order_id=${data.orderId}`;
+                } else {
+                  throw new Error(data.error || 'Payment verification failed');
+                }
+              })
+              .catch(error => {
+                console.error('Payment verification error:', error);
+                if (onPaymentFailure) {
+                  onPaymentFailure(error.message || 'Payment verification failed');
+                }
+                setError('Payment verification failed. Please contact support.');
+                setLoading(false);
+              });
+            },
+            modal: {
+              ondismiss: function() {
+                setLoading(false);
+                // Redirect to cancel page on modal dismiss
+                window.location.href = '/checkout/cancel';
+              },
+              escape: true,
+              animation: true
+            },
             prefill: {
               name: session.user.name || undefined,
               email: session.user.email || undefined,
               contact: '' // Would need to get from user profile if available
             },
             notes: {
-              address: 'Customer Address'
+              address: 'Customer Address',
+              order_id: orderId // Store the order ID in notes for verification
             },
             theme: {
               color: '#6366F1'
-            },
-            // Add handler function for both callback_url and handler (belt and suspenders)
-            handler: function(response: any) {
-              if (onPaymentComplete) {
-                onPaymentComplete(response.razorpay_payment_id);
-              }
-              setLoading(false);
-            },
-            // Add modal configuration to handle modal close
-            modal: {
-              ondismiss: function() {
-                setLoading(false);
-              },
-              escape: true,
-              animation: true
             }
           };
 

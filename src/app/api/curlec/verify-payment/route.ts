@@ -11,7 +11,7 @@ if (!process.env.CURLEC_KEY_SECRET) {
 
 export async function POST(request: NextRequest) {
   try {
-    // Add CORS headers for Razorpay
+    // Add CORS headers
     const headers = new Headers();
     headers.set('Access-Control-Allow-Origin', '*');
     headers.set('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
@@ -22,12 +22,6 @@ export async function POST(request: NextRequest) {
       return new NextResponse(null, { status: 204, headers });
     }
 
-    // Check for user session
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401, headers });
-    }
-
     // Parse request body
     const body = await request.json();
     const { 
@@ -35,6 +29,13 @@ export async function POST(request: NextRequest) {
       razorpay_order_id, 
       razorpay_signature 
     } = body;
+
+    // Log the request for debugging
+    console.log('Verify payment request:', { 
+      razorpay_payment_id, 
+      razorpay_order_id, 
+      razorpay_signature 
+    });
 
     // Verify all parameters exist
     if (!razorpay_payment_id || !razorpay_order_id || !razorpay_signature) {
@@ -65,12 +66,12 @@ export async function POST(request: NextRequest) {
     // Find the order in the database using the Curlec order ID
     const order = await prisma.order.findFirst({
       where: {
-        stripeSessionId: razorpay_order_id, // Using stripeSessionId to store Curlec orderId
-        userId: session.user.id
+        stripeSessionId: razorpay_order_id // Using stripeSessionId to store Curlec orderId
       }
     });
 
     if (!order) {
+      console.error('Order not found:', razorpay_order_id);
       return NextResponse.json(
         { error: 'Order not found' },
         { status: 404, headers }
@@ -78,7 +79,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Update order status
-    await prisma.order.update({
+    const updatedOrder = await prisma.order.update({
       where: { id: order.id },
       data: {
         paymentStatus: 'PAID',
@@ -90,7 +91,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       success: true,
       message: 'Payment verified successfully',
-      orderId: order.id
+      orderId: updatedOrder.id // Return the internal order ID, not the Razorpay order ID
     }, { headers });
   } catch (error) {
     // Add the CORS headers to error responses too
@@ -109,7 +110,7 @@ export async function POST(request: NextRequest) {
 
 // Handle GET requests for redirection after payment
 export async function GET(request: NextRequest) {
-  // Add CORS headers for Razorpay
+  // Add CORS headers
   const headers = new Headers();
   headers.set('Access-Control-Allow-Origin', '*');
   headers.set('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
@@ -121,31 +122,93 @@ export async function GET(request: NextRequest) {
     const razorpay_payment_id = searchParams.get('razorpay_payment_id');
     const razorpay_order_id = searchParams.get('razorpay_order_id');
     const razorpay_signature = searchParams.get('razorpay_signature');
+    const order_id = searchParams.get('order_id');
 
     // Log the incoming parameters for debugging
-    console.log('Payment verification request:', {
+    console.log('Payment verification redirect request:', {
       redirect,
       razorpay_payment_id,
       razorpay_order_id,
       razorpay_signature,
+      order_id,
       url: request.url
     });
 
-    // If redirect param exists, redirect to appropriate page
+    // Get the base URL, handling localhost protocol correctly
+    const host = request.headers.get('host') || 'localhost:3000';
+    const protocol = host.includes('localhost') ? 'http' : 'https';
+    const baseUrl = `${protocol}://${host}`;
+
+    // If redirect param exists, handle redirection
     if (redirect === 'true') {
-      // Get the base URL, handling localhost protocol correctly
-      const host = request.headers.get('host') || 'localhost:3000';
-      const protocol = host.includes('localhost') ? 'http' : 'https';
-      const baseUrl = `${protocol}://${host}`;
-      
-      // Check if payment was successful
+      // If we have Razorpay parameters, verify the payment
       if (razorpay_payment_id && razorpay_order_id && razorpay_signature) {
-        // Redirect to success page
-        return NextResponse.redirect(`${baseUrl}/checkout/success?payment_id=${razorpay_payment_id}`);
-      } else {
-        // Redirect to failure page
+        // Find the order to include in the success URL
+        try {
+          const order = await prisma.order.findFirst({
+            where: {
+              stripeSessionId: razorpay_order_id
+            }
+          });
+
+          if (order) {
+            // Update order status if needed
+            if (order.paymentStatus !== 'PAID') {
+              await prisma.order.update({
+                where: { id: order.id },
+                data: {
+                  paymentStatus: 'PAID',
+                  stripePaymentIntentId: razorpay_payment_id
+                }
+              });
+            }
+            
+            // Redirect to success page with internal order ID
+            return NextResponse.redirect(`${baseUrl}/checkout/success?payment_id=${razorpay_payment_id}&order_id=${order.id}`);
+          }
+        } catch (dbError) {
+          console.error('Database error during redirect:', dbError);
+        }
+        
+        // If no order found, redirect to cancel
         return NextResponse.redirect(`${baseUrl}/checkout/cancel`);
+      } 
+      // If we have just the order_id, try to find it (this might be our internal ID)
+      else if (order_id) {
+        try {
+          // First try to find by internal ID
+          let order = await prisma.order.findUnique({
+            where: {
+              id: order_id
+            }
+          });
+
+          // If not found, try to find by Razorpay order ID
+          if (!order) {
+            order = await prisma.order.findFirst({
+              where: {
+                stripeSessionId: order_id
+              }
+            });
+          }
+
+          if (order) {
+            // If the order exists and is paid, redirect to success
+            if (order.paymentStatus === 'PAID') {
+              return NextResponse.redirect(`${baseUrl}/checkout/success?order_id=${order.id}`);
+            }
+            // If the order exists but isn't paid, redirect to cancel
+            else {
+              return NextResponse.redirect(`${baseUrl}/checkout/cancel`);
+            }
+          }
+        } catch (dbError) {
+          console.error('Database error during order lookup:', dbError);
+        }
       }
+      
+      // If we get here, something went wrong - redirect to cancel
+      return NextResponse.redirect(`${baseUrl}/checkout/cancel`);
     }
 
     // If no redirect requested, return a simple response
@@ -155,7 +218,8 @@ export async function GET(request: NextRequest) {
         redirect,
         razorpay_payment_id,
         razorpay_order_id,
-        razorpay_signature
+        razorpay_signature,
+        order_id
       }
     }, { headers });
   } catch (error) {
