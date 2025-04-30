@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { CheckCircle, Package, Mail, Clock } from "lucide-react";
 import { formatPrice } from "@/lib/utils";
+import { useCart } from "@/hooks/use-cart";
 
 interface OrderDetails {
   orderId: string;
@@ -27,6 +28,7 @@ export default function CheckoutSuccessPage() {
   const session_id = searchParams.get("session_id");
   const payment_id = searchParams.get("payment_id");
   const order_id = searchParams.get("order_id");
+  const { clearCart } = useCart();
 
   useEffect(() => {
     const verifyPayment = async () => {
@@ -43,24 +45,29 @@ export default function CheckoutSuccessPage() {
           if (response.ok && data.orderId) {
             setStatus(data.status);
             setOrderDetails(data);
+            // Clear cart and wait for it to complete
+            await clearCart();
           } else {
             throw new Error(data.error || 'Failed to verify Stripe payment');
           }
-        } else if (order_id) {
-          // Try to get order details directly
-          console.log('Fetching order details for:', order_id);
+        } else if (payment_id && order_id) {
+          // Curlec payment verification
           response = await fetch(`/api/orders/${order_id}`);
           data = await response.json();
           
           if (response.ok && data.id) {
-            console.log('Order details:', data);
-            setStatus(data.paymentStatus === 'PAID' ? 'complete' : data.status);
+            const isPaymentConfirmed = data.paymentStatus === 'PAID';
+            setStatus(isPaymentConfirmed ? 'complete' : data.status);
             setOrderDetails({
               orderId: data.id,
-              status: data.paymentStatus === 'PAID' ? 'complete' : data.status,
+              status: isPaymentConfirmed ? 'complete' : data.status,
               total: data.total || 0,
               items: data.items || []
             });
+            if (isPaymentConfirmed) {
+              // Clear cart and wait for it to complete
+              await clearCart();
+            }
           } else {
             throw new Error(data.error || 'Failed to fetch order details');
           }
@@ -75,7 +82,7 @@ export default function CheckoutSuccessPage() {
     };
 
     verifyPayment();
-  }, [session_id, payment_id, order_id]);
+  }, [session_id, payment_id, order_id, clearCart]);
 
   if (status === "loading") {
     return (

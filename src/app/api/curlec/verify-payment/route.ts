@@ -55,7 +55,9 @@ export async function POST(request: NextRequest) {
 
     if (!isSignatureValid) {
       console.error('Invalid signature', {
-        received: razorpay_signature
+        received: razorpay_signature,
+        orderId: razorpay_order_id,
+        paymentId: razorpay_payment_id
       });
       return NextResponse.json(
         { error: 'Invalid payment signature' },
@@ -64,35 +66,92 @@ export async function POST(request: NextRequest) {
     }
 
     // Find the order in the database using the Curlec order ID
-    const order = await prisma.order.findFirst({
+    const orderWithItems = await prisma.order.findFirst({
       where: {
         stripeSessionId: razorpay_order_id // Using stripeSessionId to store Curlec orderId
+      },
+      include: {
+        items: {
+          include: {
+            variant: true
+          }
+        }
       }
     });
 
-    if (!order) {
-      console.error('Order not found:', razorpay_order_id);
+    if (!orderWithItems) {
+      console.error('Order not found:', {
+        razorpayOrderId: razorpay_order_id,
+        paymentId: razorpay_payment_id
+      });
       return NextResponse.json(
         { error: 'Order not found' },
         { status: 404, headers }
       );
     }
 
-    // Update order status
-    const updatedOrder = await prisma.order.update({
-      where: { id: order.id },
-      data: {
-        paymentStatus: 'PAID',
-        stripePaymentIntentId: razorpay_payment_id
-      }
-    });
+    // Check if payment was already processed
+    if (orderWithItems.paymentStatus === 'PAID') {
+      console.log('Payment already processed:', {
+        orderId: orderWithItems.id,
+        razorpayOrderId: razorpay_order_id
+      });
+      return NextResponse.json({
+        success: true,
+        message: 'Payment already verified',
+        orderId: orderWithItems.id
+      }, { headers });
+    }
 
-    // Always include CORS headers in your responses
-    return NextResponse.json({
-      success: true,
-      message: 'Payment verified successfully',
-      orderId: updatedOrder.id // Return the internal order ID, not the Razorpay order ID
-    }, { headers });
+    try {
+      // Start a transaction to update order status and inventory
+      const updatedOrder = await prisma.$transaction(async (tx) => {
+        // Update order status
+        const updatedOrderData = await tx.order.update({
+          where: { id: orderWithItems.id },
+          data: {
+            paymentStatus: 'PAID',
+            stripePaymentIntentId: razorpay_payment_id
+          }
+        });
+
+        // Update inventory for each item
+        for (const item of orderWithItems.items) {
+          if (item.variant) {
+            await tx.productVariant.update({
+              where: { id: item.variant.id },
+              data: {
+                stock: {
+                  decrement: item.quantity
+                }
+              }
+            });
+          }
+        }
+
+        return updatedOrderData;
+      });
+
+      console.log('Payment processed successfully:', {
+        orderId: updatedOrder.id,
+        razorpayOrderId: razorpay_order_id,
+        paymentId: razorpay_payment_id
+      });
+
+      // Always include CORS headers in your responses
+      return NextResponse.json({
+        success: true,
+        message: 'Payment verified successfully',
+        orderId: updatedOrder.id
+      }, { headers });
+    } catch (error) {
+      console.error('Transaction failed:', {
+        error,
+        orderId: orderWithItems.id,
+        razorpayOrderId: razorpay_order_id
+      });
+      throw error; // Let the outer catch block handle the error response
+    }
   } catch (error) {
     // Add the CORS headers to error responses too
     const headers = new Headers();
@@ -148,17 +207,41 @@ export async function GET(request: NextRequest) {
           const order = await prisma.order.findFirst({
             where: {
               stripeSessionId: razorpay_order_id
+            },
+            include: {
+              items: {
+                include: {
+                  variant: true
+                }
+              }
             }
           });
 
           if (order) {
             // Update order status if needed
             if (order.paymentStatus !== 'PAID') {
-              await prisma.order.update({
-                where: { id: order.id },
-                data: {
-                  paymentStatus: 'PAID',
-                  stripePaymentIntentId: razorpay_payment_id
+              // Use transaction to update both order status and inventory
+              await prisma.$transaction(async (tx) => {
+                await tx.order.update({
+                  where: { id: order.id },
+                  data: {
+                    paymentStatus: 'PAID',
+                    stripePaymentIntentId: razorpay_payment_id
+                  }
+                });
+
+                // Update inventory for each item
+                for (const item of order.items) {
+                  if (item.variant) {
+                    await tx.productVariant.update({
+                      where: { id: item.variant.id },
+                      data: {
+                        stock: {
+                          decrement: item.quantity
+                        }
+                      }
+                    });
+                  }
                 }
               });
             }

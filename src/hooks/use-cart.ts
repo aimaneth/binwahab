@@ -21,7 +21,7 @@ interface CartStore {
   addItem: (item: CartItem) => void;
   removeItem: (productId: string | number, variantSku?: string) => void;
   updateQuantity: (productId: string | number, quantity: number, variantSku?: string) => void;
-  clearCart: () => void;
+  clearCart: () => Promise<void>;
   getTotal: () => number;
 }
 
@@ -66,7 +66,29 @@ export const useCart = create(
           ),
         }));
       },
-      clearCart: () => set({ items: [] }),
+      clearCart: async () => {
+        try {
+          // Clear server-side cart first
+          const response = await fetch('/api/cart?clearAll=true', {
+            method: 'DELETE',
+          });
+
+          if (!response.ok) {
+            console.error('Failed to clear server-side cart:', await response.text());
+          }
+
+          // Clear client-side cart
+          set({ items: [] });
+
+          // Dispatch cart update event
+          window.dispatchEvent(new Event('cartUpdate'));
+        } catch (error) {
+          console.error('Error clearing cart:', error);
+          // Still clear client-side cart even if server-side fails
+          set({ items: [] });
+          window.dispatchEvent(new Event('cartUpdate'));
+        }
+      },
       getTotal: () => {
         return get().items.reduce((total, item) => {
           const itemPrice = item.variant?.price || item.product.price;

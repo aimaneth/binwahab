@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Loader } from 'lucide-react';
 import { toast } from '@/components/ui/use-toast';
+import { useCart } from '@/hooks/use-cart';
 
 interface CurlecCheckoutProps {
   orderId: string;
@@ -20,6 +21,7 @@ declare global {
 
 export function CurlecCheckout({ orderId, amount, onPaymentComplete, onPaymentFailure }: CurlecCheckoutProps) {
   const { data: session } = useSession();
+  const { clearCart } = useCart();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [razorpayKey, setRazorpayKey] = useState<string | null>(null);
@@ -199,10 +201,18 @@ export function CurlecCheckout({ orderId, amount, onPaymentComplete, onPaymentFa
                 }),
               })
               .then(res => res.json())
-              .then(data => {
+              .then(async (data) => {
                 if (data.success) {
-                  // Use the orderId from the response instead of the Razorpay orderId
-                  window.location.href = `/checkout/success?payment_id=${response.razorpay_payment_id}&order_id=${data.orderId}`;
+                  try {
+                    // Clear the cart immediately on successful payment
+                    await clearCart();
+                    // Redirect to success page
+                    window.location.href = `/checkout/success?payment_id=${response.razorpay_payment_id}&order_id=${data.orderId}`;
+                  } catch (error) {
+                    console.error('Error clearing cart:', error);
+                    // Still redirect to success page even if cart clearing fails
+                    window.location.href = `/checkout/success?payment_id=${response.razorpay_payment_id}&order_id=${data.orderId}`;
+                  }
                 } else {
                   throw new Error(data.error || 'Payment verification failed');
                 }

@@ -293,7 +293,23 @@ export async function DELETE(req: Request) {
 
     const { searchParams } = new URL(req.url);
     const productId = searchParams.get('productId');
+    const clearAll = searchParams.get('clearAll');
 
+    // If clearAll is true, delete the entire cart
+    if (clearAll === 'true') {
+      await prisma.cart.delete({
+        where: {
+          userId: session.user.id,
+        },
+      });
+
+      return NextResponse.json(
+        { message: "Cart cleared successfully" },
+        { status: 200 }
+      );
+    }
+
+    // Otherwise, proceed with deleting a single item
     if (!productId) {
       return NextResponse.json(
         { message: "Product ID is required" },
