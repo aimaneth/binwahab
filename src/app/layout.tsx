@@ -61,11 +61,20 @@ export const metadata: Metadata = {
     title: "BINWAHAB - Malaysian Traditional Fashion",
     description: "Discover elegant baju melayu, kurta, and kebaya designs",
     siteName: "BINWAHAB",
+    images: [
+      {
+        url: '/social/og-image.jpg',
+        width: 1200,
+        height: 630,
+        alt: 'BINWAHAB - Malaysian Traditional Fashion'
+      }
+    ]
   },
   twitter: {
     card: "summary_large_image",
     title: "BINWAHAB - Malaysian Traditional Fashion",
     description: "Discover elegant baju melayu, kurta, and kebaya designs",
+    images: ['/social/twitter-image.jpg']
   },
 };
 
