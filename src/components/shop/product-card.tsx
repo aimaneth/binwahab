@@ -72,10 +72,10 @@ export function ProductCard({ product }: ProductCardProps) {
         {product.category && (
           <p className="text-sm text-muted-foreground">{product.category.name}</p>
         )}
-        <div className="mt-2 flex items-center justify-between">
+        <div className="mt-2">
           <p className="font-semibold">{formatPrice(displayPrice)}</p>
           {availableSizes.length > 0 && (
-            <div className="flex gap-1 flex-wrap">
+            <div className="flex gap-1 flex-wrap mt-1">
               {availableSizes.map((size) => (
                 <Badge key={size} variant="secondary" className="text-xs">
                   {size}

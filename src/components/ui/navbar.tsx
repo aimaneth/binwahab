@@ -289,7 +289,7 @@ export function Navbar() {
           isOpen ? "block" : "hidden"
         )}
       >
-        <div className="space-y-1 px-4 pb-3 pt-2">
+        <div className="space-y-1 px-2 pb-3 pt-2">
           <Link
             href="/shop"
             className="block px-3 py-2 text-sm font-medium text-muted-foreground hover:bg-muted hover:text-foreground rounded-md"
@@ -298,46 +298,50 @@ export function Navbar() {
           </Link>
           
           {/* Categories Mobile */}
-          {categories.map((category) => (
-            <div key={category.id} className="space-y-1">
-              <NavigationMenu>
-                <NavigationMenuList>
-                  <NavigationMenuItem>
-                    <NavigationMenuTrigger className="text-sm text-muted-foreground hover:text-foreground transition-colors w-full justify-start">
-                {category.name}
-                    </NavigationMenuTrigger>
-                    <NavigationMenuContent>
-                      <ul className="w-full p-2">
-              {isLoading ? (
-                          <li className="px-2 py-1.5 text-sm text-muted-foreground">Loading...</li>
-              ) : category.collections.length > 0 ? (
-                category.collections.map((collection) => (
-                  <Link
-                    key={collection.id}
-                              href={`/shop?collection=${collection.id}&category=${category.id}`}
-                              className="block select-none rounded-sm px-2 py-1.5 text-sm outline-none transition-colors hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground"
-                  >
-                    {collection.name}
-                  </Link>
-                ))
-              ) : (
-                          <li className="px-2 py-1.5 text-sm text-muted-foreground">No collections found</li>
-              )}
-                        <li className="mt-2 pt-2 border-t">
-              <Link
-                href={`/shop/collection/${category.id}`}
-                            className="text-base font-medium text-muted-foreground hover:text-foreground"
-              >
-                View All {category.name}
-              </Link>
-                        </li>
-                      </ul>
-                    </NavigationMenuContent>
-                  </NavigationMenuItem>
-                </NavigationMenuList>
-              </NavigationMenu>
-            </div>
-          ))}
+          <div className="space-y-1">
+            {categories.map((category, index) => (
+              <div key={category.id} className="relative" style={{ zIndex: 50 - index }}>
+                <NavigationMenu className="w-full">
+                  <NavigationMenuList className="w-full flex justify-center">
+                    <NavigationMenuItem className="w-auto min-w-[16rem] max-w-[20rem]">
+                      <NavigationMenuTrigger className="w-full text-sm text-muted-foreground hover:text-foreground transition-colors justify-start bg-transparent">
+                        {category.name}
+                      </NavigationMenuTrigger>
+                      <NavigationMenuContent>
+                        <ul className="w-full p-3 bg-popover rounded-md">
+                          {isLoading ? (
+                            <li className="px-2 py-1.5 text-sm text-muted-foreground">Loading...</li>
+                          ) : category.collections.length > 0 ? (
+                            category.collections.map((collection) => (
+                              <Link
+                                key={collection.id}
+                                href={`/shop?collection=${collection.id}&category=${category.id}`}
+                                className="block select-none rounded-sm px-3 py-2 text-sm outline-none transition-colors hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground"
+                                onClick={() => setIsOpen(false)}
+                              >
+                                {collection.name}
+                              </Link>
+                            ))
+                          ) : (
+                            <li className="px-2 py-1.5 text-sm text-muted-foreground">No collections found</li>
+                          )}
+                          <li className="mt-2 pt-2 border-t">
+                            <Link
+                              href={`/shop/collection/${category.id}`}
+                              className="block px-3 py-2 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground rounded-sm"
+                              onClick={() => setIsOpen(false)}
+                            >
+                              View All {category.name}
+                            </Link>
+                          </li>
+                        </ul>
+                      </NavigationMenuContent>
+                    </NavigationMenuItem>
+                  </NavigationMenuList>
+                </NavigationMenu>
+              </div>
+            ))}
+          </div>
           
           <Link
             href="/shop/collections"
