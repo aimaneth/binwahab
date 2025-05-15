@@ -207,11 +207,11 @@ export function CurlecCheckout({ orderId, amount, onPaymentComplete, onPaymentFa
                     // Clear the cart immediately on successful payment
                     await clearCart();
                     // Redirect to success page
-                    window.location.href = `/checkout/success?payment_id=${response.razorpay_payment_id}&order_id=${data.orderId}`;
+                    window.location.href = `/shop/checkout/success?payment_id=${response.razorpay_payment_id}&order_id=${data.orderId}`;
                   } catch (error) {
                     console.error('Error clearing cart:', error);
                     // Still redirect to success page even if cart clearing fails
-                    window.location.href = `/checkout/success?payment_id=${response.razorpay_payment_id}&order_id=${data.orderId}`;
+                    window.location.href = `/shop/checkout/success?payment_id=${response.razorpay_payment_id}&order_id=${data.orderId}`;
                   }
                 } else {
                   throw new Error(data.error || 'Payment verification failed');
@@ -230,7 +230,7 @@ export function CurlecCheckout({ orderId, amount, onPaymentComplete, onPaymentFa
               ondismiss: function() {
                 setLoading(false);
                 // Redirect to cancel page on modal dismiss
-                window.location.href = '/checkout/cancel';
+                window.location.href = '/shop/checkout/cancel';
               },
               escape: true,
               animation: true

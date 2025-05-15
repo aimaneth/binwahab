@@ -92,7 +92,7 @@ export default function CurlecCheckoutPage() {
         amount={parseFloat(amount!)}
         onPaymentComplete={(paymentId) => {
           addDebug(`Payment completed: ${paymentId}`);
-          window.location.href = `/checkout/success?payment_id=${paymentId}&order_id=${orderId}`;
+          window.location.href = `/shop/checkout/success?payment_id=${paymentId}&order_id=${orderId}`;
         }}
         onPaymentFailure={(error) => {
           addDebug(`Payment failed: ${error}`);

@@ -247,14 +247,14 @@ export async function GET(request: NextRequest) {
             }
             
             // Redirect to success page with internal order ID
-            return NextResponse.redirect(`${baseUrl}/checkout/success?payment_id=${razorpay_payment_id}&order_id=${order.id}`);
+            return NextResponse.redirect(`${baseUrl}/shop/checkout/success?payment_id=${razorpay_payment_id}&order_id=${order.id}`);
           }
         } catch (dbError) {
           console.error('Database error during redirect:', dbError);
         }
         
         // If no order found, redirect to cancel
-        return NextResponse.redirect(`${baseUrl}/checkout/cancel`);
+        return NextResponse.redirect(`${baseUrl}/shop/checkout/cancel`);
       } 
       // If we have just the order_id, try to find it (this might be our internal ID)
       else if (order_id) {
@@ -278,11 +278,11 @@ export async function GET(request: NextRequest) {
           if (order) {
             // If the order exists and is paid, redirect to success
             if (order.paymentStatus === 'PAID') {
-              return NextResponse.redirect(`${baseUrl}/checkout/success?order_id=${order.id}`);
+              return NextResponse.redirect(`${baseUrl}/shop/checkout/success?order_id=${order.id}`);
             }
             // If the order exists but isn't paid, redirect to cancel
             else {
-              return NextResponse.redirect(`${baseUrl}/checkout/cancel`);
+              return NextResponse.redirect(`${baseUrl}/shop/checkout/cancel`);
             }
           }
         } catch (dbError) {
@@ -291,7 +291,7 @@ export async function GET(request: NextRequest) {
       }
       
       // If we get here, something went wrong - redirect to cancel
-      return NextResponse.redirect(`${baseUrl}/checkout/cancel`);
+      return NextResponse.redirect(`${baseUrl}/shop/checkout/cancel`);
     }
 
     // If no redirect requested, return a simple response
