@@ -14,6 +14,9 @@ export default function ConfirmationPage() {
   const [message, setMessage] = useState("");
   const { clearCart } = useCart();
 
+  const sessionId = searchParams.get("session_id");
+  const orderId = searchParams.get("order_id");
+
   useEffect(() => {
     const verifyPayment = async () => {
       const sessionId = searchParams.get("session_id");
@@ -81,6 +84,12 @@ export default function ConfirmationPage() {
               <div className="space-y-2">
                 <h2 className="text-2xl font-semibold text-green-500">Payment Successful!</h2>
                 <p className="text-gray-600">{message}</p>
+                {sessionId && (
+                  <p className="text-sm text-gray-500 mt-2">Session ID: {sessionId}</p>
+                )}
+                {orderId && (
+                  <p className="text-sm text-gray-500 mt-2">Order ID: {orderId}</p>
+                )}
                 <p className="text-sm text-gray-500 mt-2">
                   A confirmation email has been sent to your email address.
                 </p>

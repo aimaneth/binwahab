@@ -246,8 +246,8 @@ export async function GET(request: NextRequest) {
               });
             }
             
-            // Redirect to success page with internal order ID
-            return NextResponse.redirect(`${baseUrl}/shop/checkout/success?payment_id=${razorpay_payment_id}&order_id=${order.id}`);
+            // Redirect to confirmation page with both session_id and order_id
+            return NextResponse.redirect(`${baseUrl}/shop/confirmation?session_id=${razorpay_payment_id}&order_id=${order.id}`);
           }
         } catch (dbError) {
           console.error('Database error during redirect:', dbError);
@@ -276,9 +276,9 @@ export async function GET(request: NextRequest) {
           }
 
           if (order) {
-            // If the order exists and is paid, redirect to success
+            // If the order exists and is paid, redirect to confirmation
             if (order.paymentStatus === 'PAID') {
-              return NextResponse.redirect(`${baseUrl}/shop/checkout/success?order_id=${order.id}`);
+              return NextResponse.redirect(`${baseUrl}/shop/confirmation?order_id=${order.id}`);
             }
             // If the order exists but isn't paid, redirect to cancel
             else {
