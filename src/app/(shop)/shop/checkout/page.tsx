@@ -93,8 +93,8 @@ export default function CheckoutPage() {
       variant: 'default'
     });
     
-    // Redirect to order confirmation page
-    router.push(`/shop/checkout/success?payment_id=${paymentId}`);
+    // Redirect to order confirmation page (shop/confirmation) with session_id
+    router.push(`/shop/confirmation?session_id=${paymentId}`);
   };
   
   // Handle payment failure
