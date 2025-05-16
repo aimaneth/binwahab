@@ -183,7 +183,7 @@ export function CurlecCheckout({ orderId, amount, onPaymentComplete, onPaymentFa
             description: 'Payment for your order',
             image: 'https://binwahab.com/images/logo.png',
             order_id: orderId, // Order ID from the API
-            callback_url: `${baseUrl}/api/curlec/verify-payment?redirect=true`,
+            // Remove callback_url and use handler instead since Razorpay's redirect isn't working properly
             handler: function(response: any) {
               // Log the response for debugging
               console.log('Payment success:', response);
