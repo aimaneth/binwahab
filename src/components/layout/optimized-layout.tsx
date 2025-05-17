@@ -30,12 +30,6 @@ export default function OptimizedLayout({ children }: OptimizedLayoutProps) {
         defer={scriptLoadingConfig.analytics.defer}
       />
 
-      {/* Critical scripts */}
-      <Script
-        src="/scripts/critical.js"
-        strategy={scriptLoadingConfig.criticalScripts.strategy}
-      />
-
       {/* Main content */}
       <div className={fontSans.className}>
         {children}
