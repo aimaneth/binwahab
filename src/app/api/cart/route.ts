@@ -334,11 +334,10 @@ export async function DELETE(req: Request) {
       );
     }
 
-    const pid = Number(productId);
-    const vid = variantId ? Number(variantId) : undefined;
-    const cartItem = cart.items.find(item =>
-      Number(item.productId) === pid &&
-      (vid !== undefined ? Number(item.variantId) === vid : !item.variantId)
+    // Find the cart item to delete
+    const cartItem = cart.items.find(item => 
+      item.productId && item.productId.toString() === productId &&
+      (!variantId || (item.variantId && item.variantId.toString() === variantId))
     );
 
     if (!cartItem) {
@@ -348,6 +347,7 @@ export async function DELETE(req: Request) {
       );
     }
 
+    // Delete the cart item
     await prisma.cartItem.delete({
       where: {
         id: cartItem.id,
@@ -359,6 +359,7 @@ export async function DELETE(req: Request) {
       { status: 200 }
     );
   } catch (error) {
+    console.error("[CART_DELETE]", error);
     return NextResponse.json(
       { message: "Failed to remove item" },
       { status: 500 }

@@ -124,7 +124,14 @@ export function CartItems() {
             // Get product and variant images (Zustand CartItem shape)
             const productImages = Array.isArray(item.product.images) ? item.product.images : [];
             const productImage = productImages.length > 0 ? productImages[0] : undefined;
-            // Zustand CartItem does not have variant.image or options
+
+            // Debug logging
+            console.log('Cart Item Image Debug:', {
+              productName: item.product.name,
+              productImages,
+              productImage,
+              variantSku: item.variant?.sku
+            });
 
             return (
               <div key={`${item.product.id}-${item.variant?.sku || ''}`}>
