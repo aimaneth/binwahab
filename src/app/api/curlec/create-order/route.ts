@@ -23,7 +23,7 @@ export async function POST(request: Request) {
 
     // Parse the request body
     const body = await request.json();
-    const { amount, receipt, shippingAddressId, orderId } = body;
+    const { amount, receipt, shippingAddressId, orderId, paymentMethod } = body;
 
     console.log('Curlec create-order request:', { amount, shippingAddressId, orderId });
 
@@ -95,7 +95,7 @@ export async function POST(request: Request) {
           data: {
             stripeSessionId: orderData.id,
             paymentStatus: "PENDING",
-            paymentMethod: "CREDIT_CARD"
+            paymentMethod: paymentMethod || "CREDIT_CARD"
           }
         });
       } else {
@@ -131,7 +131,7 @@ export async function POST(request: Request) {
             total: parseFloat(amount),
             status: "PENDING",
             paymentStatus: "PENDING",
-            paymentMethod: "CREDIT_CARD", // Using a valid value from PaymentMethod enum
+            paymentMethod: paymentMethod || "CREDIT_CARD",
             // Store Curlec order ID in stripeSessionId field
             stripeSessionId: orderData.id,
             shippingAddressId: shippingAddressId

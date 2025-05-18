@@ -14,6 +14,7 @@ interface CurlecPaymentButtonProps {
   description?: string;
   className?: string;
   disabled?: boolean;
+  paymentMethod?: string;
 }
 
 export function CurlecPaymentButton({
@@ -24,7 +25,8 @@ export function CurlecPaymentButton({
   customerPhone,
   description = 'Purchase from BINWAHAB Shop',
   className,
-  disabled = false
+  disabled = false,
+  paymentMethod = 'CREDIT_CARD',
 }: CurlecPaymentButtonProps) {
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
@@ -47,7 +49,8 @@ export function CurlecPaymentButton({
         body: JSON.stringify({
           amount,
           currency,
-          receipt: `order_${Date.now()}`
+          receipt: `order_${Date.now()}`,
+          paymentMethod,
         }),
       });
 

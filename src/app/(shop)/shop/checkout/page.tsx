@@ -9,6 +9,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { CurlecCheckout } from '@/components/shop/CurlecCheckout';
 import { Loader, CreditCard, Info } from 'lucide-react';
+import { CurlecPaymentButton } from '@/components/shop/curlec-payment-button';
 
 export default function CheckoutPage() {
   const router = useRouter();
@@ -18,6 +19,14 @@ export default function CheckoutPage() {
   const [loading, setLoading] = useState(true);
   const [orderProcessing, setOrderProcessing] = useState(false);
   const [cart, setCart] = useState<any>(null);
+  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState('TNG_EWALLET');
+  const paymentMethods = [
+    { label: "TnG eWallet", value: "TNG_EWALLET" },
+    { label: "GrabPay", value: "GRABPAY" },
+    { label: "Boost", value: "BOOST" },
+    { label: "FPX (Online Banking)", value: "FPX" },
+    { label: "Credit Card", value: "CREDIT_CARD" },
+  ];
   
   // Get parameters from URL
   const paymentMethod = searchParams.get('payment_method') || 'curlec';
@@ -132,29 +141,41 @@ export default function CheckoutPage() {
     );
   }
   
-  // Fallback message if we don't have the necessary parameters
+  // Payment method selection UI
   return (
     <div className="container max-w-md py-10">
       <Card>
         <CardHeader>
-          <CardTitle>Payment Error</CardTitle>
-          <CardDescription>
-            Missing payment information. Please return to your cart and try again.
-          </CardDescription>
+          <CardTitle>Choose Payment Method</CardTitle>
         </CardHeader>
         <CardContent>
-          <p className="text-muted-foreground mb-4">
-            We couldn't process your payment because some required information was missing.
-            Please go back to your shopping cart and try the checkout process again.
-          </p>
+          <div className="mb-4">
+            <label className="block mb-2 font-medium">Select a payment method:</label>
+            <div className="space-y-2">
+              {paymentMethods.map((method) => (
+                <label key={method.value} className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="radio"
+                    name="paymentMethod"
+                    value={method.value}
+                    checked={selectedPaymentMethod === method.value}
+                    onChange={() => setSelectedPaymentMethod(method.value)}
+                  />
+                  {method.label}
+                </label>
+              ))}
+            </div>
+          </div>
         </CardContent>
         <CardFooter>
-          <Button 
-            className="w-full" 
-            onClick={() => router.push('/shop/cart')}
-          >
-            Return to Cart
-          </Button>
+          <CurlecPaymentButton
+            amount={cart?.total || 0}
+            paymentMethod={selectedPaymentMethod}
+            customerName={session?.user?.name || undefined}
+            customerEmail={session?.user?.email || undefined}
+            // Add other props as needed
+            className="w-full"
+          />
         </CardFooter>
       </Card>
     </div>
