@@ -293,6 +293,7 @@ export async function DELETE(req: Request) {
 
     const { searchParams } = new URL(req.url);
     const productId = searchParams.get('productId');
+    const variantId = searchParams.get('variantId');
     const clearAll = searchParams.get('clearAll');
 
     // If clearAll is true, delete the entire cart
@@ -333,7 +334,10 @@ export async function DELETE(req: Request) {
       );
     }
 
-    const cartItem = cart.items.find(item => item.productId === parseInt(productId));
+    const cartItem = cart.items.find(item =>
+      item.productId === parseInt(productId) &&
+      (variantId ? item.variantId === parseInt(variantId) : !item.variantId)
+    );
 
     if (!cartItem) {
       return NextResponse.json(

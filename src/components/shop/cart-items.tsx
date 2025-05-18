@@ -77,17 +77,14 @@ export function CartItems({ items }: CartItemsProps) {
     }
   };
 
-  const removeItem = async (itemId: string | number) => {
-    setUpdating(itemId.toString());
+  const removeItem = async (productId: string | number, variantId?: string | number) => {
+    setUpdating(productId.toString());
     try {
-      const response = await fetch(`/api/cart?productId=${itemId}`, {
-        method: "DELETE",
-      });
-
+      let url = `/api/cart?productId=${productId}`;
+      if (variantId) url += `&variantId=${variantId}`;
+      const response = await fetch(url, { method: "DELETE" });
       if (!response.ok) throw new Error("Failed to remove item");
-      
-      removeCartItem(itemId);
-      // Dispatch cart update event
+      removeCartItem(productId, variantId ? variantId.toString() : undefined);
       window.dispatchEvent(new Event('cartUpdate'));
       router.refresh();
       toast.success("Item removed from cart");
@@ -192,7 +189,7 @@ export function CartItems({ items }: CartItemsProps) {
                         <Button
                           variant="ghost"
                           size="icon"
-                          onClick={() => removeItem(item.product.id)}
+                          onClick={() => removeItem(item.product.id, item.variant?.id ? item.variant.id.toString() : undefined)}
                           disabled={isUpdating}
                         >
                           {isUpdating ? (
