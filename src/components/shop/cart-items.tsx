@@ -4,7 +4,6 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { CartItem } from "@/types/cart";
 import { formatPrice } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -19,15 +18,11 @@ import {
 } from "lucide-react";
 import { useCart } from "@/hooks/use-cart";
 
-interface CartItemsProps {
-  items: CartItem[];
-}
-
-export function CartItems({ items }: CartItemsProps) {
+export function CartItems() {
   const router = useRouter();
   const [updating, setUpdating] = useState<string | null>(null);
   const [savedItems, setSavedItems] = useState<string[]>([]);
-  const { updateQuantity: updateCartQuantity, removeItem: removeCartItem } = useCart();
+  const { items, updateQuantity: updateCartQuantity, removeItem: removeCartItem } = useCart();
 
   if (items.length === 0) {
     return (
@@ -51,14 +46,14 @@ export function CartItems({ items }: CartItemsProps) {
     );
   }
 
-  const updateQuantity = async (itemId: string | number, quantity: number) => {
+  const updateQuantity = async (itemId: string | number, quantity: number, variantId?: string | number) => {
     if (quantity < 1) return;
     setUpdating(itemId.toString());
     try {
       const response = await fetch("/api/cart", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ productId: itemId.toString(), quantity }),
+        body: JSON.stringify({ productId: itemId.toString(), quantity, variantId }),
       });
 
       if (!response.ok) {
@@ -66,7 +61,7 @@ export function CartItems({ items }: CartItemsProps) {
         throw new Error(error.message || "Failed to update quantity");
       }
       
-      updateCartQuantity(itemId, quantity);
+      updateCartQuantity(String(itemId), quantity, variantId !== undefined ? String(variantId) : undefined);
       // Dispatch cart update event
       window.dispatchEvent(new Event('cartUpdate'));
       router.refresh();
@@ -84,7 +79,7 @@ export function CartItems({ items }: CartItemsProps) {
       if (variantId) url += `&variantId=${variantId}`;
       const response = await fetch(url, { method: "DELETE" });
       if (!response.ok) throw new Error("Failed to remove item");
-      removeCartItem(productId, variantId ? variantId.toString() : undefined);
+      removeCartItem(String(productId), variantId !== undefined ? String(variantId) : undefined);
       window.dispatchEvent(new Event('cartUpdate'));
       router.refresh();
       toast.success("Item removed from cart");
@@ -126,28 +121,18 @@ export function CartItems({ items }: CartItemsProps) {
             const itemPrice = Number(item.variant?.price ?? item.product.price);
             const itemTotal = itemPrice * item.quantity;
 
+            // Get product and variant images (Zustand CartItem shape)
+            const productImages = Array.isArray(item.product.images) ? item.product.images : [];
+            const productImage = productImages.length > 0 ? productImages[0] : undefined;
+            // Zustand CartItem does not have variant.image or options
+
             return (
               <div key={`${item.product.id}-${item.variant?.sku || ''}`}>
                 <div className="flex gap-6">
                   {/* Product Image */}
                   <div className="relative w-24 h-24 flex-shrink-0">
-                    {(() => {
-                      console.log('Cart Item Image Debug:', {
-                        productName: item.product.name,
-                        variantImage: item.variant?.image,
-                        productImages: item.product.images,
-                        productImage: item.product.image,
-                      });
-                      return null;
-                    })()}
                     <ImageWithFallback
-                      src={
-                        item.variant?.image || 
-                        (item.product.images && item.product.images.length > 0 
-                          ? item.product.images[0].url 
-                          : item.product.image) || 
-                        '/images/fallback-product.jpg'
-                      }
+                      src={productImage || '/images/fallback-product.jpg'}
                       alt={item.product.name}
                       fill
                       className="object-cover rounded-md"
@@ -161,15 +146,6 @@ export function CartItems({ items }: CartItemsProps) {
                         <h3 className="text-sm font-medium text-foreground truncate">
                           {item.product.name}
                         </h3>
-                        {item.variant && (
-                          <div className="mt-1 space-y-1">
-                            {item.variant.options && Object.entries(item.variant.options).map(([key, value]) => (
-                              <p key={key} className="text-sm text-muted-foreground">
-                                {key}: {value}
-                              </p>
-                            ))}
-                          </div>
-                        )}
                         <p className="mt-1 text-sm font-medium text-foreground">
                           {formatPrice(itemTotal)}
                         </p>
@@ -189,7 +165,7 @@ export function CartItems({ items }: CartItemsProps) {
                         <Button
                           variant="ghost"
                           size="icon"
-                          onClick={() => removeItem(item.product.id, item.variant?.id ? item.variant.id.toString() : undefined)}
+                          onClick={() => removeItem(String(item.product.id), item.variant?.sku ? String(item.variant.sku) : undefined)}
                           disabled={isUpdating}
                         >
                           {isUpdating ? (
@@ -208,7 +184,7 @@ export function CartItems({ items }: CartItemsProps) {
                           variant="outline"
                           size="icon"
                           className="h-8 w-8"
-                          onClick={() => updateQuantity(item.product.id, item.quantity - 1)}
+                          onClick={() => updateQuantity(String(item.product.id), item.quantity - 1, item.variant?.sku ? String(item.variant.sku) : undefined)}
                           disabled={isUpdating || item.quantity <= 1}
                         >
                           -
@@ -218,7 +194,7 @@ export function CartItems({ items }: CartItemsProps) {
                           min="1"
                           value={item.quantity}
                           onChange={(e) =>
-                            updateQuantity(item.product.id, parseInt(e.target.value))
+                            updateQuantity(String(item.product.id), parseInt(e.target.value), item.variant?.sku ? String(item.variant.sku) : undefined)
                           }
                           className="w-16 h-8 text-center"
                           disabled={isUpdating}
@@ -227,7 +203,7 @@ export function CartItems({ items }: CartItemsProps) {
                           variant="outline"
                           size="icon"
                           className="h-8 w-8"
-                          onClick={() => updateQuantity(item.product.id, item.quantity + 1)}
+                          onClick={() => updateQuantity(String(item.product.id), item.quantity + 1, item.variant?.sku ? String(item.variant.sku) : undefined)}
                           disabled={isUpdating}
                         >
                           +

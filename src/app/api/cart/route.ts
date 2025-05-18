@@ -334,9 +334,11 @@ export async function DELETE(req: Request) {
       );
     }
 
+    const pid = Number(productId);
+    const vid = variantId ? Number(variantId) : undefined;
     const cartItem = cart.items.find(item =>
-      item.productId === parseInt(productId) &&
-      (variantId ? item.variantId === parseInt(variantId) : !item.variantId)
+      Number(item.productId) === pid &&
+      (vid !== undefined ? Number(item.variantId) === vid : !item.variantId)
     );
 
     if (!cartItem) {
