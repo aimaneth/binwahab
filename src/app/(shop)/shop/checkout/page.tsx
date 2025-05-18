@@ -67,17 +67,6 @@ export default function CheckoutPage() {
         
         const cartData = await response.json();
         
-        // Check if cart is empty
-        if (!cartData.items || cartData.items.length === 0) {
-          toast({
-            title: 'Empty Cart',
-            description: 'Your cart is empty. Add some products before checkout.',
-            variant: 'destructive'
-          });
-          router.push('/shop/cart');
-          return;
-        }
-        
         setCart(cartData);
       } catch (error) {
         console.error('Error loading cart:', error);
@@ -93,6 +82,18 @@ export default function CheckoutPage() {
     
     getCart();
   }, [router, status, toast, showCurlecCheckout]);
+  
+  // Only redirect to cart if cart is loaded and confirmed empty
+  useEffect(() => {
+    if (!loading && cart && (!cart.items || cart.items.length === 0)) {
+      toast({
+        title: 'Empty Cart',
+        description: 'Your cart is empty. Add some products before checkout.',
+        variant: 'destructive'
+      });
+      router.push('/shop/cart');
+    }
+  }, [loading, cart, router, toast]);
   
   // Handle payment completion
   const handlePaymentComplete = (paymentId: string) => {
@@ -124,6 +125,11 @@ export default function CheckoutPage() {
         <Loader className="h-12 w-12 animate-spin text-primary" />
       </div>
     );
+  }
+  
+  // Only render payment UI if cart is loaded and has items
+  if (!cart || !cart.items || cart.items.length === 0) {
+    return null;
   }
   
   // Render the Curlec checkout if we have the necessary parameters
