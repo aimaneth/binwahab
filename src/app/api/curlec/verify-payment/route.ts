@@ -247,7 +247,36 @@ export async function GET(request: NextRequest) {
             }
             
             // Redirect to confirmation page with both session_id and order_id
-            return NextResponse.redirect(`${baseUrl}/shop/confirmation?session_id=${razorpay_payment_id}&order_id=${order.id}`);
+            const confirmationUrl = `${baseUrl}/shop/confirmation?session_id=${razorpay_payment_id}&order_id=${order.id}`;
+            const fallbackHtml = `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Payment Successful - Redirecting...</title>
+  <meta http-equiv="refresh" content="2;url=${confirmationUrl}" />
+  <style>
+    body { font-family: sans-serif; background: #f9f9f9; color: #222; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; }
+    .card { background: #fff; padding: 2rem 2.5rem; border-radius: 12px; box-shadow: 0 2px 12px rgba(0,0,0,0.07); text-align: center; }
+    .btn { margin-top: 1.5rem; padding: 0.75rem 1.5rem; background: #6366F1; color: #fff; border: none; border-radius: 6px; font-size: 1rem; cursor: pointer; text-decoration: none; }
+    .btn:hover { background: #4f46e5; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>Payment Successful!</h1>
+    <p>Thank you for your payment. You will be redirected to your order confirmation page shortly.</p>
+    <p>If you are not redirected, <a class="btn" href="${confirmationUrl}">click here to view your order</a>.</p>
+  </div>
+</body>
+</html>`;
+            return new NextResponse(fallbackHtml, {
+              status: 200,
+              headers: {
+                'Content-Type': 'text/html; charset=utf-8',
+                'Cache-Control': 'no-store',
+              },
+            });
           }
         } catch (dbError) {
           console.error('Database error during redirect:', dbError);
