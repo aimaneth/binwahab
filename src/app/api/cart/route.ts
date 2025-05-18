@@ -334,6 +334,14 @@ export async function DELETE(req: Request) {
       );
     }
 
+    // Debug logging: print all cart items and the incoming IDs
+    console.log('Cart Items Debug:', cart.items.map(item => ({
+      id: item.id,
+      productId: item.productId,
+      variantId: item.variantId
+    })));
+    console.log('Delete Request:', { productId, variantId });
+
     // Find the cart item to delete
     const cartItem = cart.items.find(item => 
       item.productId && item.productId.toString() === productId &&
