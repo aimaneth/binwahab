@@ -20,6 +20,7 @@ export default function CheckoutPage() {
   const [orderProcessing, setOrderProcessing] = useState(false);
   const [cart, setCart] = useState<any>(null);
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState('TNG_EWALLET');
+  const [isPaying, setIsPaying] = useState(false);
   const paymentMethods = [
     { label: "TnG eWallet", value: "TNG_EWALLET" },
     { label: "GrabPay", value: "GRABPAY" },
@@ -83,9 +84,9 @@ export default function CheckoutPage() {
     getCart();
   }, [router, status, toast, showCurlecCheckout]);
   
-  // Only redirect to cart if cart is loaded and confirmed empty
+  // Only redirect to cart if cart is loaded and confirmed empty, and not paying
   useEffect(() => {
-    if (!loading && cart && (!cart.items || cart.items.length === 0)) {
+    if (!loading && cart && (!cart.items || cart.items.length === 0) && !isPaying) {
       toast({
         title: 'Empty Cart',
         description: 'Your cart is empty. Add some products before checkout.',
@@ -93,7 +94,7 @@ export default function CheckoutPage() {
       });
       router.push('/shop/cart');
     }
-  }, [loading, cart, router, toast]);
+  }, [loading, cart, router, toast, isPaying]);
   
   // Handle payment completion
   const handlePaymentComplete = (paymentId: string) => {
@@ -181,6 +182,8 @@ export default function CheckoutPage() {
             customerEmail={session?.user?.email || undefined}
             // Add other props as needed
             className="w-full"
+            onStartPayment={() => setIsPaying(true)}
+            onEndPayment={() => setIsPaying(false)}
           />
         </CardFooter>
       </Card>

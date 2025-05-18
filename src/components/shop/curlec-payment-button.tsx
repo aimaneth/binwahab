@@ -15,6 +15,8 @@ interface CurlecPaymentButtonProps {
   className?: string;
   disabled?: boolean;
   paymentMethod?: string;
+  onStartPayment?: () => void;
+  onEndPayment?: () => void;
 }
 
 export function CurlecPaymentButton({
@@ -27,6 +29,8 @@ export function CurlecPaymentButton({
   className,
   disabled = false,
   paymentMethod = 'CREDIT_CARD',
+  onStartPayment,
+  onEndPayment,
 }: CurlecPaymentButtonProps) {
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
@@ -34,6 +38,7 @@ export function CurlecPaymentButton({
   const handlePayment = async () => {
     try {
       setIsLoading(true);
+      if (onStartPayment) onStartPayment();
 
       // Check for environment variable
       if (!process.env.NEXT_PUBLIC_CURLEC_KEY_ID) {
@@ -92,6 +97,7 @@ export function CurlecPaymentButton({
       });
     } finally {
       setIsLoading(false);
+      if (onEndPayment) onEndPayment();
     }
   };
 
