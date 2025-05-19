@@ -172,7 +172,7 @@ export function CartItems() {
                         <Button
                           variant="ghost"
                           size="icon"
-                          onClick={() => removeItem(String(item.product.id), item.variant?.sku ? String(item.variant.sku) : undefined)}
+                          onClick={() => removeItem(String(item.product.id), item.variant?.id ? String(item.variant.id) : undefined)}
                           disabled={isUpdating}
                         >
                           {isUpdating ? (
@@ -191,7 +191,7 @@ export function CartItems() {
                           variant="outline"
                           size="icon"
                           className="h-8 w-8"
-                          onClick={() => updateQuantity(String(item.product.id), item.quantity - 1, item.variant?.sku ? String(item.variant.sku) : undefined)}
+                          onClick={() => updateQuantity(String(item.product.id), item.quantity - 1, item.variant?.id ? String(item.variant.id) : undefined)}
                           disabled={isUpdating || item.quantity <= 1}
                         >
                           -
@@ -201,7 +201,7 @@ export function CartItems() {
                           min="1"
                           value={item.quantity}
                           onChange={(e) =>
-                            updateQuantity(String(item.product.id), parseInt(e.target.value), item.variant?.sku ? String(item.variant.sku) : undefined)
+                            updateQuantity(String(item.product.id), parseInt(e.target.value), item.variant?.id ? String(item.variant.id) : undefined)
                           }
                           className="w-16 h-8 text-center"
                           disabled={isUpdating}
@@ -210,7 +210,7 @@ export function CartItems() {
                           variant="outline"
                           size="icon"
                           className="h-8 w-8"
-                          onClick={() => updateQuantity(String(item.product.id), item.quantity + 1, item.variant?.sku ? String(item.variant.sku) : undefined)}
+                          onClick={() => updateQuantity(String(item.product.id), item.quantity + 1, item.variant?.id ? String(item.variant.id) : undefined)}
                           disabled={isUpdating}
                         >
                           +

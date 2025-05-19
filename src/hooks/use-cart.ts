@@ -10,6 +10,7 @@ interface CartItem {
   };
   quantity: number;
   variant?: {
+    id?: string | number;
     sku: string;
     name: string;
     price: number | string;
@@ -19,8 +20,8 @@ interface CartItem {
 interface CartStore {
   items: CartItem[];
   addItem: (item: CartItem) => void;
-  removeItem: (productId: string | number, variantSku?: string) => void;
-  updateQuantity: (productId: string | number, quantity: number, variantSku?: string) => void;
+  removeItem: (productId: string | number, variantId?: string | number) => void;
+  updateQuantity: (productId: string | number, quantity: number, variantId?: string | number) => void;
   clearCart: () => Promise<void>;
   getTotal: () => number;
 }
@@ -34,7 +35,7 @@ export const useCart = create(
         const existingItemIndex = currentItems.findIndex(
           (i) =>
             i.product.id.toString() === item.product.id.toString() &&
-            i.variant?.sku === item.variant?.sku
+            ((i.variant?.id || null) === (item.variant?.id || null))
         );
 
         if (existingItemIndex > -1) {
@@ -45,22 +46,22 @@ export const useCart = create(
           set({ items: [...currentItems, item] });
         }
       },
-      removeItem: (productId, variantSku) => {
+      removeItem: (productId, variantId) => {
         set((state) => ({
           items: state.items.filter(
             (item) =>
               !(
                 item.product.id.toString() === productId.toString() &&
-                item.variant?.sku === variantSku
+                ((item.variant?.id || null)?.toString() === (variantId || null)?.toString())
               )
           ),
         }));
       },
-      updateQuantity: (productId, quantity, variantSku) => {
+      updateQuantity: (productId, quantity, variantId) => {
         set((state) => ({
           items: state.items.map((item) =>
-            item.product.id.toString() === productId.toString() && 
-            item.variant?.sku === variantSku
+            item.product.id.toString() === productId.toString() &&
+            ((item.variant?.id || null)?.toString() === (variantId || null)?.toString())
               ? { ...item, quantity }
               : item
           ),

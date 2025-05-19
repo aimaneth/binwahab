@@ -27,6 +27,7 @@ export function CartInitializer({ items }: CartInitializerProps) {
           },
           quantity: item.quantity,
           variant: item.variant ? {
+            id: item.variant.id,
             sku: item.variant.sku,
             name: item.variant.name,
             price: item.variant.price,
