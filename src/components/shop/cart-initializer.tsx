@@ -12,12 +12,23 @@ export function CartInitializer({ items }: CartInitializerProps) {
   const { clearCart, addItem } = useCart();
   const initialized = useRef(false);
 
+  console.log("[CartInitializer] Component rendered. Initialized.current:", initialized.current, "Received items:", JSON.stringify(items, null, 2));
+
   useEffect(() => {
-    if (initialized.current) return;
+    console.log("[CartInitializer] useEffect triggered. Initialized.current:", initialized.current);
+    if (initialized.current) {
+      console.log("[CartInitializer] Already initialized, skipping effect.");
+      return;
+    }
+    
+    console.log("[CartInitializer] Initializing cart state...");
     // Always sync with server state
     (async () => {
+      console.log("[CartInitializer] Calling clearCart()...");
       await clearCart();
+      console.log("[CartInitializer] clearCart() finished. Now adding items:", JSON.stringify(items, null, 2));
       items.forEach(item => {
+        console.log("[CartInitializer] Adding item:", JSON.stringify(item, null, 2));
         addItem({
           product: {
             id: item.product.id,
@@ -34,6 +45,7 @@ export function CartInitializer({ items }: CartInitializerProps) {
           } : undefined,
         });
       });
+      console.log("[CartInitializer] Finished adding items. Setting initialized.current to true.");
       initialized.current = true;
     })();
   }, [items, clearCart, addItem]);

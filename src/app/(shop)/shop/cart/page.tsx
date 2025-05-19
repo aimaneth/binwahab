@@ -22,6 +22,7 @@ export default async function CartPage() {
     redirect("/login");
   }
 
+  console.log("[CartPage] Fetching cart for user:", session.user.id);
   const cart = await prisma.cart.findUnique({
     where: {
       userId: session.user.id,
@@ -39,6 +40,7 @@ export default async function CartPage() {
       },
     },
   });
+  console.log("[CartPage] Cart from DB:", JSON.stringify(cart, null, 2));
 
   // Transform cart items to match CartInitializer shape
   const cartItemsRaw = (cart?.items || []).filter(item => item.product !== null);
@@ -62,6 +64,7 @@ export default async function CartPage() {
       options: item.variant.options as Record<string, string> || undefined,
     } : undefined,
   }));
+  console.log("[CartPage] Valid cart items passed to CartInitializer:", JSON.stringify(validCartItems, null, 2));
 
   return (
     <div className="min-h-screen bg-background">
