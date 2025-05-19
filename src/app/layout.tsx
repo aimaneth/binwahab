@@ -16,6 +16,7 @@ import { fontSans } from "@/lib/fonts";
 import { measureWebVitals } from "@/lib/performance";
 import { GoogleAnalytics } from "@/components/analytics/google-analytics";
 import OptimizedLayout from "@/components/layout/optimized-layout";
+import { Analytics } from "@vercel/analytics/next"
 
 export const viewport = {
   width: "device-width",
