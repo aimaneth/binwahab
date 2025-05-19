@@ -12,7 +12,7 @@ export default function ConfirmationPage() {
   const searchParams = useSearchParams();
   const [status, setStatus] = useState<"success" | "error" | "loading">("loading");
   const [message, setMessage] = useState("");
-  const { clearCart } = useCart();
+  const { clearClientAndServerCart } = useCart();
 
   const sessionId = searchParams.get("session_id");
   const orderId = searchParams.get("order_id");
@@ -31,12 +31,11 @@ export default function ConfirmationPage() {
         const response = await fetch(`/api/checkout/verify?session_id=${sessionId}`);
         const data = await response.json();
 
-        if (data.orderId) {
-          // If we have an orderId, payment was successful
+        if (data.paymentStatus === "paid" || data.paymentStatus === "success") {
           setStatus("success");
-          setMessage("Your payment has been processed successfully!");
-          clearCart();
-        } else {
+          setMessage("Your payment was successful and your order has been placed.");
+          clearClientAndServerCart();
+        } else if (data.paymentStatus === "failed") {
           setStatus("error");
           setMessage(data.error || "There was an issue processing your payment.");
         }
@@ -54,7 +53,7 @@ export default function ConfirmationPage() {
     };
 
     verifyPayment();
-  }, [searchParams, clearCart]);
+  }, [searchParams, clearClientAndServerCart]);
 
   const steps = [
     { title: "Shopping Cart", href: "/shop/cart", status: "complete" as const },
