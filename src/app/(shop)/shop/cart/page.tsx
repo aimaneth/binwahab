@@ -134,12 +134,12 @@ export default async function CartPage() {
           <div className="mt-8">
             {isEmpty ? (
               <div className="max-w-3xl mx-auto">
-                <CartItems items={validCartItems} />
+                <CartItems />
               </div>
             ) : (
               <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
                 <div className="lg:col-span-8">
-                  <CartItems items={validCartItems} />
+                  <CartItems />
                 </div>
                 <div className="lg:col-span-4">
                   <div className="sticky top-8">
