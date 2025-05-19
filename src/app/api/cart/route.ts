@@ -298,7 +298,7 @@ export async function DELETE(req: Request) {
 
     // If clearAll is true, delete the entire cart
     if (clearAll === 'true') {
-      await prisma.cart.delete({
+      await prisma.cart.deleteMany({
         where: {
           userId: session.user.id,
         },
