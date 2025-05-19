@@ -5,7 +5,6 @@ import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { formatPrice } from "@/lib/utils";
-import { CartItem, Product, ProductVariant } from "@prisma/client";
 import { Clock, CreditCard, Loader2, Shield, Truck } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import { ShippingAddressForm } from "./shipping-address-form";
@@ -13,14 +12,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { toast } from "sonner";
 import { useSession } from "next-auth/react";
 import { CurlecCheckout } from "./CurlecCheckout";
-
-interface CartSummaryProps {
-  items: (CartItem & {
-    product: Omit<Product, 'price'> & { price: number };
-    variant?: (Omit<ProductVariant, 'price'> & { price: number }) | null;
-  })[];
-  shippingState?: string;
-}
+import { useCart } from "@/hooks/use-cart";
 
 interface Address {
   id: string;
@@ -33,7 +25,7 @@ interface Address {
   isDefault: boolean;
 }
 
-export function CartSummary({ items, shippingState = "Selangor" }: CartSummaryProps) {
+export function CartSummary({ shippingState = "Selangor" }: { shippingState?: string }) {
   const router = useRouter();
   const { data: session } = useSession();
   const [shipping, setShipping] = useState<number>(0);
@@ -47,6 +39,7 @@ export function CartSummary({ items, shippingState = "Selangor" }: CartSummaryPr
   const [showPayment, setShowPayment] = useState(false);
   const [paymentComplete, setPaymentComplete] = useState(false);
   const [paymentId, setPaymentId] = useState<string | null>(null);
+  const { items } = useCart();
 
   useEffect(() => {
     // Fetch user's addresses
@@ -164,8 +157,8 @@ export function CartSummary({ items, shippingState = "Selangor" }: CartSummaryPr
         description: `${item.product.name}${item.variant ? ` - ${item.variant.name}` : ''}`,
         price: Number(item.variant?.price || item.product.price),
         quantity: item.quantity,
-        images: item.product.image ? [item.product.image] : [],
-        variantId: item.variant?.id
+        images: item.product.images ? item.product.images : [],
+        variantId: item.variant?.sku
       }));
 
       // Create an order in our database first

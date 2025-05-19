@@ -6,12 +6,9 @@ import { prisma } from "@/lib/prisma";
 import { CartItems } from "@/components/shop/cart-items";
 import { CartSummary } from "@/components/shop/cart-summary";
 import { Steps } from "@/components/ui/steps";
-import { CartItem as PrismaCartItem, ProductImage } from "@prisma/client";
-import { CartItem } from "@/types/cart";
 import { CartInitializer } from "@/components/shop/cart-initializer";
-import { Decimal } from "decimal.js";
-import { Product, ProductVariant } from "@prisma/client";
 import { ShoppingBag } from "lucide-react";
+import { CartItem } from "@/types/cart";
 
 export const metadata: Metadata = {
   title: "Shopping Cart - BINWAHAB",
@@ -43,65 +40,34 @@ export default async function CartPage() {
     },
   });
 
-  // Transform cart items to match CartSummary props type
-  const validPrismaItems = (cart?.items?.filter(item => item.product !== null) || []).map(item => ({
+  // Transform cart items to match CartInitializer shape
+  const cartItemsRaw = (cart?.items || []).filter(item => item.product !== null);
+  const validCartItems: CartItem[] = cartItemsRaw.map(item => ({
     id: item.id,
-    userId: item.userId,
-    createdAt: item.createdAt,
-    updatedAt: item.updatedAt,
     quantity: item.quantity,
-    productId: item.productId,
-    variantId: item.variantId,
-    cartId: item.cartId,
     product: {
-      ...item.product!,
-      price: Number(item.product!.price)
+      id: item.product!.id,
+      name: item.product!.name,
+      price: Number(item.product!.price),
+      image: item.product!.image || undefined,
+      images: item.product!.images?.map(img => ({ url: img.url })) || undefined,
+      description: item.product!.description || undefined,
     },
     variant: item.variant ? {
-      ...item.variant,
-      price: Number(item.variant.price)
-    } : undefined
+      id: item.variant.id,
+      sku: item.variant.sku,
+      name: item.variant.name,
+      price: Number(item.variant.price),
+      image: item.variant.images && item.variant.images.length > 0 ? item.variant.images[0] : undefined,
+      options: item.variant.options as Record<string, string> || undefined,
+    } : undefined,
   }));
-
-  // Transform to CartItem type for CartItems component
-  const validCartItems = validPrismaItems.map(item => {
-    console.log('Cart Page Debug:', {
-      productName: item.product.name,
-      productImage: item.product.image,
-      productImages: item.product.images,
-      variantImages: item.variant?.images,
-    });
-
-    return {
-      id: item.id,
-      quantity: item.quantity,
-      product: {
-        id: item.product.id,
-        name: item.product.name,
-        price: Number(item.product.price),
-        image: item.product.image || undefined,
-        images: item.product.images?.map((img: ProductImage) => ({ url: img.url })) || undefined,
-        description: item.product.description || undefined,
-      },
-      variant: item.variant ? {
-        id: item.variant.id,
-        sku: item.variant.sku,
-        name: item.variant.name,
-        price: Number(item.variant.price),
-        image: item.variant.images && item.variant.images.length > 0 ? item.variant.images[0] : undefined,
-        options: item.variant.options as Record<string, string> || undefined,
-      } : undefined,
-    };
-  });
-
-  const isEmpty = validPrismaItems.length === 0;
 
   return (
     <div className="min-h-screen bg-background">
       <div className="container mx-auto px-4 py-8">
         {/* Initialize client-side cart state */}
         <CartInitializer items={validCartItems} />
-        
         <div className="max-w-7xl mx-auto">
           {/* Header */}
           <div className="flex items-center justify-between mb-8">
@@ -111,7 +77,6 @@ export default async function CartPage() {
               <span>{validCartItems.length} items</span>
             </div>
           </div>
-          
           {/* Progress Steps */}
           <div className="max-w-3xl mx-auto mb-8">
             <Steps
@@ -129,25 +94,18 @@ export default async function CartPage() {
               ]}
             />
           </div>
-
           {/* Cart Content */}
           <div className="mt-8">
-            {isEmpty ? (
-              <div className="max-w-3xl mx-auto">
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+              <div className="lg:col-span-8">
                 <CartItems />
               </div>
-            ) : (
-              <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-                <div className="lg:col-span-8">
-                  <CartItems />
-                </div>
-                <div className="lg:col-span-4">
-                  <div className="sticky top-8">
-                    <CartSummary items={validPrismaItems} />
-                  </div>
+              <div className="lg:col-span-4">
+                <div className="sticky top-8">
+                  <CartSummary />
                 </div>
               </div>
-            )}
+            </div>
           </div>
         </div>
       </div>
