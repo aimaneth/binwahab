@@ -183,57 +183,54 @@ export function CurlecCheckout({ orderId, amount, onPaymentComplete, onPaymentFa
             description: 'Payment for your order',
             image: 'https://binwahab.com/images/logo.png',
             order_id: orderId, // Order ID from the API
-            // Remove callback_url and use handler instead since Razorpay's redirect isn't working properly
-            handler: function(response: any) {
-              // Log the response for debugging
-              console.log('Payment success:', response);
-              
-              // Verify the payment on our server
-              fetch('/api/curlec/verify-payment', {
-                method: 'POST',
-                headers: {
-                  'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                  razorpay_payment_id: response.razorpay_payment_id,
-                  razorpay_order_id: response.razorpay_order_id,
-                  razorpay_signature: response.razorpay_signature,
-                }),
-              })
-              .then(res => res.json())
-              .then(async (data) => {
+            callback_url: `${baseUrl}/api/curlec/verify-payment`, // Add callback_url for redirect flows
+            redirect: true, // Recommended for eWallets/FPX to ensure proper redirection
+            handler: async function(response: any) { // Make handler async
+              console.log('Razorpay handler invoked:', response);
+              setLoading(true); // Set loading true as handler is now primary for success
+              try {
+                const verifyResponse = await fetch('/api/curlec/verify-payment', {
+                  method: 'POST',
+                  headers: {
+                    'Content-Type': 'application/json',
+                  },
+                  body: JSON.stringify({
+                    razorpay_payment_id: response.razorpay_payment_id,
+                    razorpay_order_id: response.razorpay_order_id,
+                    razorpay_signature: response.razorpay_signature,
+                  }),
+                });
+
+                const data = await verifyResponse.json();
+
                 if (data.success) {
-                  try {
-                    console.log("Payment successful, clearing cart and calling onPaymentComplete");
-                    await clearClientAndServerCart();
-                    if (onPaymentComplete) {
-                      onPaymentComplete(response.razorpay_payment_id);
-                    }
-                    // Redirect to success page
-                    window.location.href = `/shop/checkout/success?payment_id=${response.razorpay_payment_id}&order_id=${data.orderId}`;
-                  } catch (error) {
-                    console.error('Error clearing cart:', error);
-                    // Still redirect to success page even if cart clearing fails
-                    window.location.href = `/shop/checkout/success?payment_id=${response.razorpay_payment_id}&order_id=${data.orderId}`;
+                  console.log("Payment successful (handler), clearing cart and calling onPaymentComplete");
+                  await clearClientAndServerCart();
+                  if (onPaymentComplete) {
+                    onPaymentComplete(response.razorpay_payment_id);
                   }
+                  // Redirect to success page from handler
+                  window.location.href = `/shop/checkout/success?payment_id=${response.razorpay_payment_id}&order_id=${data.orderId}`;
                 } else {
-                  throw new Error(data.error || 'Payment verification failed');
+                  throw new Error(data.error || 'Payment verification failed in handler');
                 }
-              })
-              .catch(error => {
-                console.error('Payment verification error:', error);
+              } catch (error) {
+                console.error('Error in Razorpay handler:', error);
                 if (onPaymentFailure) {
-                  onPaymentFailure(error.message || 'Payment verification failed');
+                  onPaymentFailure(error instanceof Error ? error.message : 'Payment processing failed');
                 }
-                setError('Payment verification failed. Please contact support.');
+                setError('Payment processing failed. Please try again or contact support.');
                 setLoading(false);
-              });
+              }
             },
             modal: {
               ondismiss: function() {
-                setLoading(false);
-                // Redirect to cancel page on modal dismiss
-                window.location.href = '/shop/checkout/cancel';
+                console.log('Razorpay modal dismissed');
+                if (!loading) { // Only redirect if not already processing a payment (e.g. via handler)
+                    setLoading(false);
+                    // Redirect to cancel page on modal dismiss
+                    window.location.href = '/shop/checkout/cancel';
+                }
               },
               escape: true,
               animation: true
