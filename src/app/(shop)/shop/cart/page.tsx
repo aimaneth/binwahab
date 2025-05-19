@@ -10,6 +10,8 @@ import { CartInitializer } from "@/components/shop/cart-initializer";
 import { ShoppingBag } from "lucide-react";
 import { CartItem } from "@/types/cart";
 
+export const dynamic = "force-dynamic";
+
 export const metadata: Metadata = {
   title: "Shopping Cart - BINWAHAB",
   description: "View your shopping cart",
