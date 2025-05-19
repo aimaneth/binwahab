@@ -53,7 +53,7 @@ export function CartItems() {
       const response = await fetch("/api/cart", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ productId: itemId.toString(), quantity, variantId }),
+        body: JSON.stringify({ productId: itemId.toString(), quantity, variantId: variantId?.toString() }),
       });
 
       if (!response.ok) {
@@ -61,7 +61,7 @@ export function CartItems() {
         throw new Error(error.message || "Failed to update quantity");
       }
       
-      updateCartQuantity(String(itemId), quantity, variantId !== undefined ? String(variantId) : undefined);
+      updateCartQuantity(String(itemId), variantId !== undefined ? String(variantId) : undefined, quantity);
       // Dispatch cart update event
       window.dispatchEvent(new Event('cartUpdate'));
       router.refresh();
@@ -122,14 +122,26 @@ export function CartItems() {
             const itemTotal = itemPrice * item.quantity;
 
             // Get product and variant images (Zustand CartItem shape)
-            const productImages = Array.isArray(item.product.images) ? item.product.images : [];
-            const productImage = productImages.length > 0 ? productImages[0] : undefined;
+            const productImagesArray = Array.isArray(item.product.images) ? item.product.images : [];
+            let displayProductImage: string | undefined = undefined;
+            if (productImagesArray.length > 0) {
+              const firstImage = productImagesArray[0];
+              if (typeof firstImage === 'string') {
+                displayProductImage = firstImage;
+              } else if (firstImage && typeof firstImage.url === 'string') {
+                displayProductImage = firstImage.url;
+              }
+            }
+            // Fallback to item.product.image if item.product.images is not sufficient
+            if (!displayProductImage && item.product.image) {
+              displayProductImage = item.product.image;
+            }
 
             // Debug logging
             console.log('Cart Item Image Debug:', {
               productName: item.product.name,
-              productImages,
-              productImage,
+              productImages: productImagesArray,
+              displayProductImage,
               variantSku: item.variant?.sku
             });
 
@@ -139,7 +151,7 @@ export function CartItems() {
                   {/* Product Image */}
                   <div className="relative w-24 h-24 flex-shrink-0">
                     <ImageWithFallback
-                      src={productImage || '/images/fallback-product.jpg'}
+                      src={displayProductImage || '/images/fallback-product.jpg'}
                       alt={item.product.name}
                       fill
                       className="object-cover rounded-md"
