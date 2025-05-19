@@ -21,7 +21,7 @@ declare global {
 
 export function CurlecCheckout({ orderId, amount, onPaymentComplete, onPaymentFailure }: CurlecCheckoutProps) {
   const { data: session } = useSession();
-  const { clearCart } = useCart();
+  const { clearClientAndServerCart } = useCart();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [razorpayKey, setRazorpayKey] = useState<string | null>(null);
@@ -204,8 +204,11 @@ export function CurlecCheckout({ orderId, amount, onPaymentComplete, onPaymentFa
               .then(async (data) => {
                 if (data.success) {
                   try {
-                    // Clear the cart immediately on successful payment
-                    await clearCart();
+                    console.log("Payment successful, clearing cart and calling onPaymentComplete");
+                    await clearClientAndServerCart();
+                    if (onPaymentComplete) {
+                      onPaymentComplete(response.razorpay_payment_id);
+                    }
                     // Redirect to success page
                     window.location.href = `/shop/checkout/success?payment_id=${response.razorpay_payment_id}&order_id=${data.orderId}`;
                   } catch (error) {
