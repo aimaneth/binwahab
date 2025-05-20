@@ -29,15 +29,14 @@ export async function POST(request: NextRequest) {
     console.log('[POST /api/curlec/verify-payment] Received raw request body text:', requestText);
 
     // Parse request body
-    const body = await request.json(); // This might be a point of failure if not JSON
-    const { 
-      razorpay_payment_id, 
-      razorpay_order_id, 
-      razorpay_signature 
-    } = body;
+    // const body = await request.json(); // This was the point of failure as Curlec sends form-urlencoded data
+    const formData = await request.formData();
+    const razorpay_payment_id = formData.get('razorpay_payment_id') as string | null;
+    const razorpay_order_id = formData.get('razorpay_order_id') as string | null;
+    const razorpay_signature = formData.get('razorpay_signature') as string | null;
 
     // Log the request for debugging
-    console.log('Verify payment request:', { 
+    console.log('Verify payment request (from form data):', { 
       razorpay_payment_id, 
       razorpay_order_id, 
       razorpay_signature 
