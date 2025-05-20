@@ -178,12 +178,17 @@ export async function POST(request: NextRequest) {
         paymentId: razorpay_payment_id
       });
 
-      // Always include CORS headers in your responses
-      return NextResponse.json({
-        success: true,
-        message: 'Payment verified successfully',
-        orderId: updatedOrder.id
-      }, { headers });
+      // Construct the redirect URL
+      const host = request.headers.get('host') || 'localhost:3000';
+      const protocol = host.includes('localhost') ? 'http' : 'https';
+      const baseUrl = `${protocol}://${host}`;
+      const redirectUrl = `${baseUrl}/shop/confirmation?session_id=${razorpay_payment_id}&order_id=${updatedOrder.id}&status=success&message=Payment+verified+(POST+handler)`;
+
+      console.log('[POST /api/curlec/verify-payment] Payment verified. Issuing redirect to:', redirectUrl);
+
+      // Return a 303 See Other redirect, which instructs the client to fetch the new URL with a GET request.
+      return NextResponse.redirect(redirectUrl, 303);
+
     } catch (error) {
       console.error('Transaction failed:', {
         error,
