@@ -119,29 +119,48 @@ export async function POST(request: NextRequest) {
         for (const item of orderWithItems.items) {
           // Check if the item has a variant and the variant has a valid ID
           if (item.variant && item.variant.id) {
-            await tx.productVariant.update({
-              where: { id: item.variant.id },
-              data: {
-                stock: {
-                  decrement: item.quantity,
-                },
-              },
-            });
+            try {
+              // Fetch the variant to ensure it exists before attempting to update.
+              const existingVariant = await tx.productVariant.findUnique({
+                where: { id: item.variant.id },
+                select: { id: true, stock: true } // Select stock for potential future checks if needed
+              });
+
+              if (existingVariant) {
+                await tx.productVariant.update({
+                  where: { id: item.variant.id },
+                  data: {
+                    stock: {
+                      decrement: item.quantity,
+                    },
+                  },
+                });
+              } else {
+                // Log if the variant record itself is not found.
+                console.warn(
+                  `Order ${orderWithItems.id}, Item ${item.id}: ProductVariant with id ${item.variant.id} not found. Skipping stock update for this item.`
+                );
+                // Depending on business logic, you might want to throw an error here
+                // to fail the transaction if a variant absolutely must exist.
+              }
+            } catch (variantUpdateError) {
+              // Catch errors specifically from this item's stock update attempt (e.g., CHECK constraint violation)
+              console.error(
+                `Order ${orderWithItems.id}, Item ${item.id}, Variant ${item.variant.id}: Error updating stock. This could be due to a database constraint (e.g., stock cannot be negative) or other issues.`,
+                variantUpdateError
+              );
+              // Re-throw the error to ensure the entire transaction is rolled back.
+              throw variantUpdateError;
+            }
           } else {
-            // Log if variant or variant.id is missing for an item.
-            // This might indicate a data issue or an order item that doesn't use variants.
+            // This log is from the previous fix, for items missing variant or variant.id
             console.warn(
-              'Skipping stock update for an item: Variant or variant.id is missing.',
+              `Order ${orderWithItems.id}, Item ${item.id}: Skipping stock update because variant or variant.id is missing.`,
               {
-                orderId: orderWithItems.id,
-                itemId: item.id, // Assuming 'item' has an 'id' field, adjust if not
                 hasVariantObject: !!item.variant,
                 variantIdFromVariantObject: item.variant ? item.variant.id : null,
               }
             );
-            // Depending on business logic, you might want to handle items without variants
-            // or items whose variants are unexpectedly missing an ID.
-            // For now, this change will skip them and log, preventing transaction failure.
           }
         }
 
