@@ -169,147 +169,120 @@ export async function POST(request: NextRequest) {
 
 // Handle GET requests for redirection after payment
 export async function GET(request: NextRequest) {
-  // Add CORS headers
-  const headers = new Headers();
-  headers.set('Access-Control-Allow-Origin', '*');
-  headers.set('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-  headers.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-  
+  const corsHeaders = new Headers();
+  corsHeaders.set('Access-Control-Allow-Origin', '*');
+  corsHeaders.set('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+  corsHeaders.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+
+  const host = request.headers.get('host') || 'localhost:3000';
+  const protocol = host.includes('localhost') ? 'http' : 'https';
+  const baseUrl = `${protocol}://${host}`;
+
   try {
     const searchParams = request.nextUrl.searchParams;
-    const redirect = searchParams.get('redirect');
     const razorpay_payment_id = searchParams.get('razorpay_payment_id');
     const razorpay_order_id = searchParams.get('razorpay_order_id');
     const razorpay_signature = searchParams.get('razorpay_signature');
-    const order_id = searchParams.get('order_id');
 
-    // Log the incoming parameters for debugging
-    console.log('Payment verification redirect request:', {
-      redirect,
+    console.log('[GET /api/curlec/verify-payment] Received params:', {
       razorpay_payment_id,
       razorpay_order_id,
       razorpay_signature,
-      order_id,
+      keySecretCheck: process.env.CURLEC_KEY_SECRET ? `Loaded (ends with ${process.env.CURLEC_KEY_SECRET.slice(-4)})` : 'NOT LOADED',
       url: request.url
     });
 
-    // Get the base URL, handling localhost protocol correctly
-    const host = request.headers.get('host') || 'localhost:3000';
-    const protocol = host.includes('localhost') ? 'http' : 'https';
-    const baseUrl = `${protocol}://${host}`;
+    if (!razorpay_payment_id || !razorpay_order_id || !razorpay_signature) {
+      console.error('[GET /api/curlec/verify-payment] Missing Razorpay parameters in URL');
+      return NextResponse.redirect(`${baseUrl}/shop/confirmation?status=error&message=Missing+payment+parameters`);
+    }
 
-    // If redirect param exists, handle redirection
-    if (redirect === 'true') {
-      // If we have Razorpay parameters, verify the payment
-      if (razorpay_payment_id && razorpay_order_id && razorpay_signature) {
-        // Find the order to include in the success URL
-        try {
-          const order = await prisma.order.findFirst({
-            where: {
-              stripeSessionId: razorpay_order_id
-            },
-            include: {
-              items: {
-                include: {
-                  variant: true
+    const isSignatureValid = verifyRazorpaySignature(
+      razorpay_order_id,
+      razorpay_payment_id,
+      razorpay_signature,
+      process.env.CURLEC_KEY_SECRET!
+    );
+
+    if (!isSignatureValid) {
+      console.error('[GET /api/curlec/verify-payment] Invalid signature', {
+        razorpay_order_id,
+        razorpay_payment_id,
+        // Do not log the full signature here for security, but confirm it was received.
+        signatureReceived: !!razorpay_signature 
+      });
+      return NextResponse.redirect(`${baseUrl}/shop/confirmation?status=error&message=Invalid+payment+signature`);
+    }
+
+    console.log('[GET /api/curlec/verify-payment] Signature is valid. Proceeding to find and update order.');
+
+    const order = await prisma.order.findFirst({
+      where: {
+        stripeSessionId: razorpay_order_id
+      },
+      include: {
+        items: {
+          include: {
+            variant: true,
+            product: true
+          }
+        }
+      }
+    });
+
+    if (!order) {
+      console.error('[GET /api/curlec/verify-payment] Order not found for razorpay_order_id:', razorpay_order_id);
+      return NextResponse.redirect(`${baseUrl}/shop/confirmation?status=error&message=Order+details+not+found`);
+    }
+
+    if (order.paymentStatus === 'PAID') {
+      console.log('[GET /api/curlec/verify-payment] Order already marked as PAID:', order.id);
+      return NextResponse.redirect(`${baseUrl}/shop/confirmation?session_id=${razorpay_payment_id}&order_id=${order.id}&status=success&message=Payment+already+verified`);
+    }
+
+    try {
+      await prisma.$transaction(async (tx) => {
+        await tx.order.update({
+          where: { id: order.id },
+          data: {
+            paymentStatus: 'PAID',
+            stripePaymentIntentId: razorpay_payment_id
+          }
+        });
+
+        for (const item of order.items) {
+          if (item.variantId && item.variant) {
+            await tx.productVariant.update({
+              where: { id: item.variant.id },
+              data: {
+                stock: {
+                  decrement: item.quantity
                 }
               }
-            }
-          });
-
-          if (order) {
-            // Update order status if needed
-            if (order.paymentStatus !== 'PAID') {
-              // Use transaction to update both order status and inventory
-              await prisma.$transaction(async (tx) => {
-                await tx.order.update({
-                  where: { id: order.id },
-                  data: {
-                    paymentStatus: 'PAID',
-                    stripePaymentIntentId: razorpay_payment_id
-                  }
-                });
-
-                // Update inventory for each item
-                for (const item of order.items) {
-                  if (item.variant) {
-                    await tx.productVariant.update({
-                      where: { id: item.variant.id },
-                      data: {
-                        stock: {
-                          decrement: item.quantity
-                        }
-                      }
-                    });
-                  }
+            });
+          } else if (item.productId && item.product) {
+            await tx.product.update({
+              where: { id: item.productId },
+              data: {
+                stock: {
+                  decrement: item.quantity
                 }
-              });
-            }
-            
-            // Redirect to confirmation page with both session_id and order_id
-            return NextResponse.redirect(`${baseUrl}/shop/confirmation?session_id=${razorpay_payment_id}&order_id=${order.id}`);
-          }
-        } catch (dbError) {
-          console.error('Database error during redirect:', dbError);
-        }
-        
-        // If no order found, redirect to cancel
-        return NextResponse.redirect(`${baseUrl}/shop/checkout/cancel`);
-      } 
-      // If we have just the order_id, try to find it (this might be our internal ID)
-      else if (order_id) {
-        try {
-          // First try to find by internal ID
-          let order = await prisma.order.findUnique({
-            where: {
-              id: order_id
-            }
-          });
-
-          // If not found, try to find by Razorpay order ID
-          if (!order) {
-            order = await prisma.order.findFirst({
-              where: {
-                stripeSessionId: order_id
               }
             });
           }
-
-          if (order) {
-            // If the order exists and is paid, redirect to confirmation
-            if (order.paymentStatus === 'PAID') {
-              return NextResponse.redirect(`${baseUrl}/shop/confirmation?order_id=${order.id}`);
-            }
-            // If the order exists but isn't paid, redirect to cancel
-            else {
-              return NextResponse.redirect(`${baseUrl}/shop/checkout/cancel`);
-            }
-          }
-        } catch (dbError) {
-          console.error('Database error during order lookup:', dbError);
         }
-      }
-      
-      // If we get here, something went wrong - redirect to cancel
-      return NextResponse.redirect(`${baseUrl}/shop/checkout/cancel`);
+      });
+
+      console.log('[GET /api/curlec/verify-payment] Order updated successfully:', order.id);
+      return NextResponse.redirect(`${baseUrl}/shop/confirmation?session_id=${razorpay_payment_id}&order_id=${order.id}&status=success&message=Payment+verified+successfully`);
+
+    } catch (transactionError) {
+      console.error('[GET /api/curlec/verify-payment] Transaction failed during order update:', transactionError, { orderId: order.id });
+      return NextResponse.redirect(`${baseUrl}/shop/confirmation?session_id=${razorpay_payment_id}&order_id=${order.id}&status=error&message=Failed+to+update+order+status`);
     }
 
-    // If no redirect requested, return a simple response
-    return NextResponse.json({ 
-      status: 'Redirect parameter required',
-      params: {
-        redirect,
-        razorpay_payment_id,
-        razorpay_order_id,
-        razorpay_signature,
-        order_id
-      }
-    }, { headers });
   } catch (error) {
-    console.error('Error handling payment redirect:', error);
-    return NextResponse.json({ 
-      error: 'Error handling payment redirect',
-      message: error instanceof Error ? error.message : String(error)
-    }, { status: 500, headers });
+    console.error('[GET /api/curlec/verify-payment] General error:', error);
+    return NextResponse.redirect(`${baseUrl}/shop/confirmation?status=error&message=Unexpected+error+during+verification`);
   }
 } 
