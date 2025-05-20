@@ -117,15 +117,31 @@ export async function POST(request: NextRequest) {
 
         // Update inventory for each item
         for (const item of orderWithItems.items) {
-          if (item.variant) {
+          // Check if the item has a variant and the variant has a valid ID
+          if (item.variant && item.variant.id) {
             await tx.productVariant.update({
               where: { id: item.variant.id },
               data: {
                 stock: {
-                  decrement: item.quantity
-                }
-              }
+                  decrement: item.quantity,
+                },
+              },
             });
+          } else {
+            // Log if variant or variant.id is missing for an item.
+            // This might indicate a data issue or an order item that doesn't use variants.
+            console.warn(
+              'Skipping stock update for an item: Variant or variant.id is missing.',
+              {
+                orderId: orderWithItems.id,
+                itemId: item.id, // Assuming 'item' has an 'id' field, adjust if not
+                hasVariantObject: !!item.variant,
+                variantIdFromVariantObject: item.variant ? item.variant.id : null,
+              }
+            );
+            // Depending on business logic, you might want to handle items without variants
+            // or items whose variants are unexpectedly missing an ID.
+            // For now, this change will skip them and log, preventing transaction failure.
           }
         }
 
