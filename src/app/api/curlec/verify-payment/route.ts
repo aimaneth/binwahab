@@ -10,6 +10,8 @@ if (!process.env.CURLEC_KEY_SECRET) {
 }
 
 export async function POST(request: NextRequest) {
+  // Declare requestText here to make it accessible in the final catch block
+  let requestText = ''; 
   try {
     // Add CORS headers
     const headers = new Headers();
@@ -22,8 +24,12 @@ export async function POST(request: NextRequest) {
       return new NextResponse(null, { status: 204, headers });
     }
 
+    // Log the raw text of the request before attempting to parse as JSON
+    requestText = await request.clone().text(); // Assign to the higher-scoped variable
+    console.log('[POST /api/curlec/verify-payment] Received raw request body text:', requestText);
+
     // Parse request body
-    const body = await request.json();
+    const body = await request.json(); // This might be a point of failure if not JSON
     const { 
       razorpay_payment_id, 
       razorpay_order_id, 
@@ -194,9 +200,23 @@ export async function POST(request: NextRequest) {
     headers.set('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
     headers.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
     
-    console.error('Error verifying payment:', error);
+    let detailMessage = 'An unexpected error occurred during payment verification.';
+    if (error instanceof Error) {
+      detailMessage = error.message;
+    } else if (typeof error === 'string') {
+      detailMessage = error;
+    }
+
+    console.error('[POST /api/curlec/verify-payment] CRITICAL ERROR:', {
+      errorMessage: 'Error verifying payment',
+      details: detailMessage,
+      originalErrorObject: error, // Logs the full error object, including stack if it's an Error instance
+      attemptedRequestBody: requestText // Log the raw text we tried to parse
+    });
+    
     return NextResponse.json(
-      { success: false, error: 'Error verifying payment' },
+      // Keep client-facing error generic for security
+      { success: false, error: 'Error verifying payment' }, 
       { status: 500, headers }
     );
   }
