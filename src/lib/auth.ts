@@ -9,6 +9,18 @@ export const authOptions: NextAuthOptions = {
   session: {
     strategy: "jwt",
   },
+  cookies: {
+    sessionToken: {
+      name: `next-auth.session-token`,
+      options: {
+        httpOnly: true,
+        sameSite: "none",
+        path: "/",
+        secure: true,
+        domain: process.env.NEXTAUTH_COOKIE_DOMAIN,
+      },
+    },
+  },
   pages: {
     signIn: "/login",
   },

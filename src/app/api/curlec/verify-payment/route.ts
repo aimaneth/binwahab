@@ -172,25 +172,22 @@ export async function POST(request: NextRequest) {
         return updatedOrderData;
       });
 
-      console.log('Payment processed successfully:', {
+      console.log('[POST /api/curlec/verify-payment] Payment processed successfully by POST handler:', {
         orderId: updatedOrder.id,
         razorpayOrderId: razorpay_order_id,
         paymentId: razorpay_payment_id
       });
 
-      // Construct the redirect URL
-      const host = request.headers.get('host') || 'localhost:3000';
-      const protocol = host.includes('localhost') ? 'http' : 'https';
-      const baseUrl = `${protocol}://${host}`;
-      const redirectUrl = `${baseUrl}/shop/confirmation?session_id=${razorpay_payment_id}&order_id=${updatedOrder.id}&status=success&message=Payment+verified+(POST+handler)`;
-
-      console.log('[POST /api/curlec/verify-payment] Payment verified. Issuing redirect to:', redirectUrl);
-
-      // Return a 303 See Other redirect, which instructs the client to fetch the new URL with a GET request.
-      return NextResponse.redirect(redirectUrl, 303);
+      // Return a JSON response to acknowledge Curlec's server-to-server call
+      // The `headers` variable (for CORS) is defined at the top of the try block.
+      return NextResponse.json({
+        success: true,
+        message: 'Payment verified successfully by POST handler',
+        orderId: updatedOrder.id
+      }, { headers });
 
     } catch (error) {
-      console.error('Transaction failed:', {
+      console.error('[POST /api/curlec/verify-payment] Transaction failed:', {
         error,
         orderId: orderWithItems.id,
         razorpayOrderId: razorpay_order_id
