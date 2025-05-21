@@ -16,6 +16,14 @@ const nextConfig = {
   experimental: {
     optimizeCss: true,
     scrollRestoration: true,
+    // Allow server actions from Razorpay domains
+    serverActions: {
+      allowedOrigins: [
+        'api.razorpay.com',
+        'checkout.razorpay.com',
+        'razorpay.com'
+      ],
+    },
   },
   
   // Font optimization
