@@ -1,3 +1,5 @@
+'use client';
+
 import { useEffect, useState } from 'react';
 import { useSession } from 'next-auth/react';
 import { Button } from '@/components/ui/button';
@@ -5,6 +7,7 @@ import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/componen
 import { Loader } from 'lucide-react';
 import { toast } from '@/components/ui/use-toast';
 import { useCart } from '@/hooks/use-cart';
+import { ServerActionErrorBoundary } from '@/components/error/ServerActionErrorBoundary';
 
 interface CurlecCheckoutProps {
   orderId: string;
@@ -307,68 +310,86 @@ export function CurlecCheckout({ orderId, amount, onPaymentComplete, onPaymentFa
     };
   }, []);
 
-  if (error) {
-    return (
-      <Card className="w-full max-w-md mx-auto">
-        <CardHeader>
-          <CardTitle className="text-destructive">Payment Error</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <p>{error}</p>
-          {debugInfo.length > 0 && process.env.NODE_ENV === 'development' && (
-            <div className="mt-4 p-2 bg-muted overflow-auto max-h-40 text-xs">
-              {debugInfo.map((message, index) => (
-                <p key={index}>{message}</p>
-              ))}
-            </div>
-          )}
-        </CardContent>
-        <CardFooter className="flex justify-end">
-          <Button onClick={() => setError(null)}>Try Again</Button>
-        </CardFooter>
-      </Card>
-    );
-  }
-
+  // Wrap the return JSX with our error boundary
   return (
-    <Card className="w-full max-w-md mx-auto">
-      <CardHeader>
-        <CardTitle>Complete Your Payment</CardTitle>
-      </CardHeader>
-      <CardContent>
-        <p className="mb-4">Amount to pay: RM {amount.toFixed(2)}</p>
-        <p className="text-sm text-muted-foreground mb-4">
-          You will be redirected to the Curlec payment gateway to complete your payment securely.
-        </p>
-        {debugInfo.length > 0 && process.env.NODE_ENV === 'development' && (
-          <div className="mt-4 p-2 bg-muted overflow-auto max-h-40 text-xs">
-            {debugInfo.map((message, index) => (
-              <p key={index}>{message}</p>
-            ))}
-          </div>
-        )}
-      </CardContent>
-      <CardFooter className="flex justify-end">
-        <Button
-          onClick={handlePayment}
-          disabled={loading || !razorpayKey}
-          className="w-full"
-        >
-          {loading ? (
-            <>
-              <Loader className="mr-2 h-4 w-4 animate-spin" />
-              Processing...
-            </>
-          ) : !razorpayKey ? (
-            <>
-              <Loader className="mr-2 h-4 w-4 animate-spin" />
-              Initializing...
-            </>
-          ) : (
-            'Pay Now'
-          )}
-        </Button>
-      </CardFooter>
-    </Card>
+    <ServerActionErrorBoundary
+      fallback={
+        <Card className="w-full max-w-md mx-auto">
+          <CardHeader>
+            <CardTitle>Processing Your Payment</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex items-center justify-center py-8">
+              <Loader className="h-8 w-8 animate-spin mr-2" />
+              <p>Your payment is being processed...</p>
+            </div>
+            <p className="text-sm text-muted-foreground mt-4">
+              You will be redirected automatically. If not, please check your payment status.
+            </p>
+          </CardContent>
+        </Card>
+      }
+    >
+      {error ? (
+        <Card className="w-full max-w-md mx-auto">
+          <CardHeader>
+            <CardTitle className="text-destructive">Payment Error</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p>{error}</p>
+            {debugInfo.length > 0 && process.env.NODE_ENV === 'development' && (
+              <div className="mt-4 p-2 bg-muted overflow-auto max-h-40 text-xs">
+                {debugInfo.map((message, index) => (
+                  <p key={index}>{message}</p>
+                ))}
+              </div>
+            )}
+          </CardContent>
+          <CardFooter className="flex justify-end">
+            <Button onClick={() => setError(null)}>Try Again</Button>
+          </CardFooter>
+        </Card>
+      ) : (
+        <Card className="w-full max-w-md mx-auto">
+          <CardHeader>
+            <CardTitle>Complete Your Payment</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="mb-4">Amount to pay: RM {amount.toFixed(2)}</p>
+            <p className="text-sm text-muted-foreground mb-4">
+              You will be redirected to the Curlec payment gateway to complete your payment securely.
+            </p>
+            {debugInfo.length > 0 && process.env.NODE_ENV === 'development' && (
+              <div className="mt-4 p-2 bg-muted overflow-auto max-h-40 text-xs">
+                {debugInfo.map((message, index) => (
+                  <p key={index}>{message}</p>
+                ))}
+              </div>
+            )}
+          </CardContent>
+          <CardFooter className="flex justify-end">
+            <Button
+              onClick={handlePayment}
+              disabled={loading || !razorpayKey}
+              className="w-full"
+            >
+              {loading ? (
+                <>
+                  <Loader className="mr-2 h-4 w-4 animate-spin" />
+                  Processing...
+                </>
+              ) : !razorpayKey ? (
+                <>
+                  <Loader className="mr-2 h-4 w-4 animate-spin" />
+                  Initializing...
+                </>
+              ) : (
+                'Pay Now'
+              )}
+            </Button>
+          </CardFooter>
+        </Card>
+      )}
+    </ServerActionErrorBoundary>
   );
 } 

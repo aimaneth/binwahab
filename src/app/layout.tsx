@@ -17,6 +17,7 @@ import { measureWebVitals } from "@/lib/performance";
 import { GoogleAnalytics } from "@/components/analytics/google-analytics";
 import OptimizedLayout from "@/components/layout/optimized-layout";
 import { Analytics } from "@vercel/analytics/next"
+import { GlobalErrorHandlerWrapper } from "@/components/providers/global-error-handler-wrapper";
 
 export const viewport = {
   width: "device-width",
@@ -104,13 +105,15 @@ export default async function RootLayout({
           <NextSSRPlugin routerConfig={extractRouterConfig(ourFileRouter)} />
           <SessionProvider session={session}>
             <CartProvider>
-              <OptimizedLayout>
-                <div className="min-h-screen flex flex-col">
-                  <Navbar />
-                  <main className="flex-1">{children}</main>
-                  <Footer />
-                </div>
-              </OptimizedLayout>
+              <GlobalErrorHandlerWrapper>
+                <OptimizedLayout>
+                  <div className="min-h-screen flex flex-col">
+                    <Navbar />
+                    <main className="flex-1">{children}</main>
+                    <Footer />
+                  </div>
+                </OptimizedLayout>
+              </GlobalErrorHandlerWrapper>
             </CartProvider>
           </SessionProvider>
           <Toaster />

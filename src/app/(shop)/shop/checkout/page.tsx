@@ -10,6 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { CurlecCheckout } from '@/components/shop/CurlecCheckout';
 import { Loader, CreditCard, Info } from 'lucide-react';
 import { CurlecPaymentButton } from '@/components/shop/curlec-payment-button';
+import { ServerActionErrorBoundary } from '@/components/error/ServerActionErrorBoundary';
 
 export default function CheckoutPage() {
   const router = useRouter();
@@ -119,73 +120,85 @@ export default function CheckoutPage() {
     router.push('/shop/cart');
   };
   
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-[60vh]">
-        <Loader className="h-12 w-12 animate-spin text-primary" />
-      </div>
-    );
-  }
-  
-  // Only render payment UI if cart is loaded and has items
-  if (!cart || !cart.items || cart.items.length === 0) {
-    return null;
-  }
-  
-  // Render the Curlec checkout if we have the necessary parameters
-  if (showCurlecCheckout) {
-    return (
-      <div className="container max-w-4xl py-10">
-        <h1 className="text-3xl font-bold mb-6 text-center">Complete Your Payment</h1>
-        <CurlecCheckout 
-          orderId={orderId!}
-          amount={amount}
-          onPaymentComplete={handlePaymentComplete}
-          onPaymentFailure={handlePaymentFailure}
-        />
-      </div>
-    );
-  }
-  
-  // Payment method selection UI
+  // Wrap the entire component return with our error boundary
   return (
-    <div className="container max-w-md py-10">
-      <Card>
-        <CardHeader>
-          <CardTitle>Choose Payment Method</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="mb-4">
-            <label className="block mb-2 font-medium">Select a payment method:</label>
-            <div className="space-y-2">
-              {paymentMethods.map((method) => (
-                <label key={method.value} className="flex items-center gap-2 cursor-pointer">
-                  <input
-                    type="radio"
-                    name="paymentMethod"
-                    value={method.value}
-                    checked={selectedPaymentMethod === method.value}
-                    onChange={() => setSelectedPaymentMethod(method.value)}
-                  />
-                  {method.label}
-                </label>
-              ))}
-            </div>
-          </div>
-        </CardContent>
-        <CardFooter>
-          <CurlecPaymentButton
-            amount={cart?.total || 0}
-            paymentMethod={selectedPaymentMethod}
-            customerName={session?.user?.name || undefined}
-            customerEmail={session?.user?.email || undefined}
-            // Add other props as needed
-            className="w-full"
-            onStartPayment={() => setIsPaying(true)}
-            onEndPayment={() => setIsPaying(false)}
+    <ServerActionErrorBoundary
+      fallback={
+        <div className="container max-w-4xl py-10">
+          <h1 className="text-3xl font-bold mb-6 text-center">Processing Your Payment</h1>
+          <Card className="w-full max-w-md mx-auto">
+            <CardHeader>
+              <CardTitle>Please Wait</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="flex items-center justify-center py-8">
+                <Loader className="h-8 w-8 animate-spin mr-2" />
+                <p>Your payment is being processed...</p>
+              </div>
+              <p className="text-sm text-muted-foreground mt-4">
+                You will be redirected automatically. If not, please check your payment status.
+              </p>
+            </CardContent>
+          </Card>
+        </div>
+      }
+    >
+      {loading ? (
+        <div className="flex items-center justify-center min-h-[60vh]">
+          <Loader className="h-12 w-12 animate-spin text-primary" />
+        </div>
+      ) : !cart || !cart.items || cart.items.length === 0 ? (
+        null
+      ) : showCurlecCheckout ? (
+        <div className="container max-w-4xl py-10">
+          <h1 className="text-3xl font-bold mb-6 text-center">Complete Your Payment</h1>
+          <CurlecCheckout 
+            orderId={orderId!}
+            amount={amount}
+            onPaymentComplete={handlePaymentComplete}
+            onPaymentFailure={handlePaymentFailure}
           />
-        </CardFooter>
-      </Card>
-    </div>
+        </div>
+      ) : (
+        <div className="container max-w-md py-10">
+          <Card>
+            <CardHeader>
+              <CardTitle>Choose Payment Method</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="mb-4">
+                <label className="block mb-2 font-medium">Select a payment method:</label>
+                <div className="space-y-2">
+                  {paymentMethods.map((method) => (
+                    <label key={method.value} className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="radio"
+                        name="paymentMethod"
+                        value={method.value}
+                        checked={selectedPaymentMethod === method.value}
+                        onChange={() => setSelectedPaymentMethod(method.value)}
+                      />
+                      {method.label}
+                    </label>
+                  ))}
+                </div>
+              </div>
+            </CardContent>
+            <CardFooter>
+              <CurlecPaymentButton
+                amount={cart?.total || 0}
+                paymentMethod={selectedPaymentMethod}
+                customerName={session?.user?.name || undefined}
+                customerEmail={session?.user?.email || undefined}
+                // Add other props as needed
+                className="w-full"
+                onStartPayment={() => setIsPaying(true)}
+                onEndPayment={() => setIsPaying(false)}
+              />
+            </CardFooter>
+          </Card>
+        </div>
+      )}
+    </ServerActionErrorBoundary>
   );
 } 

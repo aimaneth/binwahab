@@ -8,6 +8,7 @@ import { CheckCircle2, XCircle } from "lucide-react";
 import Link from "next/link";
 import { useCart } from "@/hooks/use-cart";
 import { useSession } from "next-auth/react";
+import { ServerActionErrorBoundary } from "@/components/error/ServerActionErrorBoundary";
 
 export default function ConfirmationPage() {
   const searchParams = useSearchParams();
@@ -165,90 +166,92 @@ export default function ConfirmationPage() {
   ];
 
   return (
-    <main className="container mx-auto px-4 py-8">
-      <div className="max-w-3xl mx-auto">
-        <h1 className="text-3xl font-bold mb-8">Order Confirmation</h1>
+    <ServerActionErrorBoundary>
+      <main className="container mx-auto px-4 py-8">
+        <div className="max-w-3xl mx-auto">
+          <h1 className="text-3xl font-bold mb-8">Order Confirmation</h1>
 
-        {/* Progress Steps */}
-        <div className="mb-12">
-          <Steps steps={steps} />
-        </div>
+          {/* Progress Steps */}
+          <div className="mb-12">
+            <Steps steps={steps} />
+          </div>
 
-        <div className="text-center py-12">
-          {status === "loading" ? (
-            <div className="flex flex-col items-center space-y-4">
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
-              <p className="text-lg">Verifying your payment...</p>
-            </div>
-          ) : status === "success" ? (
-            <div className="flex flex-col items-center space-y-6">
-              <CheckCircle2 className="h-16 w-16 text-green-500" />
-              <div className="space-y-2">
-                <h2 className="text-2xl font-semibold text-green-500">Payment Successful!</h2>
-                <p className="text-gray-600">{message}</p>
-                
-                {/* Display all payment identifiers for debugging */}
-                {Object.entries(paymentDetails).length > 0 && (
-                  <div className="mt-4 text-left">
-                    <p className="text-sm text-gray-500 mb-1">Payment Details:</p>
-                    {Object.entries(paymentDetails).map(([key, value]) => (
-                      <p key={key} className="text-sm text-gray-500">
-                        {key}: {value}
-                      </p>
-                    ))}
-                  </div>
-                )}
-                
-                <p className="text-sm text-gray-500 mt-2">
-                  {session ? "A confirmation email has been sent to your email address." : "Please log in to view your order details."}
-                </p>
+          <div className="text-center py-12">
+            {status === "loading" ? (
+              <div className="flex flex-col items-center space-y-4">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+                <p className="text-lg">Verifying your payment...</p>
               </div>
-              <div className="flex gap-4 mt-8">
-                <Button asChild>
-                  <Link href="/shop">Continue Shopping</Link>
-                </Button>
-                {session ? (
-                  <Button asChild variant="outline">
-                    <Link href="/orders">View Orders</Link>
+            ) : status === "success" ? (
+              <div className="flex flex-col items-center space-y-6">
+                <CheckCircle2 className="h-16 w-16 text-green-500" />
+                <div className="space-y-2">
+                  <h2 className="text-2xl font-semibold text-green-500">Payment Successful!</h2>
+                  <p className="text-gray-600">{message}</p>
+                  
+                  {/* Display all payment identifiers for debugging */}
+                  {Object.entries(paymentDetails).length > 0 && (
+                    <div className="mt-4 text-left">
+                      <p className="text-sm text-gray-500 mb-1">Payment Details:</p>
+                      {Object.entries(paymentDetails).map(([key, value]) => (
+                        <p key={key} className="text-sm text-gray-500">
+                          {key}: {value}
+                        </p>
+                      ))}
+                    </div>
+                  )}
+                  
+                  <p className="text-sm text-gray-500 mt-2">
+                    {session ? "A confirmation email has been sent to your email address." : "Please log in to view your order details."}
+                  </p>
+                </div>
+                <div className="flex gap-4 mt-8">
+                  <Button asChild>
+                    <Link href="/shop">Continue Shopping</Link>
                   </Button>
-                ) : (
-                  <Button asChild variant="outline">
-                    <Link href="/login?callbackUrl=/orders">Login to View Orders</Link>
+                  {session ? (
+                    <Button asChild variant="outline">
+                      <Link href="/orders">View Orders</Link>
+                    </Button>
+                  ) : (
+                    <Button asChild variant="outline">
+                      <Link href="/login?callbackUrl=/orders">Login to View Orders</Link>
+                    </Button>
+                  )}
+                </div>
+              </div>
+            ) : (
+              <div className="flex flex-col items-center space-y-6">
+                <XCircle className="h-16 w-16 text-red-500" />
+                <div className="space-y-2">
+                  <h2 className="text-2xl font-semibold text-red-500">Payment Failed</h2>
+                  <p className="text-gray-600">{message}</p>
+                  
+                  {/* Display all payment identifiers for debugging */}
+                  {Object.entries(paymentDetails).length > 0 && (
+                    <div className="mt-4 text-left">
+                      <p className="text-sm text-gray-500 mb-1">Payment Details:</p>
+                      {Object.entries(paymentDetails).map(([key, value]) => (
+                        <p key={key} className="text-sm text-gray-500">
+                          {key}: {value}
+                        </p>
+                      ))}
+                    </div>
+                  )}
+                </div>
+                <div className="flex gap-4 mt-8">
+                  <Button asChild>
+                    <Link href="/shop/cart">Return to Cart</Link>
                   </Button>
-                )}
+                  <Button asChild variant="outline">
+                    <Link href="/shop">Continue Shopping</Link>
+                  </Button>
+                </div>
               </div>
-            </div>
-          ) : (
-            <div className="flex flex-col items-center space-y-6">
-              <XCircle className="h-16 w-16 text-red-500" />
-              <div className="space-y-2">
-                <h2 className="text-2xl font-semibold text-red-500">Payment Failed</h2>
-                <p className="text-gray-600">{message}</p>
-                
-                {/* Display all payment identifiers for debugging */}
-                {Object.entries(paymentDetails).length > 0 && (
-                  <div className="mt-4 text-left">
-                    <p className="text-sm text-gray-500 mb-1">Payment Details:</p>
-                    {Object.entries(paymentDetails).map(([key, value]) => (
-                      <p key={key} className="text-sm text-gray-500">
-                        {key}: {value}
-                      </p>
-                    ))}
-                  </div>
-                )}
-              </div>
-              <div className="flex gap-4 mt-8">
-                <Button asChild>
-                  <Link href="/shop/cart">Return to Cart</Link>
-                </Button>
-                <Button asChild variant="outline">
-                  <Link href="/shop">Continue Shopping</Link>
-                </Button>
-              </div>
-            </div>
-          )}
+            )}
+          </div>
         </div>
-      </div>
-    </main>
+      </main>
+    </ServerActionErrorBoundary>
   );
 } 
