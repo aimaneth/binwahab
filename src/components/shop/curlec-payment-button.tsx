@@ -80,7 +80,7 @@ export function CurlecPaymentButton({
           email: customerEmail,
           contact: customerPhone,
         },
-        callbackUrl: `${window.location.origin}/shop/confirmation`,
+        callbackUrl: `${window.location.origin}/api/payment-redirect`,
         redirect: true,
         theme: {
           color: '#6366F1'

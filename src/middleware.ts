@@ -17,6 +17,14 @@ const PAYMENT_REDIRECT_PATHS = [
   '/shop/success',
   '/shop/failed',
   '/shop/checkout',
+  '/api/payment-redirect',
+];
+
+// API paths that might be called from payment gateways
+const PAYMENT_API_PATHS = [
+  '/api/payment-redirect',
+  '/api/curlec/verify-direct',
+  '/api/curlec/verify-payment'
 ];
 
 // Add security headers
@@ -57,10 +65,34 @@ function trackPageView(request: NextRequest): string {
 
 export async function middleware(request: NextRequest) {
   try {
+    // Check if this is a payment API endpoint
+    const isPaymentApiEndpoint = PAYMENT_API_PATHS.some(path => 
+      request.nextUrl.pathname.startsWith(path)
+    );
+
     // Handle CORS preflight requests
     if (request.method === 'OPTIONS') {
       const response = new NextResponse(null, { status: 204 });
       return addCORSHeaders(response);
+    }
+
+    // Prioritize payment API handling with extra CORS headers
+    if (isPaymentApiEndpoint) {
+      const response = NextResponse.next();
+      
+      // Add special headers for payment APIs
+      response.headers.set('Access-Control-Allow-Origin', '*');
+      response.headers.set('Access-Control-Allow-Methods', 'GET, POST, OPTIONS, PUT, DELETE');
+      response.headers.set('Access-Control-Allow-Headers', 'Content-Type, Authorization, x-csrf-token, x-requested-with, accept, accept-version, content-length, content-md5, date, x-api-version, next-action');
+      response.headers.set('Access-Control-Allow-Credentials', 'true');
+      response.headers.set('Access-Control-Max-Age', '86400');
+      
+      // Use more permissive CORS policies
+      response.headers.set('Cross-Origin-Opener-Policy', 'unsafe-none');
+      response.headers.set('Cross-Origin-Embedder-Policy', 'unsafe-none');
+      response.headers.set('Cross-Origin-Resource-Policy', 'cross-origin');
+      
+      return response;
     }
 
     // Check if this is a payment redirect path

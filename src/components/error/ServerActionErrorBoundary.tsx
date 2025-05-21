@@ -34,25 +34,69 @@ export function ServerActionErrorBoundary({
         event.preventDefault(); // Prevent the error from crashing the app
         setHasError(true);
         
-        // Try to redirect to a safe page after a short delay
+        // Try to redirect to safe API endpoint after a short delay
         setTimeout(() => {
           try {
-            router.push('/shop/confirmation?status=success&message=Your+payment+is+being+processed');
+            // Extract any payment-related query parameters from the URL
+            const urlParams = new URLSearchParams(window.location.search);
+            const hasPaymentParams = 
+              urlParams.has('razorpay_payment_id') || 
+              urlParams.has('razorpay_order_id') || 
+              urlParams.has('payment_id') ||
+              urlParams.has('order_id') ||
+              urlParams.has('session_id');
+            
+            // If we have payment params, use them in redirect
+            if (hasPaymentParams) {
+              // Use our API redirect helper 
+              window.location.href = `/api/payment-redirect?${urlParams.toString()}`;
+            } else {
+              // Otherwise just do a simpler redirect
+              router.push('/shop/confirmation?status=success&message=Your+payment+is+being+processed');
+            }
           } catch (e) {
             console.error('Failed to redirect:', e);
             // If redirect fails, try window.location as fallback
-            window.location.href = '/shop/confirmation?status=success&message=Your+payment+is+being+processed';
+            window.location.href = '/api/payment-redirect?status=success&message=Your+payment+is+being+processed';
           }
-        }, 1500);
+        }, 1000);
       }
     };
 
-    // Add the event listener
+    // Also listen for regular errors (not just promise rejections)
+    const handleError = (event: ErrorEvent) => {
+      console.error('Error event:', event.error);
+      
+      // Check if error message matches our target error
+      if (
+        event.error?.message?.includes("Failed to find Server Action") ||
+        event.error?.message?.includes("Missing 'next-action' header") ||
+        event.error?.toString().includes("next-action") ||
+        event.message?.includes("next-action")
+      ) {
+        console.log('Caught regular error event for Server Action error');
+        event.preventDefault(); // Prevent the error from crashing the app
+        setHasError(true);
+        
+        // Redirect to safety
+        setTimeout(() => {
+          try {
+            window.location.href = '/api/payment-redirect?status=success&message=Your+payment+is+being+processed';
+          } catch (e) {
+            console.error('Redirect failed:', e);
+          }
+        }, 1000);
+      }
+    };
+
+    // Add the event listeners
     window.addEventListener('unhandledrejection', handleUnhandledRejection);
+    window.addEventListener('error', handleError);
 
     // Clean up
     return () => {
       window.removeEventListener('unhandledrejection', handleUnhandledRejection);
+      window.removeEventListener('error', handleError);
     };
   }, [router]);
 

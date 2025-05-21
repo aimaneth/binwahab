@@ -186,15 +186,15 @@ export function CurlecCheckout({ orderId, amount, onPaymentComplete, onPaymentFa
             description: 'Payment for your order',
             image: 'https://binwahab.com/images/logo.png',
             order_id: orderId, // Order ID from the API
-            // Use redirect to confirmation page with status parameter for eWallets/FPX
-            callback_url: `${baseUrl}/shop/confirmation`, // Redirect to our frontend confirmation page
+            // Use our special API redirect endpoint that avoids server action issues
+            callback_url: `${baseUrl}/api/payment-redirect`, // Use server redirect first to avoid header issues
             redirect: true, // Recommended for eWallets/FPX to ensure proper redirection
             modal: {
               ondismiss: function() {
                 console.log('Razorpay modal dismissed');
                 setLoading(false);
                 // Redirect to cancel page on modal dismiss with proper cancellation parameters
-                window.location.href = '/shop/confirmation?status=error&message=Payment+was+cancelled+by+user';
+                window.location.href = '/api/payment-redirect?status=error&message=Payment+was+cancelled+by+user';
               },
               escape: true,
               animation: true
@@ -215,18 +215,18 @@ export function CurlecCheckout({ orderId, amount, onPaymentComplete, onPaymentFa
                   localStorage.setItem('rzp_signature', response.razorpay_signature);
                 }
                 
-                // Redirect with all parameters
-                window.location.href = `/shop/confirmation?status=success&razorpay_payment_id=${response.razorpay_payment_id}&razorpay_order_id=${response.razorpay_order_id}&razorpay_signature=${response.razorpay_signature}&message=Payment+completed+successfully`;
+                // Use our server-side redirect handler to avoid the missing header issue
+                window.location.href = `/api/payment-redirect?razorpay_payment_id=${response.razorpay_payment_id}&razorpay_order_id=${response.razorpay_order_id}&razorpay_signature=${response.razorpay_signature}&status=success&message=Payment+completed+successfully`;
               } catch (err) {
                 console.error('Error during redirect:', err);
                 // Fallback direct redirect
-                window.location.href = '/shop/confirmation?status=success&message=Payment+completed';
+                window.location.href = '/api/payment-redirect?status=success&message=Payment+completed';
               }
             },
             // Handle any external failures
             "on_external_failure": function(err: any) {
               console.error('External payment failure:', err);
-              window.location.href = `/shop/confirmation?status=error&message=${encodeURIComponent('Payment failed: ' + (err.description || err.reason || 'External payment error'))}`;
+              window.location.href = `/api/payment-redirect?status=error&message=${encodeURIComponent('Payment failed: ' + (err.description || err.reason || 'External payment error'))}`;
             },
             prefill: {
               name: session.user.name || undefined,
