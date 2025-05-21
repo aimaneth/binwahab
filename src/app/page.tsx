@@ -385,14 +385,14 @@ export default function HomePage() {
       </section>
 
       {/* Newsletter Section */}
-      <section className="py-16 px-4 md:px-6 bg-gradient-to-r from-primary/90 to-primary dark:from-gray-800 dark:to-gray-900">
+      <section className="py-16 px-4 md:px-6 bg-gradient-to-r from-primary/90 to-primary dark:bg-white dark:bg-none">
         <div className="container mx-auto max-w-6xl">
-          <div className="relative overflow-hidden rounded-2xl bg-white/10 dark:bg-gray-800 backdrop-blur-sm shadow-xl p-8 md:p-12">
-            <div className="absolute top-0 left-0 w-full h-full bg-pattern opacity-5"></div>
+          <div className="relative overflow-hidden rounded-2xl bg-white/10 dark:bg-gray-100 backdrop-blur-sm shadow-xl p-8 md:p-12">
+            <div className="absolute top-0 left-0 w-full h-full bg-pattern opacity-5 dark:opacity-10"></div>
             <div className="relative z-10 flex flex-col md:flex-row items-center justify-between gap-8">
               <div className="text-left space-y-4 max-w-lg">
-                <h2 className="text-3xl md:text-4xl font-bold text-white dark:text-white tracking-tight">Join Our Community</h2>
-                <p className="text-lg text-white/80 dark:text-gray-200">
+                <h2 className="text-3xl md:text-4xl font-bold text-white dark:text-gray-900 tracking-tight">Join Our Community</h2>
+                <p className="text-lg text-white/80 dark:text-gray-700">
                   Get exclusive offers, new product announcements, and personalized recommendations directly to your inbox.
                 </p>
                 <form onSubmit={handleNewsletterSubmit} className="mt-6">
@@ -401,15 +401,15 @@ export default function HomePage() {
                       <input
                         type="email"
                         placeholder="Enter your email address"
-                        className={`px-5 py-3.5 w-full rounded-full bg-white/20 dark:bg-gray-700 border text-white dark:text-white placeholder:text-white/60 dark:placeholder:text-gray-300 focus:outline-none focus:ring-2 focus:ring-white/50 dark:focus:ring-gray-300 transition-colors ${
-                          emailError ? 'border-red-400' : 'border-white/30 dark:border-gray-600'
+                        className={`px-5 py-3.5 w-full rounded-full bg-white/20 dark:bg-white border text-white dark:text-gray-900 placeholder:text-white/60 dark:placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-white/50 dark:focus:ring-gray-400 transition-colors ${
+                          emailError ? 'border-red-400' : 'border-white/30 dark:border-gray-300'
                         }`}
                         value={email}
                         onChange={(e) => setEmail(e.target.value)}
                         disabled={subscribeStatus === "loading" || subscribeStatus === "success"}
                       />
                       {emailError && (
-                        <p className="absolute text-sm text-red-300 dark:text-red-400 mt-1 ml-2 flex items-center">
+                        <p className="absolute text-sm text-red-300 dark:text-red-500 mt-1 ml-2 flex items-center">
                           <AlertCircle className="h-3 w-3 mr-1" />
                           {emailError}
                         </p>
@@ -419,14 +419,14 @@ export default function HomePage() {
                       type="submit"
                       className={`w-full sm:w-auto whitespace-nowrap px-6 py-3.5 rounded-full font-medium transition-all flex items-center justify-center gap-2 ${
                         subscribeStatus === "success" 
-                          ? "bg-green-500 hover:bg-green-600 text-white dark:bg-green-500 dark:hover:bg-green-600" 
-                          : "bg-white hover:bg-white/90 text-primary dark:bg-gray-100 dark:hover:bg-white dark:text-gray-900"
+                          ? "bg-green-500 hover:bg-green-600 text-white dark:bg-green-600 dark:hover:bg-green-700 dark:text-white" 
+                          : "bg-white hover:bg-white/90 text-primary dark:bg-gray-900 dark:hover:bg-black dark:text-white"
                       }`}
                       disabled={subscribeStatus === "loading" || subscribeStatus === "success"}
                     >
                       {subscribeStatus === "loading" ? (
                         <>
-                          <div className="h-4 w-4 border-2 border-primary dark:border-gray-800 border-t-transparent rounded-full animate-spin"></div>
+                          <div className="h-4 w-4 border-2 border-primary dark:border-gray-300 border-t-transparent rounded-full animate-spin"></div>
                           <span>Subscribing...</span>
                         </>
                       ) : subscribeStatus === "success" ? (
@@ -443,13 +443,13 @@ export default function HomePage() {
                     </Button>
                   </div>
                 </form>
-                <p className="text-sm text-white/60 dark:text-gray-300 mt-2">
+                <p className="text-sm text-white/60 dark:text-gray-600 mt-2">
                   By subscribing, you agree to our Privacy Policy. We respect your privacy.
                 </p>
               </div>
               <div className="hidden md:block">
-                <div className="relative w-32 h-32 bg-white/20 dark:bg-gray-700 rounded-full flex items-center justify-center">
-                  <div className="absolute inset-0 rounded-full bg-white/10 dark:bg-gray-600 animate-pulse"></div>
+                <div className="relative w-32 h-32 bg-white/20 dark:bg-gray-200 rounded-full flex items-center justify-center">
+                  <div className="absolute inset-0 rounded-full bg-white/10 dark:bg-gray-300 animate-pulse"></div>
                   <div className="relative z-10 p-3">
                     <svg 
                       xmlns="http://www.w3.org/2000/svg" 
@@ -459,7 +459,7 @@ export default function HomePage() {
                       strokeWidth="1.5" 
                       strokeLinecap="round" 
                       strokeLinejoin="round" 
-                      className="w-14 h-14 text-white dark:text-gray-100"
+                      className="w-14 h-14 text-white dark:text-gray-800"
                     >
                       <path d="M21.5 2h-19A2.503 2.503 0 0 0 0 4.5v15C0 20.878 1.122 22 2.5 22h19c1.378 0 2.5-1.122 2.5-2.5v-15C24 3.122 22.878 2 21.5 2zm-19 2h19c.271 0 .5.229.5.5v1.637l-10 5.6-10-5.6V4.5c0-.271.229-.5.5-.5zm19 16h-19c-.271 0-.5-.229-.5-.5V7.363l9.496 5.318a.505.505 0 0 0 .504 0L21.5 7.363V19.5c0 .271-.229.5-.5.5z" />
                     </svg>
@@ -476,7 +476,7 @@ export default function HomePage() {
           }
           @media (prefers-color-scheme: dark) {
             .bg-pattern {
-              background-image: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23333333' fill-opacity='0.2'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+              background-image: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23000000' fill-opacity='0.1'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
             }
           }
         `}</style>
