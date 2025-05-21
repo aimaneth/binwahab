@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, Suspense } from "react";
+import { useState, useEffect, Suspense, FormEvent } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
@@ -8,7 +8,7 @@ import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { formatPrice } from "@/lib/utils";
 import { ImageWithFallback } from "@/components/ui/image-with-fallback";
 import { CollectionCard } from "@/components/collections/collection-card";
-import { MapPin, ArrowRight } from "lucide-react";
+import { MapPin, ArrowRight, Mail, CheckCircle, AlertCircle } from "lucide-react";
 import { ProductCard } from "@/components/shop/product-card";
 import { Product as FullProduct } from "@/types/product";
 
@@ -29,6 +29,11 @@ export default function HomePage() {
   const [completeCollections, setCompleteCollections] = useState<Collection[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  
+  // Newsletter state
+  const [email, setEmail] = useState<string>("");
+  const [emailError, setEmailError] = useState<string>("");
+  const [subscribeStatus, setSubscribeStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
 
   useEffect(() => {
     const fetchData = async () => {
@@ -62,6 +67,39 @@ export default function HomePage() {
 
     fetchData();
   }, []);
+
+  // Newsletter submit handler
+  const handleNewsletterSubmit = (e: FormEvent) => {
+    e.preventDefault();
+    
+    // Basic validation
+    if (!email) {
+      setEmailError("Email is required");
+      return;
+    }
+    
+    // Simple email format validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      setEmailError("Please enter a valid email address");
+      return;
+    }
+    
+    setEmailError("");
+    setSubscribeStatus("loading");
+    
+    // Mock API call - in a real app, you would call your API endpoint
+    setTimeout(() => {
+      // Simulate successful subscription
+      setSubscribeStatus("success");
+      setEmail("");
+      
+      // Reset after 3 seconds
+      setTimeout(() => {
+        setSubscribeStatus("idle");
+      }, 3000);
+    }, 1000);
+  };
 
   if (error) {
     return (
@@ -347,19 +385,96 @@ export default function HomePage() {
       </section>
 
       {/* Newsletter Section */}
-      <section className="py-16 px-4 md:px-6 bg-primary">
-        <div className="container mx-auto text-center space-y-4">
-          <h2 className="text-3xl font-bold text-primary-foreground">Stay Updated</h2>
-          <p className="text-lg text-primary-foreground/90">Subscribe to our newsletter for the latest updates and offers</p>
-          <div className="max-w-md mx-auto flex gap-2">
-            <input
-              type="email"
-              placeholder="Enter your email"
-              className="flex-1 px-4 py-2 rounded-md bg-background text-foreground"
-            />
-            <Button variant="secondary">Subscribe</Button>
+      <section className="py-16 px-4 md:px-6 bg-gradient-to-r from-primary/90 to-primary">
+        <div className="container mx-auto max-w-6xl">
+          <div className="relative overflow-hidden rounded-2xl bg-white/10 backdrop-blur-sm shadow-xl p-8 md:p-12">
+            <div className="absolute top-0 left-0 w-full h-full bg-pattern opacity-5"></div>
+            <div className="relative z-10 flex flex-col md:flex-row items-center justify-between gap-8">
+              <div className="text-left space-y-4 max-w-lg">
+                <h2 className="text-3xl md:text-4xl font-bold text-white tracking-tight">Join Our Community</h2>
+                <p className="text-lg text-white/80">
+                  Get exclusive offers, new product announcements, and personalized recommendations directly to your inbox.
+                </p>
+                <form onSubmit={handleNewsletterSubmit} className="mt-6">
+                  <div className="flex flex-col sm:flex-row items-center gap-3">
+                    <div className="relative w-full">
+                      <input
+                        type="email"
+                        placeholder="Enter your email address"
+                        className={`px-5 py-3.5 w-full rounded-full bg-white/20 border text-white placeholder:text-white/60 focus:outline-none focus:ring-2 focus:ring-white/50 transition-colors ${
+                          emailError ? 'border-red-400' : 'border-white/30'
+                        }`}
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                        disabled={subscribeStatus === "loading" || subscribeStatus === "success"}
+                      />
+                      {emailError && (
+                        <p className="absolute text-sm text-red-300 mt-1 ml-2 flex items-center">
+                          <AlertCircle className="h-3 w-3 mr-1" />
+                          {emailError}
+                        </p>
+                      )}
+                    </div>
+                    <Button 
+                      type="submit"
+                      className={`w-full sm:w-auto whitespace-nowrap px-6 py-3.5 rounded-full font-medium transition-all flex items-center justify-center gap-2 ${
+                        subscribeStatus === "success" 
+                          ? "bg-green-500 hover:bg-green-600 text-white" 
+                          : "bg-white hover:bg-white/90 text-primary"
+                      }`}
+                      disabled={subscribeStatus === "loading" || subscribeStatus === "success"}
+                    >
+                      {subscribeStatus === "loading" ? (
+                        <>
+                          <div className="h-4 w-4 border-2 border-primary border-t-transparent rounded-full animate-spin"></div>
+                          <span>Subscribing...</span>
+                        </>
+                      ) : subscribeStatus === "success" ? (
+                        <>
+                          <CheckCircle className="h-4 w-4" />
+                          <span>Subscribed!</span>
+                        </>
+                      ) : (
+                        <>
+                          <Mail className="h-4 w-4" />
+                          <span>Subscribe Now</span>
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                </form>
+                <p className="text-sm text-white/60 mt-2">
+                  By subscribing, you agree to our Privacy Policy. We respect your privacy.
+                </p>
+              </div>
+              <div className="hidden md:block">
+                <div className="relative w-32 h-32 bg-white/20 rounded-full flex items-center justify-center">
+                  <div className="absolute inset-0 rounded-full bg-white/10 animate-pulse"></div>
+                  <div className="relative z-10 p-3">
+                    <svg 
+                      xmlns="http://www.w3.org/2000/svg" 
+                      viewBox="0 0 24 24" 
+                      fill="none" 
+                      stroke="currentColor" 
+                      strokeWidth="1.5" 
+                      strokeLinecap="round" 
+                      strokeLinejoin="round" 
+                      className="w-14 h-14 text-white"
+                    >
+                      <path d="M21.5 2h-19A2.503 2.503 0 0 0 0 4.5v15C0 20.878 1.122 22 2.5 22h19c1.378 0 2.5-1.122 2.5-2.5v-15C24 3.122 22.878 2 21.5 2zm-19 2h19c.271 0 .5.229.5.5v1.637l-10 5.6-10-5.6V4.5c0-.271.229-.5.5-.5zm19 16h-19c-.271 0-.5-.229-.5-.5V7.363l9.496 5.318a.505.505 0 0 0 .504 0L21.5 7.363V19.5c0 .271-.229.5-.5.5z" />
+                    </svg>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
+
+        <style jsx>{`
+          .bg-pattern {
+            background-image: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.2'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+          }
+        `}</style>
       </section>
     </div>
   );
