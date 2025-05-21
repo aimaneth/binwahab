@@ -184,7 +184,7 @@ export function CurlecCheckout({ orderId, amount, onPaymentComplete, onPaymentFa
             image: 'https://binwahab.com/images/logo.png',
             order_id: orderId, // Order ID from the API
             // Use redirect to confirmation page with status parameter for eWallets/FPX
-            callback_url: `${baseUrl}/shop/confirmation?session_id=${orderId}&order_id=${orderId.split('_')[1] || orderId}&status=success&message=Payment+verified+successfully`,
+            callback_url: `${baseUrl}/api/curlec/verify-payment`, // Redirect to our verification endpoint
             redirect: true, // Recommended for eWallets/FPX to ensure proper redirection
             handler: async function(response: any) { // Handler for card payments that don't redirect
               console.log('Razorpay handler invoked:', response);
@@ -227,14 +227,25 @@ export function CurlecCheckout({ orderId, amount, onPaymentComplete, onPaymentFa
             modal: {
               ondismiss: function() {
                 console.log('Razorpay modal dismissed');
-                if (!loading) { // Only redirect if not already processing a payment (e.g. via handler)
-                    setLoading(false);
-                    // Redirect to cancel page on modal dismiss
-                    window.location.href = '/shop/checkout/cancel';
-                }
+                setLoading(false);
+                // Redirect to cancel page on modal dismiss with proper cancellation parameters
+                window.location.href = '/shop/confirmation?status=error&message=Payment+was+cancelled+by+user';
               },
               escape: true,
               animation: true
+            },
+            // Define what happens when an error occurs
+            "config": {
+              "display": {
+                "hide": [{
+                  "method": "wallet"
+                }]
+              }
+            },
+            // Add a callback for any external failures
+            "on_external_failure": function(err: any) {
+              console.error('External payment failure:', err);
+              window.location.href = `/shop/confirmation?status=error&message=${encodeURIComponent('Payment failed: ' + (err.description || err.reason || 'External payment error'))}`;
             },
             prefill: {
               name: session.user.name || undefined,

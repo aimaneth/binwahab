@@ -250,18 +250,44 @@ export async function GET(request: NextRequest) {
     const razorpay_payment_id = searchParams.get('razorpay_payment_id');
     const razorpay_order_id = searchParams.get('razorpay_order_id');
     const razorpay_signature = searchParams.get('razorpay_signature');
-
+    
+    // Check for error or cancellation
+    const error_code = searchParams.get('error_code');
+    const error_description = searchParams.get('error_description');
+    const error_source = searchParams.get('error_source');
+    const error_step = searchParams.get('error_step');
+    const error_reason = searchParams.get('error_reason');
+    
     console.log('[GET /api/curlec/verify-payment] Received params:', {
       razorpay_payment_id,
       razorpay_order_id,
       razorpay_signature,
+      error_code,
+      error_description,
+      error_source,
+      error_step,
+      error_reason,
       keySecretCheck: process.env.CURLEC_KEY_SECRET ? `Loaded (ends with ${process.env.CURLEC_KEY_SECRET.slice(-4)})` : 'NOT LOADED',
       url: request.url
     });
 
+    // If there's an error code or source, it means the payment was cancelled or failed
+    if (error_code || error_source || error_reason) {
+      const errorMessage = error_description || error_reason || 'Payment was cancelled or failed';
+      console.error('[GET /api/curlec/verify-payment] Payment error:', {
+        error_code,
+        error_description,
+        error_source,
+        error_step,
+        error_reason,
+      });
+      return NextResponse.redirect(`${baseUrl}/shop/confirmation?status=error&message=${encodeURIComponent(errorMessage)}`);
+    }
+
+    // Additional check: If any of the required signature verification parameters are missing, treat as cancellation/error
     if (!razorpay_payment_id || !razorpay_order_id || !razorpay_signature) {
       console.error('[GET /api/curlec/verify-payment] Missing Razorpay parameters in URL');
-      return NextResponse.redirect(`${baseUrl}/shop/confirmation?status=error&message=Missing+payment+parameters`);
+      return NextResponse.redirect(`${baseUrl}/shop/confirmation?status=error&message=Payment+was+cancelled+or+incomplete`);
     }
 
     const isSignatureValid = verifyRazorpaySignature(

@@ -29,6 +29,12 @@ export default function ConfirmationPage() {
   const razorpay_payment_id = searchParams.get("razorpay_payment_id");
   const razorpay_order_id = searchParams.get("razorpay_order_id");
   const razorpay_signature = searchParams.get("razorpay_signature");
+  
+  // Error parameters from Curlec
+  const error_code = searchParams.get("error_code");
+  const error_description = searchParams.get("error_description");
+  const error_source = searchParams.get("error_source");
+  const error_reason = searchParams.get("error_reason");
 
   useEffect(() => {
     // Collect all payment details for display
@@ -38,6 +44,10 @@ export default function ConfirmationPage() {
     if (paymentId) details.paymentId = paymentId;
     if (razorpay_payment_id) details.razorpayPaymentId = razorpay_payment_id;
     if (razorpay_order_id) details.razorpayOrderId = razorpay_order_id;
+    if (error_code) details.errorCode = error_code;
+    if (error_description) details.errorDescription = error_description;
+    if (error_source) details.errorSource = error_source;
+    if (error_reason) details.errorReason = error_reason;
     setPaymentDetails(details);
 
     // Simplified verification flow with more fallbacks
@@ -50,8 +60,17 @@ export default function ConfirmationPage() {
           setMessage(messageParam || "Your payment was successful and your order has been placed.");
           return;
         } else if (statusParam === "error") {
+          // Do not clear cart on error - user might want to try again
           setStatus("error");
           setMessage(messageParam || "There was an issue processing your payment.");
+          return;
+        }
+        
+        // Check for direct error indicators 
+        if (error_code || error_description || error_source || error_reason) {
+          setStatus("error");
+          const errorMsg = error_description || error_reason || "Payment was cancelled or failed";
+          setMessage(errorMsg);
           return;
         }
         
