@@ -184,46 +184,8 @@ export function CurlecCheckout({ orderId, amount, onPaymentComplete, onPaymentFa
             image: 'https://binwahab.com/images/logo.png',
             order_id: orderId, // Order ID from the API
             // Use redirect to confirmation page with status parameter for eWallets/FPX
-            callback_url: `${baseUrl}/api/curlec/verify-payment`, // Redirect to our verification endpoint
+            callback_url: `${baseUrl}/shop/confirmation`, // Redirect to our frontend confirmation page
             redirect: true, // Recommended for eWallets/FPX to ensure proper redirection
-            handler: async function(response: any) { // Handler for card payments that don't redirect
-              console.log('Razorpay handler invoked:', response);
-              setLoading(true); // Set loading true as handler is now primary for success
-              try {
-                const verifyResponse = await fetch('/api/curlec/verify-payment', {
-                  method: 'POST',
-                  headers: {
-                    'Content-Type': 'application/json',
-                  },
-                  body: JSON.stringify({
-                    razorpay_payment_id: response.razorpay_payment_id,
-                    razorpay_order_id: response.razorpay_order_id,
-                    razorpay_signature: response.razorpay_signature,
-                  }),
-                });
-
-                const data = await verifyResponse.json();
-
-                if (data.success) {
-                  console.log("Payment successful (handler), clearing cart and calling onPaymentComplete");
-                  await clearClientAndServerCart();
-                  if (onPaymentComplete) {
-                    onPaymentComplete(response.razorpay_payment_id);
-                  }
-                  // Redirect to confirmation page with all necessary parameters
-                  window.location.href = `/shop/confirmation?payment_id=${response.razorpay_payment_id}&order_id=${data.orderId}&status=success&message=Payment+verified+successfully`;
-                } else {
-                  throw new Error(data.error || 'Payment verification failed in handler');
-                }
-              } catch (error) {
-                console.error('Error in Razorpay handler:', error);
-                if (onPaymentFailure) {
-                  onPaymentFailure(error instanceof Error ? error.message : 'Payment processing failed');
-                }
-                setError('Payment processing failed. Please try again or contact support.');
-                setLoading(false);
-              }
-            },
             modal: {
               ondismiss: function() {
                 console.log('Razorpay modal dismissed');
@@ -234,14 +196,7 @@ export function CurlecCheckout({ orderId, amount, onPaymentComplete, onPaymentFa
               escape: true,
               animation: true
             },
-            // Define what happens when an error occurs
-            "config": {
-              "display": {
-                "hide": [{
-                  "method": "wallet"
-                }]
-              }
-            },
+            // Remove the configuration that hides wallet methods
             // Add a callback for any external failures
             "on_external_failure": function(err: any) {
               console.error('External payment failure:', err);

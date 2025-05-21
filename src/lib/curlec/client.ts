@@ -456,6 +456,7 @@ export interface CurlecCheckoutOptions {
     contact?: string;
   };
   callbackUrl?: string;
+  redirect?: boolean;
   theme?: {
     color?: string;
   };
@@ -476,7 +477,7 @@ export function createCurlecCheckoutOptions(options: CurlecCheckoutOptions): any
     image: options.image || 'https://binwahab.com/images/logo.png',
     order_id: options.orderId,
     callback_url: options.callbackUrl,
-    redirect: true,
+    redirect: options.redirect,
     prefill: {
       name: options.prefill?.name || undefined,
       email: options.prefill?.email || undefined,

@@ -62,6 +62,11 @@ export async function POST(request: Request) {
         notes.customerName = session.user.name;
       }
       
+      // Add payment method to notes for better tracking
+      if (paymentMethod) {
+        notes.paymentMethod = paymentMethod;
+      }
+      
       // Create Razorpay order
       const orderData = await razorpay.orders.create({
         amount: formattedAmount,

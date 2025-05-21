@@ -77,13 +77,36 @@ export default function ConfirmationPage() {
         // Handle Curlec direct callback with verification parameters - only attempt if we have all three
         if (razorpay_payment_id && razorpay_order_id && razorpay_signature) {
           try {
-            // If we have all Razorpay parameters, assume it was successful (as they've verified the signature already)
-            await clearClientAndServerCart().catch(e => console.error("Error clearing cart:", e));
-            setStatus("success");
-            setMessage("Your payment was successfully processed with Curlec!");
-            return;
+            // If we have all Razorpay parameters, we need to verify the payment
+            const verifyResponse = await fetch('/api/curlec/verify-payment', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({
+                razorpay_payment_id,
+                razorpay_order_id,
+                razorpay_signature
+              }),
+            });
+            
+            const data = await verifyResponse.json();
+            
+            if (data.success) {
+              await clearClientAndServerCart().catch(e => console.error("Error clearing cart:", e));
+              setStatus("success");
+              setMessage("Your payment was successfully processed with Curlec!");
+              return;
+            } else {
+              setStatus("error");
+              setMessage(data.error || "Payment verification failed");
+              return;
+            }
           } catch (error) {
             console.error("Error handling Curlec parameters:", error);
+            setStatus("error");
+            setMessage("Error verifying payment signature");
+            return;
           }
         }
         

@@ -19,14 +19,13 @@ export default function CheckoutPage() {
   const [loading, setLoading] = useState(true);
   const [orderProcessing, setOrderProcessing] = useState(false);
   const [cart, setCart] = useState<any>(null);
-  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState('TNG_EWALLET');
+  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState('wallet');
   const [isPaying, setIsPaying] = useState(false);
   const paymentMethods = [
-    { label: "TnG eWallet", value: "TNG_EWALLET" },
-    { label: "GrabPay", value: "GRABPAY" },
-    { label: "Boost", value: "BOOST" },
-    { label: "FPX (Online Banking)", value: "FPX" },
-    { label: "Credit Card", value: "CREDIT_CARD" },
+    { label: "TnG eWallet", value: "wallet" },
+    { label: "GrabPay", value: "wallet" },
+    { label: "FPX (Online Banking)", value: "fpx" },
+    { label: "Credit Card", value: "card" },
   ];
   
   // Get parameters from URL

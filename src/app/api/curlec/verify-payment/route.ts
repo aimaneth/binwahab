@@ -28,19 +28,50 @@ export async function POST(request: NextRequest) {
     requestText = await request.clone().text(); // Assign to the higher-scoped variable
     console.log('[POST /api/curlec/verify-payment] Received raw request body text:', requestText);
 
-    // Parse request body
-    // const body = await request.json(); // This was the point of failure as Curlec sends form-urlencoded data
-    const formData = await request.formData();
-    const razorpay_payment_id = formData.get('razorpay_payment_id') as string | null;
-    const razorpay_order_id = formData.get('razorpay_order_id') as string | null;
-    const razorpay_signature = formData.get('razorpay_signature') as string | null;
-
-    // Log the request for debugging
-    console.log('Verify payment request (from form data):', { 
-      razorpay_payment_id, 
-      razorpay_order_id, 
-      razorpay_signature 
-    });
+    // Parse request body - try both JSON and form data
+    let razorpay_payment_id = null;
+    let razorpay_order_id = null;
+    let razorpay_signature = null;
+    
+    // Check content type for JSON
+    const contentType = request.headers.get('content-type');
+    
+    // Try to parse as JSON first if the content type is application/json
+    if (contentType?.includes('application/json')) {
+      try {
+        const jsonBody = JSON.parse(requestText);
+        razorpay_payment_id = jsonBody.razorpay_payment_id || jsonBody.paymentId;
+        razorpay_order_id = jsonBody.razorpay_order_id || jsonBody.orderId;
+        razorpay_signature = jsonBody.razorpay_signature || jsonBody.signature;
+        
+        console.log('Verify payment request (from JSON):', { 
+          razorpay_payment_id, 
+          razorpay_order_id, 
+          razorpay_signature 
+        });
+      } catch (jsonError) {
+        console.error('Error parsing JSON:', jsonError);
+        // Failed to parse as JSON, will try form data next
+      }
+    }
+    
+    // If we couldn't get the parameters from JSON, try form data
+    if (!razorpay_payment_id || !razorpay_order_id || !razorpay_signature) {
+      try {
+        const formData = await request.clone().formData();
+        razorpay_payment_id = formData.get('razorpay_payment_id') as string | null;
+        razorpay_order_id = formData.get('razorpay_order_id') as string | null;
+        razorpay_signature = formData.get('razorpay_signature') as string | null;
+        
+        console.log('Verify payment request (from form data):', { 
+          razorpay_payment_id, 
+          razorpay_order_id, 
+          razorpay_signature 
+        });
+      } catch (formError) {
+        console.error('Error parsing form data:', formError);
+      }
+    }
 
     // Verify all parameters exist
     if (!razorpay_payment_id || !razorpay_order_id || !razorpay_signature) {
