@@ -164,7 +164,9 @@ export function Navbar() {
                     {isLoading ? (
                               <li className="px-2 py-1.5 text-sm text-muted-foreground">Loading...</li>
                     ) : category.collections.length > 0 ? (
-                      category.collections.map((collection) => (
+                      [...category.collections]
+                        .sort((a, b) => a.name.length - b.name.length)
+                        .map((collection) => (
                                 <Link
                                   key={collection.id}
                                   href={`/shop?collection=${collection.id}&category=${category.id}`}
@@ -312,16 +314,18 @@ export function Navbar() {
                           {isLoading ? (
                             <li className="px-2 py-1.5 text-sm text-muted-foreground">Loading...</li>
                           ) : category.collections.length > 0 ? (
-                            category.collections.map((collection) => (
-                              <Link
-                                key={collection.id}
-                                href={`/shop?collection=${collection.id}&category=${category.id}`}
-                                className="block select-none rounded-sm px-3 py-2 text-sm outline-none transition-colors hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground"
-                                onClick={() => setIsOpen(false)}
-                              >
-                                {collection.name}
-                              </Link>
-                            ))
+                            [...category.collections]
+                              .sort((a, b) => a.name.length - b.name.length)
+                              .map((collection) => (
+                                <Link
+                                  key={collection.id}
+                                  href={`/shop?collection=${collection.id}&category=${category.id}`}
+                                  className="block select-none rounded-sm px-3 py-2 text-sm outline-none transition-colors hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground"
+                                  onClick={() => setIsOpen(false)}
+                                >
+                                  {collection.name}
+                                </Link>
+                              ))
                           ) : (
                             <li className="px-2 py-1.5 text-sm text-muted-foreground">No collections found</li>
                           )}
