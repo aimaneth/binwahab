@@ -28,6 +28,10 @@ function addSecurityHeaders(response: NextResponse) {
   response.headers.set('X-Frame-Options', 'DENY');
   response.headers.set('X-Content-Type-Options', 'nosniff');
   response.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin');
+  // For Cross-Origin issues, use a more permissive Opener Policy
+  response.headers.set('Cross-Origin-Opener-Policy', 'unsafe-none');
+  // For Cross-Origin issues, use a more permissive Embedder Policy
+  response.headers.set('Cross-Origin-Embedder-Policy', 'unsafe-none');
   response.headers.set(
     'Permissions-Policy',
     'camera=(), microphone=(), geolocation=(), interest-cohort=()'
@@ -37,9 +41,12 @@ function addSecurityHeaders(response: NextResponse) {
 
 // Add CORS headers for payment-related paths
 function addCORSHeaders(response: NextResponse) {
+  // Set CORS headers for payment redirects
   response.headers.set('Access-Control-Allow-Origin', '*');
-  response.headers.set('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-  response.headers.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  response.headers.set('Access-Control-Allow-Methods', 'GET, POST, OPTIONS, PUT, DELETE');
+  response.headers.set('Access-Control-Allow-Headers', 'Content-Type, Authorization, x-csrf-token, x-requested-with, accept, accept-version, content-length, content-md5, date, x-api-version, next-action');
+  response.headers.set('Access-Control-Allow-Credentials', 'true');
+  response.headers.set('Access-Control-Max-Age', '86400');
   return response;
 }
 
@@ -56,8 +63,13 @@ export async function middleware(request: NextRequest) {
       return addCORSHeaders(response);
     }
 
+    // Check if this is a payment redirect path
+    const isPaymentRedirect = PAYMENT_REDIRECT_PATHS.some(path => 
+      request.nextUrl.pathname.startsWith(path)
+    );
+
     // Skip tracking for excluded paths
-    if (EXCLUDED_PATHS.some(path => request.nextUrl.pathname.startsWith(path))) {
+    if (EXCLUDED_PATHS.some(path => request.nextUrl.pathname.startsWith(path)) && !isPaymentRedirect) {
       return NextResponse.next();
     }
 
@@ -68,17 +80,25 @@ export async function middleware(request: NextRequest) {
     response.cookies.set('session_id', sessionId, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
+      sameSite: isPaymentRedirect ? 'none' : 'lax', // Use 'none' for payment redirects
       maxAge: 60 * 60 * 24 * 30, // 30 days
     });
 
-    // Special handling for payment redirect paths
-    if (PAYMENT_REDIRECT_PATHS.some(path => request.nextUrl.pathname.startsWith(path))) {
-      // Add CORS headers to allow redirects from payment providers
+    // Special handling for payment redirect paths - add CORS headers 
+    if (isPaymentRedirect) {
       addCORSHeaders(response);
+      
+      // For payment paths, we use a more permissive security policy
+      response.headers.set('Cross-Origin-Opener-Policy', 'unsafe-none');
+      response.headers.set('Cross-Origin-Embedder-Policy', 'unsafe-none');
+      
+      // Payment pages often have redirects, so let's not be too strict
+      response.headers.set('Referrer-Policy', 'no-referrer-when-downgrade');
+      
+      return response;
     }
 
-    // Add security headers
+    // Add security headers for regular paths
     return addSecurityHeaders(response);
   } catch (error) {
     console.error('[MIDDLEWARE_ERROR]', error);

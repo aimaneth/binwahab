@@ -197,9 +197,28 @@ export function CurlecCheckout({ orderId, amount, onPaymentComplete, onPaymentFa
               animation: true
             },
             // Add success callback for better cross-browser compatibility
-            "on_payment_success": function(response: any) {
-              console.log('Payment success callback triggered:', response);
-              window.location.href = `/shop/confirmation?status=success&payment_id=${response.razorpay_payment_id}&order_id=${response.razorpay_order_id}&message=Payment+completed+successfully`;
+            "handler": function(response: any) {
+              console.log('Payment handler triggered:', response);
+              try {
+                // For client-side redirects, use localStorage to temporarily store
+                // the payment info in case the cross-origin redirect loses data
+                if (response.razorpay_payment_id) {
+                  localStorage.setItem('rzp_payment_id', response.razorpay_payment_id);
+                }
+                if (response.razorpay_order_id) {
+                  localStorage.setItem('rzp_order_id', response.razorpay_order_id);
+                }
+                if (response.razorpay_signature) {
+                  localStorage.setItem('rzp_signature', response.razorpay_signature);
+                }
+                
+                // Redirect with all parameters
+                window.location.href = `/shop/confirmation?status=success&razorpay_payment_id=${response.razorpay_payment_id}&razorpay_order_id=${response.razorpay_order_id}&razorpay_signature=${response.razorpay_signature}&message=Payment+completed+successfully`;
+              } catch (err) {
+                console.error('Error during redirect:', err);
+                // Fallback direct redirect
+                window.location.href = '/shop/confirmation?status=success&message=Payment+completed';
+              }
             },
             // Handle any external failures
             "on_external_failure": function(err: any) {

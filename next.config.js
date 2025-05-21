@@ -98,6 +98,10 @@ const nextConfig = {
             value: 'unsafe-none'
           },
           {
+            key: 'Cross-Origin-Opener-Policy',
+            value: 'unsafe-none'
+          },
+          {
             key: 'Cross-Origin-Resource-Policy',
             value: 'cross-origin'
           },
@@ -118,7 +122,21 @@ const nextConfig = {
       {
         source: '/api/:path*',
         headers: [
-          { key: 'Cache-Control', value: 'no-store' }
+          { key: 'Cache-Control', value: 'no-store' },
+          { key: 'Access-Control-Allow-Origin', value: '*' },
+          { key: 'Access-Control-Allow-Methods', value: 'GET,OPTIONS,PATCH,DELETE,POST,PUT' },
+          { key: 'Access-Control-Allow-Headers', value: 'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version, next-action' }
+        ]
+      },
+      {
+        source: '/shop/confirmation',
+        headers: [
+          { key: 'Cross-Origin-Opener-Policy', value: 'unsafe-none' },
+          { key: 'Cross-Origin-Embedder-Policy', value: 'unsafe-none' },
+          { key: 'Access-Control-Allow-Origin', value: '*' },
+          { key: 'Access-Control-Allow-Methods', value: 'GET,OPTIONS,PATCH,DELETE,POST,PUT' },
+          { key: 'Access-Control-Allow-Headers', value: 'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version, next-action' },
+          { key: 'Referrer-Policy', value: 'no-referrer-when-downgrade' }
         ]
       }
     ];

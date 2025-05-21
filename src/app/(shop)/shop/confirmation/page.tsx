@@ -18,25 +18,48 @@ export default function ConfirmationPage() {
   const { clearClientAndServerCart } = useCart();
   const { data: session, status: sessionStatus } = useSession();
 
-  // Get all possible payment identifiers
-  const sessionId = searchParams.get("session_id");
-  const orderId = searchParams.get("order_id");
-  const paymentId = searchParams.get("payment_id");
-  const statusParam = searchParams.get("status");
-  const messageParam = searchParams.get("message");
-  
-  // Additional Curlec parameters
-  const razorpay_payment_id = searchParams.get("razorpay_payment_id");
-  const razorpay_order_id = searchParams.get("razorpay_order_id");
-  const razorpay_signature = searchParams.get("razorpay_signature");
-  
-  // Error parameters from Curlec
-  const error_code = searchParams.get("error_code");
-  const error_description = searchParams.get("error_description");
-  const error_source = searchParams.get("error_source");
-  const error_reason = searchParams.get("error_reason");
-
   useEffect(() => {
+    // Get all possible payment identifiers from URL
+    const sessionId = searchParams.get("session_id");
+    const orderId = searchParams.get("order_id");
+    const paymentId = searchParams.get("payment_id");
+    const statusParam = searchParams.get("status");
+    const messageParam = searchParams.get("message");
+    
+    // Additional Curlec parameters from URL
+    let razorpay_payment_id = searchParams.get("razorpay_payment_id");
+    let razorpay_order_id = searchParams.get("razorpay_order_id");
+    let razorpay_signature = searchParams.get("razorpay_signature");
+    
+    // Error parameters from Curlec
+    const error_code = searchParams.get("error_code");
+    const error_description = searchParams.get("error_description");
+    const error_source = searchParams.get("error_source");
+    const error_reason = searchParams.get("error_reason");
+
+    // Check localStorage for payment info that might have been lost in redirect
+    if (!razorpay_payment_id && localStorage.getItem('rzp_payment_id')) {
+      razorpay_payment_id = localStorage.getItem('rzp_payment_id');
+      console.log('Recovered payment ID from localStorage:', razorpay_payment_id);
+    }
+    
+    if (!razorpay_order_id && localStorage.getItem('rzp_order_id')) {
+      razorpay_order_id = localStorage.getItem('rzp_order_id');
+      console.log('Recovered order ID from localStorage:', razorpay_order_id);
+    }
+    
+    if (!razorpay_signature && localStorage.getItem('rzp_signature')) {
+      razorpay_signature = localStorage.getItem('rzp_signature');
+      console.log('Recovered signature from localStorage:', razorpay_signature);
+    }
+    
+    // Clear localStorage after retrieval
+    setTimeout(() => {
+      localStorage.removeItem('rzp_payment_id');
+      localStorage.removeItem('rzp_order_id');
+      localStorage.removeItem('rzp_signature');
+    }, 5000);
+
     // Collect all payment details for display
     const details: Record<string, string> = {};
     if (sessionId) details.sessionId = sessionId;
@@ -74,69 +97,37 @@ export default function ConfirmationPage() {
           return;
         }
         
-        // Handle Curlec direct callback with verification parameters - only attempt if we have all three
-        if (razorpay_payment_id && razorpay_order_id && razorpay_signature) {
+        // Use the verify-direct API endpoint to check payment status
+        if (razorpay_payment_id || razorpay_order_id || sessionId || paymentId || orderId) {
           try {
-            // If we have all Razorpay parameters, we need to verify the payment
-            const verifyResponse = await fetch('/api/curlec/verify-payment', {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-              },
-              body: JSON.stringify({
-                razorpay_payment_id,
-                razorpay_order_id,
-                razorpay_signature
-              }),
-            });
+            // Construct URL with all possible parameters
+            let apiUrl = `/api/curlec/verify-direct?`;
+            if (razorpay_payment_id) apiUrl += `razorpay_payment_id=${razorpay_payment_id}&`;
+            if (razorpay_order_id) apiUrl += `razorpay_order_id=${razorpay_order_id}&`;
+            if (razorpay_signature) apiUrl += `razorpay_signature=${razorpay_signature}&`;
+            if (sessionId) apiUrl += `payment_id=${sessionId}&`;
+            if (paymentId) apiUrl += `payment_id=${paymentId}&`;
+            if (orderId) apiUrl += `order_id=${orderId}&`;
             
-            const data = await verifyResponse.json();
-            
-            if (data.success) {
-              await clearClientAndServerCart().catch(e => console.error("Error clearing cart:", e));
-              setStatus("success");
-              setMessage("Your payment was successfully processed with Curlec!");
-              return;
-            } else {
-              setStatus("error");
-              setMessage(data.error || "Payment verification failed");
-              return;
-            }
-          } catch (error) {
-            console.error("Error handling Curlec parameters:", error);
-            setStatus("error");
-            setMessage("Error verifying payment signature");
-            return;
-          }
-        }
-        
-        // If we still need to verify via API (for Stripe or other payment methods)
-        if (sessionId || paymentId || orderId) {
-          try {
-            let apiUrl;
-            if (sessionId && sessionId.startsWith('cs_')) {
-              // This is a Stripe payment
-              apiUrl = `/api/checkout/verify?session_id=${sessionId}`;
-            } else {
-              // Use the verify-direct endpoint with whatever parameters we have
-              apiUrl = `/api/curlec/verify-direct?${sessionId ? `payment_id=${sessionId}&` : ''}${paymentId ? `payment_id=${paymentId}&` : ''}${orderId ? `order_id=${orderId}` : ''}`;
-            }
+            // Remove trailing & if present
+            apiUrl = apiUrl.endsWith('&') ? apiUrl.slice(0, -1) : apiUrl;
 
             const response = await fetch(apiUrl);
             const data = await response.json();
 
-            if (data.success || data.paymentStatus === "paid" || data.status === "paid") {
+            if (data.success) {
               setStatus("success");
-              setMessage("Your payment was successful and your order has been placed.");
+              setMessage(data.message || "Your payment was successful and your order has been placed.");
               await clearClientAndServerCart().catch(e => console.error("Error clearing cart:", e));
             } else {
               setStatus("error");
-              setMessage(data.error || data.message || "There was an issue processing your payment.");
+              setMessage(data.error || "There was an issue processing your payment.");
             }
           } catch (error) {
             console.error("API verification error:", error);
-            // Fallback - if we have status=success in URL params, trust it even if verification fails
-            if (statusParam === "success") {
+            // Fallback - if we have any payment ID indicators and no error indicators, trust it
+            if ((razorpay_payment_id || sessionId || paymentId) && 
+                !error_code && !error_description && !error_source && !error_reason) {
               setStatus("success");
               setMessage("Your payment appears to have been processed successfully!");
               await clearClientAndServerCart().catch(e => console.error("Error clearing cart:", e));
@@ -153,7 +144,7 @@ export default function ConfirmationPage() {
       } catch (outerError) {
         console.error("Outer verification error:", outerError);
         // Ultimate fallback - if there's any kind of error in our verification logic
-        if (statusParam === "success" || razorpay_payment_id) {
+        if (statusParam === "success" || razorpay_payment_id || sessionId || paymentId) {
           setStatus("success");
           setMessage("We received your payment! If you encounter any issues, please contact support.");
           await clearClientAndServerCart().catch(e => console.error("Error clearing cart:", e));
