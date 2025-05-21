@@ -7,44 +7,88 @@ import { Button } from "@/components/ui/button";
 import { CheckCircle2, XCircle } from "lucide-react";
 import Link from "next/link";
 import { useCart } from "@/hooks/use-cart";
+import { useSession } from "next-auth/react";
 
 export default function ConfirmationPage() {
   const searchParams = useSearchParams();
   const [status, setStatus] = useState<"success" | "error" | "loading">("loading");
   const [message, setMessage] = useState("");
   const { clearClientAndServerCart } = useCart();
+  const { data: session, status: sessionStatus } = useSession();
 
+  // Get all possible payment identifiers
   const sessionId = searchParams.get("session_id");
   const orderId = searchParams.get("order_id");
+  const paymentId = searchParams.get("payment_id");
+  const statusParam = searchParams.get("status");
+  const messageParam = searchParams.get("message");
 
   useEffect(() => {
     const verifyPayment = async () => {
-      const sessionId = searchParams.get("session_id");
+      // Check if we have a status parameter directly from the URL
+      // This would be the case for Curlec redirects that already went through verification
+      if (statusParam) {
+        if (statusParam === "success") {
+          setStatus("success");
+          setMessage(messageParam || "Your payment was successful and your order has been placed.");
+          await clearClientAndServerCart();
+          return;
+        } else if (statusParam === "error") {
+          setStatus("error");
+          setMessage(messageParam || "There was an issue processing your payment.");
+          return;
+        }
+      }
       
-      if (!sessionId) {
+      // Handle case where we don't have proper payment identifiers
+      if (!sessionId && !paymentId) {
         setStatus("error");
-        setMessage("No session information found.");
+        setMessage("No payment information found.");
+        return;
+      }
+
+      // If we're not authenticated and this appears to be a Curlec payment (has payment_id)
+      // we can show success based on URL parameters since the verification was done server-side
+      if (sessionStatus === "unauthenticated" && paymentId) {
+        setStatus("success");
+        setMessage("Your payment was successfully processed! You may need to login to view your order details.");
         return;
       }
 
       try {
-        const response = await fetch(`/api/checkout/verify?session_id=${sessionId}`);
+        let apiUrl;
+        let isStripePayment = !!sessionId && sessionId.startsWith('cs_');
+        
+        // Determine which API to call based on payment identifiers
+        if (isStripePayment) {
+          // This is a Stripe payment
+          apiUrl = `/api/checkout/verify?session_id=${sessionId}`;
+        } else if (paymentId || sessionId) {
+          // This is likely a Curlec payment - use the payment ID if available, otherwise the session ID
+          const id = paymentId || sessionId;
+          apiUrl = `/api/curlec/verify-direct?payment_id=${id}&order_id=${orderId || ''}`;
+        } else {
+          throw new Error("Unable to determine payment method");
+        }
+
+        const response = await fetch(apiUrl);
         const data = await response.json();
 
-        if (data.paymentStatus === "paid" || data.paymentStatus === "success") {
+        if (data.success || data.paymentStatus === "paid" || data.status === "paid") {
           setStatus("success");
           setMessage("Your payment was successful and your order has been placed.");
-          clearClientAndServerCart();
-        } else if (data.paymentStatus === "failed") {
+          await clearClientAndServerCart();
+        } else {
           setStatus("error");
-          setMessage(data.error || "There was an issue processing your payment.");
+          setMessage(data.error || data.message || "There was an issue processing your payment.");
         }
       } catch (error) {
         console.error("Verification error:", error);
-        // If we get an error after cart is cleared, but payment was successful
-        if (error instanceof Error && error.message.includes("cart")) {
+        // If we have status=success in URL params, trust it even if verification fails
+        if (statusParam === "success") {
           setStatus("success");
-          setMessage("Your payment has been processed successfully!");
+          setMessage("Your payment appears to have been processed successfully!");
+          await clearClientAndServerCart();
         } else {
           setStatus("error");
           setMessage("Failed to verify payment status.");
@@ -53,7 +97,7 @@ export default function ConfirmationPage() {
     };
 
     verifyPayment();
-  }, [searchParams, clearClientAndServerCart]);
+  }, [searchParams, clearClientAndServerCart, sessionStatus, statusParam, messageParam, paymentId]);
 
   const steps = [
     { title: "Shopping Cart", href: "/shop/cart", status: "complete" as const },
@@ -86,20 +130,29 @@ export default function ConfirmationPage() {
                 {sessionId && (
                   <p className="text-sm text-gray-500 mt-2">Session ID: {sessionId}</p>
                 )}
+                {paymentId && (
+                  <p className="text-sm text-gray-500 mt-2">Payment ID: {paymentId}</p>
+                )}
                 {orderId && (
                   <p className="text-sm text-gray-500 mt-2">Order ID: {orderId}</p>
                 )}
                 <p className="text-sm text-gray-500 mt-2">
-                  A confirmation email has been sent to your email address.
+                  {session ? "A confirmation email has been sent to your email address." : "Please log in to view your order details."}
                 </p>
               </div>
               <div className="flex gap-4 mt-8">
                 <Button asChild>
                   <Link href="/shop">Continue Shopping</Link>
                 </Button>
-                <Button asChild variant="outline">
-                  <Link href="/orders">View Orders</Link>
-                </Button>
+                {session ? (
+                  <Button asChild variant="outline">
+                    <Link href="/orders">View Orders</Link>
+                  </Button>
+                ) : (
+                  <Button asChild variant="outline">
+                    <Link href="/login?callbackUrl=/orders">Login to View Orders</Link>
+                  </Button>
+                )}
               </div>
             </div>
           ) : (

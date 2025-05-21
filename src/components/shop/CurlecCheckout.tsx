@@ -209,8 +209,8 @@ export function CurlecCheckout({ orderId, amount, onPaymentComplete, onPaymentFa
                   if (onPaymentComplete) {
                     onPaymentComplete(response.razorpay_payment_id);
                   }
-                  // Redirect to success page from handler
-                  window.location.href = `/shop/checkout/success?payment_id=${response.razorpay_payment_id}&order_id=${data.orderId}`;
+                  // Redirect to confirmation page with all necessary parameters
+                  window.location.href = `/shop/confirmation?payment_id=${response.razorpay_payment_id}&order_id=${data.orderId}&status=success&message=Payment+verified+successfully`;
                 } else {
                   throw new Error(data.error || 'Payment verification failed in handler');
                 }
