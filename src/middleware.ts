@@ -11,6 +11,14 @@ const EXCLUDED_PATHS = [
   '/manifest.json',
 ];
 
+// Payment redirect paths that need special handling
+const PAYMENT_REDIRECT_PATHS = [
+  '/shop/confirmation',
+  '/shop/success',
+  '/shop/failed',
+  '/shop/checkout',
+];
+
 // Add security headers
 function addSecurityHeaders(response: NextResponse) {
   response.headers.set(
@@ -27,6 +35,14 @@ function addSecurityHeaders(response: NextResponse) {
   return response;
 }
 
+// Add CORS headers for payment-related paths
+function addCORSHeaders(response: NextResponse) {
+  response.headers.set('Access-Control-Allow-Origin', '*');
+  response.headers.set('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+  response.headers.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  return response;
+}
+
 function trackPageView(request: NextRequest): string {
   const sessionId = request.cookies.get('session_id')?.value || nanoid();
   return sessionId;
@@ -34,6 +50,12 @@ function trackPageView(request: NextRequest): string {
 
 export async function middleware(request: NextRequest) {
   try {
+    // Handle CORS preflight requests
+    if (request.method === 'OPTIONS') {
+      const response = new NextResponse(null, { status: 204 });
+      return addCORSHeaders(response);
+    }
+
     // Skip tracking for excluded paths
     if (EXCLUDED_PATHS.some(path => request.nextUrl.pathname.startsWith(path))) {
       return NextResponse.next();
@@ -49,6 +71,12 @@ export async function middleware(request: NextRequest) {
       sameSite: 'lax',
       maxAge: 60 * 60 * 24 * 30, // 30 days
     });
+
+    // Special handling for payment redirect paths
+    if (PAYMENT_REDIRECT_PATHS.some(path => request.nextUrl.pathname.startsWith(path))) {
+      // Add CORS headers to allow redirects from payment providers
+      addCORSHeaders(response);
+    }
 
     // Add security headers
     return addSecurityHeaders(response);

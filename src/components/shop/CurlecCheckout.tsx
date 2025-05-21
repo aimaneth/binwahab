@@ -196,8 +196,12 @@ export function CurlecCheckout({ orderId, amount, onPaymentComplete, onPaymentFa
               escape: true,
               animation: true
             },
-            // Remove the configuration that hides wallet methods
-            // Add a callback for any external failures
+            // Add success callback for better cross-browser compatibility
+            "on_payment_success": function(response: any) {
+              console.log('Payment success callback triggered:', response);
+              window.location.href = `/shop/confirmation?status=success&payment_id=${response.razorpay_payment_id}&order_id=${response.razorpay_order_id}&message=Payment+completed+successfully`;
+            },
+            // Handle any external failures
             "on_external_failure": function(err: any) {
               console.error('External payment failure:', err);
               window.location.href = `/shop/confirmation?status=error&message=${encodeURIComponent('Payment failed: ' + (err.description || err.reason || 'External payment error'))}`;

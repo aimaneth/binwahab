@@ -16,12 +16,41 @@ const nextConfig = {
   experimental: {
     optimizeCss: true,
     scrollRestoration: true,
-    // Allow server actions from Razorpay domains
+    // Allow server actions from Razorpay/Curlec domains
     serverActions: {
       allowedOrigins: [
+        // Host domains
+        'localhost:3000',
+        'binwahab.com',
+        'www.binwahab.com',
+        
+        // Razorpay/Curlec domains
         'api.razorpay.com',
         'checkout.razorpay.com',
-        'razorpay.com'
+        'razorpay.com',
+        'nice.checkplus.co.kr',
+        
+        // Add any other domains that might redirect to your site
+        'api.curlec.com',
+        'checkout.curlec.com',
+        'curlec.com'
+      ],
+      allowedForwardedHosts: [
+        // Host domains
+        'localhost:3000',
+        'binwahab.com',
+        'www.binwahab.com',
+        
+        // Razorpay/Curlec domains
+        'api.razorpay.com',
+        'checkout.razorpay.com',
+        'razorpay.com',
+        'nice.checkplus.co.kr',
+        
+        // Add any other domains that might redirect to your site
+        'api.curlec.com',
+        'checkout.curlec.com',
+        'curlec.com'
       ],
     },
   },
