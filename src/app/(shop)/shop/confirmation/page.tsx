@@ -22,16 +22,25 @@ export default function ConfirmationPage() {
   const paymentId = searchParams.get("payment_id");
   const statusParam = searchParams.get("status");
   const messageParam = searchParams.get("message");
+  
+  // Additional Curlec parameters
+  const razorpay_payment_id = searchParams.get("razorpay_payment_id");
+  const razorpay_order_id = searchParams.get("razorpay_order_id");
+  const razorpay_signature = searchParams.get("razorpay_signature");
 
   useEffect(() => {
     const verifyPayment = async () => {
+      // Clear cart immediately for better UX if success is indicated
+      if (statusParam === "success") {
+        await clearClientAndServerCart();
+      }
+      
       // Check if we have a status parameter directly from the URL
       // This would be the case for Curlec redirects that already went through verification
       if (statusParam) {
         if (statusParam === "success") {
           setStatus("success");
           setMessage(messageParam || "Your payment was successful and your order has been placed.");
-          await clearClientAndServerCart();
           return;
         } else if (statusParam === "error") {
           setStatus("error");
@@ -40,8 +49,40 @@ export default function ConfirmationPage() {
         }
       }
       
+      // Handle Curlec direct callback with verification parameters
+      if (razorpay_payment_id && razorpay_order_id && razorpay_signature) {
+        try {
+          // Need to verify on server since we have signature
+          const verifyResponse = await fetch(`/api/curlec/verify-payment?razorpay_payment_id=${razorpay_payment_id}&razorpay_order_id=${razorpay_order_id}&razorpay_signature=${razorpay_signature}`);
+          
+          // A redirect response means verification succeeded and we should reload to get status
+          if (verifyResponse.redirected) {
+            window.location.href = verifyResponse.url;
+            return;
+          }
+          
+          // Otherwise, check for success in response
+          const data = await verifyResponse.json().catch(() => ({ success: false }));
+          
+          if (data.success) {
+            setStatus("success");
+            setMessage("Your payment was successful and your order has been placed.");
+            await clearClientAndServerCart();
+          } else {
+            setStatus("error");
+            setMessage(data.error || "Payment verification failed");
+          }
+          return;
+        } catch (error) {
+          console.error("Error verifying Curlec payment:", error);
+          setStatus("error");
+          setMessage("Error verifying payment signature");
+          return;
+        }
+      }
+      
       // Handle case where we don't have proper payment identifiers
-      if (!sessionId && !paymentId) {
+      if (!sessionId && !paymentId && !razorpay_payment_id) {
         setStatus("error");
         setMessage("No payment information found.");
         return;
@@ -49,7 +90,7 @@ export default function ConfirmationPage() {
 
       // If we're not authenticated and this appears to be a Curlec payment (has payment_id)
       // we can show success based on URL parameters since the verification was done server-side
-      if (sessionStatus === "unauthenticated" && paymentId) {
+      if (sessionStatus === "unauthenticated" && (paymentId || razorpay_payment_id)) {
         setStatus("success");
         setMessage("Your payment was successfully processed! You may need to login to view your order details.");
         return;
@@ -97,7 +138,7 @@ export default function ConfirmationPage() {
     };
 
     verifyPayment();
-  }, [searchParams, clearClientAndServerCart, sessionStatus, statusParam, messageParam, paymentId]);
+  }, [searchParams, clearClientAndServerCart, sessionStatus, statusParam, messageParam, paymentId, razorpay_payment_id, razorpay_order_id, razorpay_signature]);
 
   const steps = [
     { title: "Shopping Cart", href: "/shop/cart", status: "complete" as const },

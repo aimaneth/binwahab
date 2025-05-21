@@ -229,6 +229,18 @@ export async function GET(request: NextRequest) {
   corsHeaders.set('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
   corsHeaders.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
 
+  // This might be a direct redirect from Curlec to our confirmation page
+  // Check if we need to process verification
+  const url = new URL(request.url);
+  
+  // If we're already on the confirmation page, just return without redirect
+  // to prevent redirect loops
+  if (url.pathname.includes('/shop/confirmation')) {
+    // This is already a confirmation page redirect from Curlec
+    // Let the frontend handle verification via the verify-direct endpoint
+    return new NextResponse(null, { status: 200 });
+  }
+
   const host = request.headers.get('host') || 'localhost:3000';
   const protocol = host.includes('localhost') ? 'http' : 'https';
   const baseUrl = `${protocol}://${host}`;

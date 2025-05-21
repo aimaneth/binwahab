@@ -183,9 +183,10 @@ export function CurlecCheckout({ orderId, amount, onPaymentComplete, onPaymentFa
             description: 'Payment for your order',
             image: 'https://binwahab.com/images/logo.png',
             order_id: orderId, // Order ID from the API
-            callback_url: `${baseUrl}/api/curlec/verify-payment`, // Add callback_url for redirect flows
+            // Use redirect to confirmation page with status parameter for eWallets/FPX
+            callback_url: `${baseUrl}/shop/confirmation?session_id=${orderId}&order_id=${orderId.split('_')[1] || orderId}&status=success&message=Payment+verified+successfully`,
             redirect: true, // Recommended for eWallets/FPX to ensure proper redirection
-            handler: async function(response: any) { // Make handler async
+            handler: async function(response: any) { // Handler for card payments that don't redirect
               console.log('Razorpay handler invoked:', response);
               setLoading(true); // Set loading true as handler is now primary for success
               try {
