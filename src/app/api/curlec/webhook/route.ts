@@ -1,6 +1,31 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { verifyRazorpaySignature } from '@/lib/curlec/utils';
+import { PaymentMethod } from '@prisma/client';
+
+// Helper function to determine payment method from the webhook payload
+function determinePaymentMethod(payload: any): PaymentMethod {
+  const paymentEntity = payload?.payload?.payment?.entity || {};
+  const method = paymentEntity.method;
+  const wallet = paymentEntity.wallet;
+  const bank = paymentEntity.bank;
+  const card = paymentEntity.card;
+  
+  // Check payment method directly if available
+  if (method) {
+    if (method === 'card' || method === 'credit_card') return PaymentMethod.CREDIT_CARD;
+    if (method === 'netbanking' || method === 'bank_transfer' || method === 'fpx') return PaymentMethod.BANK_TRANSFER;
+    if (method === 'wallet' || method === 'upi') return PaymentMethod.PAYPAL; // Using PAYPAL for wallets
+  }
+  
+  // Check more specific attributes
+  if (wallet) return PaymentMethod.PAYPAL; // Using PAYPAL for wallet payments
+  if (bank) return PaymentMethod.BANK_TRANSFER;
+  if (card) return PaymentMethod.CREDIT_CARD;
+  
+  // Default to credit card if we can't determine the method
+  return PaymentMethod.CREDIT_CARD;
+}
 
 // This webhook is for server-to-server communication from Curlec
 // It doesn't involve the user's browser directly
@@ -65,6 +90,10 @@ async function handleSuccessfulPayment(payload: any) {
     return;
   }
 
+  // Determine the payment method used
+  const paymentMethod = determinePaymentMethod(payload);
+  console.log(`[Webhook] Detected payment method: ${paymentMethod}`);
+
   try {
     // Find the order using the Curlec order ID
     const order = await prisma.order.findFirst({
@@ -99,6 +128,7 @@ async function handleSuccessfulPayment(payload: any) {
         where: { id: order.id },
         data: {
           paymentStatus: 'PAID',
+          paymentMethod: paymentMethod, // Set the detected payment method
           stripePaymentIntentId: payment_id || order.stripePaymentIntentId
         }
       });
@@ -127,7 +157,7 @@ async function handleSuccessfulPayment(payload: any) {
       }
     });
 
-    console.log(`[Webhook] Successfully updated order ${order.id} status to PAID`);
+    console.log(`[Webhook] Successfully updated order ${order.id} status to PAID with payment method ${paymentMethod}`);
   } catch (error) {
     console.error(`[Webhook] Error updating order for ${order_id}:`, error);
     throw error;
