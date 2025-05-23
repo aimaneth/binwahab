@@ -146,29 +146,89 @@ const nextConfig = {
   },
 
   // Webpack optimizations
-  webpack: (config, { dev, isServer }) => {
-    // Production optimizations
+  webpack: (config, { dev, isServer, webpack }) => {
+    // Fix "self is not defined" error
+    if (isServer) {
+      config.resolve.fallback = {
+        ...config.resolve.fallback,
+        canvas: false,
+        fs: false,
+        net: false,
+        tls: false,
+        crypto: false,
+        stream: false,
+        url: false,
+        zlib: false,
+        http: false,
+        https: false,
+        assert: false,
+        os: false,
+        path: false,
+      };
+
+      // Exclude problematic packages from server bundle
+      config.externals = config.externals || [];
+      config.externals.push({
+        canvas: 'canvas',
+        'utf-8-validate': 'utf-8-validate',
+        'bufferutil': 'bufferutil',
+        'supports-color': 'supports-color',
+      });
+    }
+
+    // Add proper global definitions
+    config.plugins.push(
+      new webpack.DefinePlugin({
+        __SERVER__: isServer,
+        __BROWSER__: !isServer,
+        'process.browser': !isServer,
+      })
+    );
+
+    // Properly handle browser globals
+    if (!isServer) {
+      config.resolve.fallback = {
+        ...config.resolve.fallback,
+        fs: false,
+        net: false,
+        tls: false,
+      };
+    }
+
+    // Production optimizations with proper browser/server separation
     if (!dev) {
       config.optimization = {
         ...config.optimization,
-        splitChunks: {
-          chunks: 'all',
-          cacheGroups: {
-            vendor: {
-              test: /[\\/]node_modules[\\/]/,
-              name: 'vendors',
-              priority: 10,
+        splitChunks: isServer
+          ? false // Disable split chunks for server build
+          : {
               chunks: 'all',
+              cacheGroups: {
+                // Only create vendor chunks for browser build
+                vendor: {
+                  test: /[\\/]node_modules[\\/]/,
+                  name: 'vendors',
+                  priority: 10,
+                  chunks: 'all',
+                  // Exclude server-only packages from browser bundle
+                  enforce: true,
+                },
+                common: {
+                  name: 'common',
+                  minChunks: 2,
+                  priority: 5,
+                  chunks: 'all',
+                  enforce: true,
+                },
+                // Separate chunk for performance monitoring
+                performance: {
+                  test: /[\\/]node_modules[\\/](web-vitals|@vercel\/analytics)[\\/]/,
+                  name: 'performance',
+                  priority: 15,
+                  chunks: 'all',
+                },
+              },
             },
-            common: {
-              name: 'common',
-              minChunks: 2,
-              priority: 5,
-              chunks: 'all',
-              enforce: true,
-            },
-          },
-        },
       };
     }
 

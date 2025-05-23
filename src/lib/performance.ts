@@ -1,17 +1,32 @@
 import { useEffect } from 'react';
-import type { Metric } from 'web-vitals';
 
 const vitalsUrl = 'https://vitals.vercel-analytics.com/v1/vitals';
 
-type ConnectionType = {
+/**
+ * Performance utilities for client-side only
+ * These functions should only be called in browser environment
+ */
+
+// Local type definitions to avoid importing web-vitals on server
+interface Metric {
+  name: string;
+  value: number;
+  rating: 'good' | 'needs-improvement' | 'poor';
+}
+
+// Network information type
+interface NetworkInformation {
   effectiveType: string;
-};
+}
+
+// Browser environment check
+const isBrowser = typeof window !== 'undefined';
 
 /**
  * Performance measurement utilities
  */
 export const measureWebVitals = () => {
-  if (typeof window === 'undefined') return;
+  if (!isBrowser) return;
 
   // Measure Core Web Vitals
   import('web-vitals').then(({ onCLS, onFID, onFCP, onLCP, onTTFB }) => {
@@ -20,7 +35,50 @@ export const measureWebVitals = () => {
     onFCP(console.log);
     onLCP(console.log);
     onTTFB(console.log);
+  }).catch(error => {
+    console.error('Failed to load web-vitals:', error);
   });
+};
+
+/**
+ * Custom performance measurement
+ */
+export const measureCustom = (name: string, fn: () => void | Promise<void>) => {
+  if (!isBrowser || !window.performance) return fn();
+
+  const startTime = performance.now();
+  const result = fn();
+  
+  if (result instanceof Promise) {
+    return result.finally(() => {
+      const endTime = performance.now();
+      console.log(`${name} took ${endTime - startTime} milliseconds`);
+    });
+  } else {
+    const endTime = performance.now();
+    console.log(`${name} took ${endTime - startTime} milliseconds`);
+    return result;
+  }
+};
+
+/**
+ * Mark performance points
+ */
+export const markPerformance = (name: string) => {
+  if (!isBrowser || !window.performance?.mark) return;
+  performance.mark(name);
+};
+
+/**
+ * Measure between performance marks
+ */
+export const measureBetween = (name: string, startMark: string, endMark: string) => {
+  if (!isBrowser || !window.performance?.measure) return;
+  try {
+    performance.measure(name, startMark, endMark);
+  } catch (error) {
+    console.warn(`Failed to measure ${name}:`, error);
+  }
 };
 
 /**
@@ -53,7 +111,7 @@ export const performanceMarkers = {
  * Preload critical resources
  */
 export const preloadCriticalResources = () => {
-  if (typeof window === 'undefined') return;
+  if (!isBrowser) return;
 
   // Preload critical images
   const criticalImages = [
@@ -74,13 +132,17 @@ export const preloadCriticalResources = () => {
  * Optimize third-party scripts
  */
 export const loadThirdPartyScript = (src: string, async = true, defer = true) => {
-  if (typeof window === 'undefined') return;
+  if (!isBrowser) return Promise.reject(new Error('Browser environment required'));
 
-  const script = document.createElement('script');
-  script.src = src;
-  script.async = async;
-  script.defer = defer;
-  document.head.appendChild(script);
+  return new Promise<void>((resolve, reject) => {
+    const script = document.createElement('script');
+    script.src = src;
+    script.async = async;
+    script.defer = defer;
+    script.onload = () => resolve();
+    script.onerror = () => reject(new Error(`Failed to load script: ${src}`));
+    document.head.appendChild(script);
+  });
 };
 
 /**
@@ -135,4 +197,21 @@ export const scriptLoadingConfig = {
   criticalScripts: {
     strategy: 'beforeInteractive' as const,
   },
+};
+
+/**
+ * Get performance metrics safely
+ */
+export const getPerformanceMetrics = () => {
+  if (!isBrowser || !window.performance) return null;
+  
+  const navigation = performance.getEntriesByType('navigation')[0] as PerformanceNavigationTiming;
+  if (!navigation) return null;
+  
+  return {
+    ttfb: navigation.responseStart - navigation.requestStart,
+    fcp: performance.getEntriesByName('first-contentful-paint')[0]?.startTime || 0,
+    lcp: performance.getEntriesByType('largest-contentful-paint')[0]?.startTime || 0,
+    cls: 0, // Would need to be calculated separately
+  };
 }; 

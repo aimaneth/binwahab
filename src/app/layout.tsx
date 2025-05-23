@@ -19,6 +19,7 @@ import OptimizedLayout from "@/components/layout/optimized-layout";
 import { Analytics } from "@vercel/analytics/next"
 import { GlobalErrorHandlerWrapper } from "@/components/providers/global-error-handler-wrapper";
 import { PerformanceMonitor } from '@/components/performance/PerformanceMonitor';
+import { ServiceWorkerRegistration } from '@/components/layout/service-worker-registration';
 
 export const viewport = {
   width: "device-width",
@@ -139,25 +140,7 @@ export default async function RootLayout({
       </head>
       <body className={cn("min-h-screen bg-background font-sans antialiased", fontSans.variable)}>
         <PerformanceMonitor />
-        
-        {/* Service Worker Registration */}
-        <script
-          dangerouslySetInnerHTML={{
-            __html: `
-              if ('serviceWorker' in navigator) {
-                window.addEventListener('load', function() {
-                  navigator.serviceWorker.register('/sw.js')
-                    .then(function(registration) {
-                      console.log('SW registered: ', registration);
-                    })
-                    .catch(function(registrationError) {
-                      console.log('SW registration failed: ', registrationError);
-                    });
-                });
-              }
-            `,
-          }}
-        />
+        <ServiceWorkerRegistration />
         
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
           <NextSSRPlugin routerConfig={extractRouterConfig(ourFileRouter)} />
