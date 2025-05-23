@@ -10,63 +10,79 @@ type ConnectionType = {
 };
 
 /**
- * Performance monitoring utility
+ * Performance measurement utilities
  */
 export const measureWebVitals = () => {
-  useEffect(() => {
-    if (process.env.NODE_ENV === 'production') {
-      // Web Vitals reporting
-      import('web-vitals').then((vitals) => {
-        function sendToAnalytics(metric: Metric) {
-          const analyticsId = process.env.NEXT_PUBLIC_ANALYTICS_ID || '';
-          const body: Record<string, string> = {
-            dsn: analyticsId,
-            id: metric.id,
-            page: window.location.pathname,
-            href: window.location.href,
-            event_name: metric.name,
-            value: metric.value.toString(),
-            speed: (
-              'connection' in navigator &&
-              navigator['connection'] &&
-              'effectiveType' in (navigator['connection'] as ConnectionType)
-            )
-              ? (navigator['connection'] as ConnectionType).effectiveType
-              : '',
-          };
+  if (typeof window === 'undefined') return;
 
-          const blob = new Blob([new URLSearchParams(body).toString()], {
-            type: 'application/x-www-form-urlencoded',
-          });
-          if (navigator.sendBeacon) {
-            navigator.sendBeacon(vitalsUrl, blob);
-          } else
-            fetch(vitalsUrl, {
-              body: blob,
-              method: 'POST',
-              credentials: 'omit',
-              keepalive: true,
-            });
-        }
-
-        vitals.onCLS(sendToAnalytics);
-        vitals.onFID(sendToAnalytics);
-        vitals.onFCP(sendToAnalytics);
-        vitals.onLCP(sendToAnalytics);
-        vitals.onTTFB(sendToAnalytics);
-      });
-    }
-  }, []);
+  // Measure Core Web Vitals
+  import('web-vitals').then(({ onCLS, onFID, onFCP, onLCP, onTTFB }) => {
+    onCLS(console.log);
+    onFID(console.log);
+    onFCP(console.log);
+    onLCP(console.log);
+    onTTFB(console.log);
+  });
 };
 
 /**
- * Image loading optimization
+ * Image loading configuration
  */
 export const imageLoadingConfig = {
   loading: 'lazy' as const,
-  sizes: '(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw',
-  quality: 75,
-  minimumCacheTTL: 60 * 60 * 24 * 7, // 7 days
+  placeholder: 'blur' as const,
+  blurDataURL: 'data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAYEBQYFBAYGBQYHBwYIChAKCgkJChQODwwQFxQYGBcUFhYaHSUfGhsjHBYWICwgIyYnKSopGR8tMC0oMCUoKSj/2wBDAQcHBwoIChMKChMoGhYaKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCj/wAARCAAIAAoDASIAAhEBAxEB/8QAFQABAQAAAAAAAAAAAAAAAAAAAAv/xAAhEAACAQMDBQAAAAAAAAAAAAABAgMABAUGIWGRkqGx0f/EABUBAQEAAAAAAAAAAAAAAAAAAAMF/8QAGhEAAgIDAAAAAAAAAAAAAAAAAAECEgMRkf/aAAwDAQACEQMRAD8AltJagyeH0AthI5xdrLcNM91BF5pX2HaH9bcfaSXWGaRmknyJckliyjqTzSlT54b6bk+h0R//2Q==',
+};
+
+/**
+ * Performance markers
+ */
+export const performanceMarkers = {
+  start: (name: string) => {
+    if (typeof window !== 'undefined' && window.performance) {
+      performance.mark(`${name}-start`);
+    }
+  },
+  end: (name: string) => {
+    if (typeof window !== 'undefined' && window.performance) {
+      performance.mark(`${name}-end`);
+      performance.measure(name, `${name}-start`, `${name}-end`);
+    }
+  },
+};
+
+/**
+ * Preload critical resources
+ */
+export const preloadCriticalResources = () => {
+  if (typeof window === 'undefined') return;
+
+  // Preload critical images
+  const criticalImages = [
+    '/images/hero-banner.jpg',
+    '/images/logo.png',
+  ];
+
+  criticalImages.forEach((src) => {
+    const link = document.createElement('link');
+    link.rel = 'preload';
+    link.as = 'image';
+    link.href = src;
+    document.head.appendChild(link);
+  });
+};
+
+/**
+ * Optimize third-party scripts
+ */
+export const loadThirdPartyScript = (src: string, async = true, defer = true) => {
+  if (typeof window === 'undefined') return;
+
+  const script = document.createElement('script');
+  script.src = src;
+  script.async = async;
+  script.defer = defer;
+  document.head.appendChild(script);
 };
 
 /**
