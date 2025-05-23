@@ -21,7 +21,7 @@ export function PerformanceMonitor() {
       });
       
       // You can send this to Google Analytics, Vercel Analytics, etc.
-      if (window.gtag) {
+      if (typeof window !== 'undefined' && window.gtag) {
         window.gtag('event', metric.name, {
           event_category: 'Web Vitals',
           value: Math.round(metric.value),
@@ -40,17 +40,19 @@ export function PerformanceMonitor() {
     });
 
     // Track custom performance metrics
-    const observer = new PerformanceObserver((list) => {
-      for (const entry of list.getEntries()) {
-        if (entry.entryType === 'measure') {
-          console.log(`Custom metric: ${entry.name}`, entry.duration);
+    if (typeof PerformanceObserver !== 'undefined') {
+      const observer = new PerformanceObserver((list) => {
+        for (const entry of list.getEntries()) {
+          if (entry.entryType === 'measure') {
+            console.log(`Custom metric: ${entry.name}`, entry.duration);
+          }
         }
-      }
-    });
+      });
 
-    observer.observe({ entryTypes: ['measure'] });
+      observer.observe({ entryTypes: ['measure'] });
 
-    return () => observer.disconnect();
+      return () => observer.disconnect();
+    }
   }, []);
 
   return null; // This component doesn't render anything
