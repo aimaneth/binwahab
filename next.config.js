@@ -53,7 +53,6 @@ const nextConfig = {
         'curlec.com'
       ],
     },
-    optimizePackageImports: ['lucide-react', '@radix-ui/react-icons'],
   },
   
   // Font optimization
@@ -77,13 +76,11 @@ const nextConfig = {
         hostname: '**',
       },
     ],
-    formats: ['image/webp', 'image/avif'],
-    deviceSizes: [640, 750, 828, 1080, 1200, 1920, 2048, 3840],
-    imageSizes: [16, 32, 48, 64, 96, 128, 256, 384],
-    minimumCacheTTL: 31536000, // 1 year
     dangerouslyAllowSVG: true,
     contentDispositionType: 'attachment',
     contentSecurityPolicy: "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://js.stripe.com https://checkout.razorpay.com https://www.googletagmanager.com https://www.google-analytics.com; script-src-elem 'self' 'unsafe-inline' 'unsafe-eval' https://js.stripe.com https://checkout.razorpay.com https://www.googletagmanager.com https://www.google-analytics.com; connect-src 'self' https://api.stripe.com https://api.razorpay.com https://lumberjack.razorpay.com https://m.stripe.network https://fonts.googleapis.com https://fonts.gstatic.com https://*.uploadthing.com https://*.utfs.io https://vitals.vercel-analytics.com https://www.google-analytics.com https://analytics.google.com https://www.googletagmanager.com https://*.razorpay.com https://vitals.vercel-analytics.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; img-src 'self' data: blob: https://*.stripe.com https://*.stripe.network https://stripe-camo.global.ssl.fastly.net https://*.uploadthing.com https://*.utfs.io https://*.ufs.sh https://images.unsplash.com https://binwahab.com; frame-src 'self' https://js.stripe.com https://checkout.razorpay.com https://api.razorpay.com https://hooks.stripe.com https://*.razorpay.com; worker-src 'self' blob:;",
+    minimumCacheTTL: 60,
+    formats: ['image/avif', 'image/webp'],
   },
 
   // Headers for security and caching
@@ -143,107 +140,6 @@ const nextConfig = {
         ]
       }
     ];
-  },
-
-  // Webpack optimizations
-  webpack: (config, { dev, isServer, webpack }) => {
-    // Fix "self is not defined" error
-    if (isServer) {
-      config.resolve.fallback = {
-        ...config.resolve.fallback,
-        canvas: false,
-        fs: false,
-        net: false,
-        tls: false,
-        crypto: false,
-        stream: false,
-        url: false,
-        zlib: false,
-        http: false,
-        https: false,
-        assert: false,
-        os: false,
-        path: false,
-      };
-
-      // Exclude problematic packages from server bundle
-      config.externals = config.externals || [];
-      config.externals.push({
-        canvas: 'canvas',
-        'utf-8-validate': 'utf-8-validate',
-        'bufferutil': 'bufferutil',
-        'supports-color': 'supports-color',
-      });
-    }
-
-    // Add proper global definitions
-    config.plugins.push(
-      new webpack.DefinePlugin({
-        __SERVER__: isServer,
-        __BROWSER__: !isServer,
-        'process.browser': !isServer,
-      })
-    );
-
-    // Properly handle browser globals
-    if (!isServer) {
-      config.resolve.fallback = {
-        ...config.resolve.fallback,
-        fs: false,
-        net: false,
-        tls: false,
-      };
-    }
-
-    // Production optimizations with proper browser/server separation
-    if (!dev) {
-      config.optimization = {
-        ...config.optimization,
-        splitChunks: isServer
-          ? false // Disable split chunks for server build
-          : {
-              chunks: 'all',
-              cacheGroups: {
-                // Only create vendor chunks for browser build
-                vendor: {
-                  test: /[\\/]node_modules[\\/]/,
-                  name: 'vendors',
-                  priority: 10,
-                  chunks: 'all',
-                  // Exclude server-only packages from browser bundle
-                  enforce: true,
-                },
-                common: {
-                  name: 'common',
-                  minChunks: 2,
-                  priority: 5,
-                  chunks: 'all',
-                  enforce: true,
-                },
-                // Separate chunk for performance monitoring
-                performance: {
-                  test: /[\\/]node_modules[\\/](web-vitals|@vercel\/analytics)[\\/]/,
-                  name: 'performance',
-                  priority: 15,
-                  chunks: 'all',
-                },
-              },
-            },
-      };
-    }
-
-    // Bundle analyzer in development
-    if (dev && !isServer) {
-      const { BundleAnalyzerPlugin } = require('webpack-bundle-analyzer');
-      config.plugins.push(
-        new BundleAnalyzerPlugin({
-          analyzerMode: 'disabled',
-          generateStatsFile: true,
-        })
-      );
-    }
-
-    return config;
   }
 };
 
