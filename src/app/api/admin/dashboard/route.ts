@@ -281,6 +281,37 @@ export async function GET() {
       console.error("Error details:", error.message);
       console.error("Error stack:", error.stack);
     }
-    return new NextResponse("Internal error", { status: 500 });
+    
+    // Return fallback data when database is unavailable
+    // This prevents authentication failures due to database issues
+    return NextResponse.json({
+      stats: {
+        revenue: {
+          current: 0,
+          change: 0,
+        },
+        products: {
+          total: 0,
+          change: 0,
+        },
+        orders: {
+          current: 0,
+          change: 0,
+        },
+        customers: {
+          total: 0,
+          new: 0,
+        },
+        collections: {
+          total: 0,
+          active: 0,
+        },
+      },
+      recentOrders: [],
+      topProducts: [],
+      topCollections: [],
+      salesByDay: [],
+      error: "Database temporarily unavailable. Data will refresh when connection is restored."
+    });
   }
 } 

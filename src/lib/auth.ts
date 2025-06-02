@@ -36,31 +36,36 @@ export const authOptions: NextAuthOptions = {
           throw new Error("Invalid credentials");
         }
 
-        const user = await prisma.user.findUnique({
-          where: {
-            email: credentials.email,
-          },
-        });
+        try {
+          const user = await prisma.user.findUnique({
+            where: {
+              email: credentials.email,
+            },
+          });
 
-        if (!user || !user.password) {
-          throw new Error("Invalid credentials");
+          if (!user || !user.password) {
+            throw new Error("Invalid credentials");
+          }
+
+          const isCorrectPassword = await bcrypt.compare(
+            credentials.password,
+            user.password
+          );
+
+          if (!isCorrectPassword) {
+            throw new Error("Invalid credentials");
+          }
+
+          return {
+            id: user.id,
+            email: user.email,
+            name: user.name,
+            role: user.role,
+          };
+        } catch (error) {
+          console.error("Database error during authentication:", error);
+          throw new Error("Service temporarily unavailable. Please try again.");
         }
-
-        const isCorrectPassword = await bcrypt.compare(
-          credentials.password,
-          user.password
-        );
-
-        if (!isCorrectPassword) {
-          throw new Error("Invalid credentials");
-        }
-
-        return {
-          id: user.id,
-          email: user.email,
-          name: user.name,
-          role: user.role,
-        };
       },
     }),
   ],
@@ -76,32 +81,47 @@ export const authOptions: NextAuthOptions = {
       return session;
     },
     async jwt({ token, user }) {
+      if (user) {
+        token.id = user.id;
+        token.role = user.role;
+        token.name = user.name;
+        token.email = user.email;
+        return token;
+      }
+
       if (!token.email) {
-        if (user) {
-          token.id = user?.id;
-        }
         return token;
       }
 
-      const dbUser = await prisma.user.findFirst({
-        where: {
-          email: token.email,
-        },
-      });
-
-      if (!dbUser) {
-        if (user) {
-          token.id = user?.id;
+      try {
+        // Only refresh user data periodically - simple check without token.iat
+        // For production, consider using a more sophisticated caching mechanism
+        const shouldRefresh = Math.random() > 0.95; // Refresh ~5% of requests
+        
+        if (!shouldRefresh) {
+          // Skip database query most of the time to reduce load
+          return token;
         }
-        return token;
+
+        const dbUser = await prisma.user.findFirst({
+          where: {
+            email: token.email,
+          },
+        });
+
+        if (dbUser) {
+          return {
+            id: dbUser.id,
+            name: dbUser.name,
+            email: dbUser.email,
+            role: dbUser.role,
+          };
+        }
+      } catch (error) {
+        console.error("Database error in JWT callback (continuing with cached token):", error);
       }
 
-      return {
-        id: dbUser.id,
-        name: dbUser.name,
-        email: dbUser.email,
-        role: dbUser.role,
-      };
+      return token;
     },
   },
 }; 
