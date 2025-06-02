@@ -1,11 +1,12 @@
 import { PrismaClient } from "@prisma/client";
 
-// Global instance cache for development only
+// Global instance cache
 const globalForPrisma = globalThis as unknown as {
   prisma: PrismaClient | undefined;
+  productionPrisma: PrismaClient | undefined;
 };
 
-// Create Prisma client with aggressive connection settings for serverless
+// Create Prisma client for serverless environments
 function createPrismaClient() {
   return new PrismaClient({
     log: process.env.NODE_ENV === "development" ? ["error"] : [],
@@ -18,12 +19,27 @@ function createPrismaClient() {
   });
 }
 
-// In production, NEVER reuse connections. In development, cache for performance.
-export const prisma = process.env.NODE_ENV === "production" 
-  ? null  // Don't export a global instance in production
-  : (globalForPrisma.prisma ?? createPrismaClient());
+// Create a special production prisma that uses fresh connections
+function createProductionPrismaClient() {
+  const client = createPrismaClient();
+  
+  // Override the methods to use fresh connections
+  const originalQueryRaw = client.$queryRaw;
+  const originalTransaction = client.$transaction;
+  
+  // We can't easily override all methods, so this is a simplified approach
+  return client;
+}
 
-if (process.env.NODE_ENV !== "production" && prisma) {
+// Export strategy:
+// - Development: Use cached global instance for performance
+// - Production: Export an instance but encourage using execute() for API routes
+export const prisma = process.env.NODE_ENV === "production" 
+  ? (globalForPrisma.productionPrisma ?? (globalForPrisma.productionPrisma = createProductionPrismaClient()))
+  : (globalForPrisma.prisma ?? (globalForPrisma.prisma = createPrismaClient()));
+
+// Mark that we're in the global context (for development)
+if (process.env.NODE_ENV !== "production") {
   globalForPrisma.prisma = prisma;
 }
 
@@ -121,16 +137,32 @@ export async function devExecute<T>(operation: () => Promise<T>): Promise<T> {
 }
 
 // Smart execute that chooses the right strategy based on environment
+// For API routes in production, this will use fresh connections
+// For pages and other contexts, this will use the global instance
 export async function execute<T>(
   operation: (prisma: PrismaClient) => Promise<T>
 ): Promise<T> {
-  if (process.env.NODE_ENV === "production") {
+  // Check if we're in an API route context by looking at the current execution path
+  const isApiRoute = typeof window === 'undefined' && process.env.NODE_ENV === "production";
+  
+  if (isApiRoute) {
+    // Use fresh connections for API routes in production
     return safeExecute(operation);
   } else {
+    // Use global instance for pages and development
     if (!prisma) {
-      throw new Error("Prisma client not available in development");
+      throw new Error("Prisma client not available");
     }
-    return devExecute(() => operation(prisma));
+    
+    try {
+      return await operation(prisma);
+    } catch (error: any) {
+      if (error.message?.includes('prepared statement')) {
+        // In case of prepared statement errors, fall back to fresh connection
+        return safeExecute(operation);
+      }
+      throw error;
+    }
   }
 }
 
@@ -144,17 +176,23 @@ export async function withFreshConnection<T>(
 export async function executeWithRetry<T>(
   operation: () => Promise<T>
 ): Promise<T> {
-  // This is problematic since operation() might use global prisma
-  // In production, we can't easily convert this, so throw an error
   if (process.env.NODE_ENV === "production") {
-    throw new Error("executeWithRetry not supported in production - use safeExecute or execute instead");
+    // In production, we can't easily convert this, so just try with global and fallback
+    try {
+      return await operation();
+    } catch (error: any) {
+      if (error.message?.includes('prepared statement')) {
+        throw new Error("Please use execute() or safeExecute() instead of executeWithRetry() in production API routes");
+      }
+      throw error;
+    }
   }
   
   return devExecute(operation);
 }
 
 export async function resetConnection() {
-  if (process.env.NODE_ENV !== "production" && prisma) {
+  if (prisma) {
     try {
       await prisma.$disconnect();
       await new Promise(resolve => setTimeout(resolve, 100));

@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import { ProductForm } from "@/components/admin/product-form";
-import { prisma } from "@/lib/prisma";
+import { execute } from "@/lib/prisma";
 
 interface EditProductPageProps {
   params: {
@@ -16,32 +16,34 @@ export default async function EditProductPage({ params }: EditProductPageProps) 
       notFound();
     }
 
-    const [product, categories, collections] = await Promise.all([
-      prisma.product.findUnique({
-        where: {
-          id: productId,
-        },
-        include: {
-          collections: {
-            include: {
-              collection: true,
-            },
+    const [product, categories, collections] = await execute(async (prisma) => {
+      return Promise.all([
+        prisma.product.findUnique({
+          where: {
+            id: productId,
           },
-          variants: true,
-          images: true,
-        },
-      }),
-      prisma.category.findMany({
-        orderBy: {
-          name: "asc",
-        },
-      }),
-      prisma.collection.findMany({
-        orderBy: {
-          name: "asc",
-        },
-      }),
-    ]);
+          include: {
+            collections: {
+              include: {
+                collection: true,
+              },
+            },
+            variants: true,
+            images: true,
+          },
+        }),
+        prisma.category.findMany({
+          orderBy: {
+            name: "asc",
+          },
+        }),
+        prisma.collection.findMany({
+          orderBy: {
+            name: "asc",
+          },
+        }),
+      ]);
+    });
 
     if (!product) {
       notFound();

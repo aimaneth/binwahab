@@ -195,57 +195,75 @@ export async function PATCH(req: Request) {
       quantity: z.number().min(0),
     }).parse(body);
 
-    const cart = await prisma.cart.findUnique({
-      where: {
-        userId: session.user.id,
-      },
-      include: {
-        items: true,
-      },
+    const userId = getUserId(session);
+    if (!userId) {
+      return NextResponse.json(
+        { message: "User ID not found" },
+        { status: 401 }
+      );
+    }
+
+    await execute(async (prismaClient) => {
+      const cart = await prismaClient.cart.findUnique({
+        where: {
+          userId: userId,
+        },
+        include: {
+          items: true,
+        },
+      });
+
+      if (!cart) {
+        throw new Error("Cart not found");
+      }
+
+      const cartItem = cart.items.find((item: any) => item.productId === productId);
+
+      if (!cartItem) {
+        throw new Error("Item not found in cart");
+      }
+
+      if (quantity === 0) {
+        await prismaClient.cartItem.delete({
+          where: {
+            id: cartItem.id,
+          },
+        });
+      } else {
+        await prismaClient.cartItem.update({
+          where: {
+            id: cartItem.id,
+          },
+          data: {
+            quantity,
+          },
+        });
+      }
     });
 
-    if (!cart) {
+    return NextResponse.json(
+      { message: "Cart updated successfully" },
+      { status: 200 }
+    );
+  } catch (error: any) {
+    if (error instanceof z.ZodError) {
+      return NextResponse.json(
+        { message: error.errors[0].message },
+        { status: 400 }
+      );
+    }
+
+    if (error.message === "Cart not found") {
       return NextResponse.json(
         { message: "Cart not found" },
         { status: 404 }
       );
     }
 
-    const cartItem = cart.items.find(item => item.productId === productId);
-
-    if (!cartItem) {
+    if (error.message === "Item not found in cart") {
       return NextResponse.json(
         { message: "Item not found in cart" },
         { status: 404 }
-      );
-    }
-
-    if (quantity === 0) {
-      await prisma.cartItem.delete({
-        where: {
-          id: cartItem.id,
-        },
-      });
-    } else {
-      await prisma.cartItem.update({
-        where: {
-          id: cartItem.id,
-        },
-        data: {
-          quantity,
-        },
-      });
-    }
-
-    return NextResponse.json(
-      { message: "Cart updated successfully" },
-      { status: 200 }
-    );
-  } catch (error) {
-    if (error instanceof z.ZodError) {
-      return NextResponse.json(
-        { message: error.errors[0].message },
-        { status: 400 }
       );
     }
 
@@ -272,12 +290,22 @@ export async function DELETE(req: Request) {
     const variantId = searchParams.get('variantId');
     const clearAll = searchParams.get('clearAll');
 
+    const userId = getUserId(session);
+    if (!userId) {
+      return NextResponse.json(
+        { message: "User ID not found" },
+        { status: 401 }
+      );
+    }
+
     // If clearAll is true, delete the entire cart
     if (clearAll === 'true') {
-      await prisma.cart.deleteMany({
-        where: {
-          userId: session.user.id,
-        },
+      await execute(async (prismaClient) => {
+        await prismaClient.cart.deleteMany({
+          where: {
+            userId: userId,
+          },
+        });
       });
 
       return NextResponse.json(
@@ -294,56 +322,67 @@ export async function DELETE(req: Request) {
       );
     }
 
-    const cart = await prisma.cart.findUnique({
-      where: {
-        userId: session.user.id,
-      },
-      include: {
-        items: true,
-      },
-    });
+    await execute(async (prismaClient) => {
+      const cart = await prismaClient.cart.findUnique({
+        where: {
+          userId: userId,
+        },
+        include: {
+          items: true,
+        },
+      });
 
-    if (!cart) {
-      return NextResponse.json(
-        { message: "Cart not found" },
-        { status: 404 }
+      if (!cart) {
+        throw new Error("Cart not found");
+      }
+
+      // Debug logging: print all cart items and the incoming IDs
+      console.log('Cart Items Debug:', cart.items.map((item: any) => ({
+        id: item.id,
+        productId: item.productId,
+        variantId: item.variantId
+      })));
+      console.log('Delete Request:', { productId, variantId });
+
+      // Find the cart item to delete
+      const cartItem = cart.items.find((item: any) => 
+        item.productId && item.productId.toString() === productId &&
+        (!variantId || (item.variantId && item.variantId.toString() === variantId))
       );
-    }
 
-    // Debug logging: print all cart items and the incoming IDs
-    console.log('Cart Items Debug:', cart.items.map(item => ({
-      id: item.id,
-      productId: item.productId,
-      variantId: item.variantId
-    })));
-    console.log('Delete Request:', { productId, variantId });
+      if (!cartItem) {
+        throw new Error("Item not found in cart");
+      }
 
-    // Find the cart item to delete
-    const cartItem = cart.items.find(item => 
-      item.productId && item.productId.toString() === productId &&
-      (!variantId || (item.variantId && item.variantId.toString() === variantId))
-    );
-
-    if (!cartItem) {
-      return NextResponse.json(
-        { message: "Item not found in cart" },
-        { status: 404 }
-      );
-    }
-
-    // Delete the cart item
-    await prisma.cartItem.delete({
-      where: {
-        id: cartItem.id,
-      },
+      // Delete the cart item
+      await prismaClient.cartItem.delete({
+        where: {
+          id: cartItem.id,
+        },
+      });
     });
 
     return NextResponse.json(
       { message: "Item removed from cart" },
       { status: 200 }
     );
-  } catch (error) {
+  } catch (error: any) {
     console.error("[CART_DELETE]", error);
+    
+    if (error.message === "Cart not found") {
+      return NextResponse.json(
+        { message: "Cart not found" },
+        { status: 404 }
+      );
+    }
+
+    if (error.message === "Item not found in cart") {
+      return NextResponse.json(
+        { message: "Item not found in cart" },
+        { status: 404 }
+      );
+    }
+
     return NextResponse.json(
       { message: "Failed to remove item" },
       { status: 500 }

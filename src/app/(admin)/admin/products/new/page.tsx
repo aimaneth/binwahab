@@ -1,23 +1,25 @@
 import { ProductForm } from "@/components/admin/product-form";
-import { prisma } from "@/lib/prisma";
+import { execute } from "@/lib/prisma";
 
 export default async function NewProductPage() {
-  const [categories, collections] = await Promise.all([
-    prisma.category.findMany({
-      orderBy: {
-        name: "asc",
-      },
-    }),
-    prisma.collection.findMany({
-      select: {
-        id: true,
-        name: true,
-      },
-      orderBy: {
-        name: "asc",
-      },
-    }),
-  ]);
+  const [categories, collections] = await execute(async (prisma) => {
+    return Promise.all([
+      prisma.category.findMany({
+        orderBy: {
+          name: "asc",
+        },
+      }),
+      prisma.collection.findMany({
+        select: {
+          id: true,
+          name: true,
+        },
+        orderBy: {
+          name: "asc",
+        },
+      }),
+    ]);
+  });
 
   return (
     <div className="space-y-8">
