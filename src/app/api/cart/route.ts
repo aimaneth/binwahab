@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-import { prisma, withFreshConnection, safeExecute } from "@/lib/prisma";
+import { execute } from "@/lib/prisma";
 import { z } from "zod";
 import { CartItem } from "@/types/cart";
 
@@ -41,7 +41,7 @@ export async function POST(req: Request) {
     const { productId, variantId, quantity } = cartItemSchema.parse(body);
 
     try {
-      const result = await safeExecute(async (prismaClient) => {
+      const result = await execute(async (prismaClient) => {
         // Get or create cart
         let cart = await prismaClient.cart.findUnique({
           where: { userId },
@@ -148,7 +148,7 @@ export async function GET() {
       return NextResponse.json({ items: [] });
     }
 
-    const cart = await safeExecute(async (prismaClient) => {
+    const cart = await execute(async (prismaClient) => {
       return await prismaClient.cart.findUnique({
         where: { userId },
         include: {

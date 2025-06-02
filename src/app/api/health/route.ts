@@ -1,12 +1,12 @@
 import { NextResponse } from 'next/server';
-import { prisma, safeExecute, withFreshConnection } from '@/lib/prisma';
+import { execute } from '@/lib/prisma';
 
 export async function GET() {
   const startTime = Date.now();
   
   try {
-    // Use safeExecute to ensure clean connections
-    const result = await safeExecute(async (prismaClient) => {
+    // Use execute to ensure clean connections
+    const result = await execute(async (prismaClient) => {
       const dbResult = await prismaClient.$queryRaw`SELECT NOW() as current_time, version() as db_version`;
       const [categoryCount, productCount] = await Promise.all([
         prismaClient.category.count(),

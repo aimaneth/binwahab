@@ -4,7 +4,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { z } from "zod";
 import { Prisma, Collection, Product, DisplaySection, ProductImage, CollectionSortOption, ProductVariant, ProductStatus, Category } from "@prisma/client";
-import { prisma, withFreshConnection, safeExecute } from '@/lib/prisma';
+import { execute } from '@/lib/prisma';
 
 const prismaClient = new PrismaClient();
 
@@ -136,7 +136,7 @@ export async function POST(req: Request) {
 
 export async function GET() {
   try {
-    const collections = await safeExecute(async (prismaClient) => {
+    const collections = await execute(async (prismaClient) => {
       return await prismaClient.collection.findMany({
         select: {
           id: true,
