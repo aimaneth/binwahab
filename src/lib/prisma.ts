@@ -20,7 +20,21 @@ if (process.env.NODE_ENV !== "production") {
   globalForPrisma.prisma = prisma;
 }
 
-// Add connection handling
-prisma.$connect().catch((error) => {
-  console.error("Failed to connect to database:", error);
-});
+// Optimize connection handling for serverless
+export async function connectToDB() {
+  try {
+    await prisma.$connect();
+  } catch (error) {
+    console.error("Failed to connect to database:", error);
+    throw error;
+  }
+}
+
+// Graceful disconnect for serverless
+export async function disconnectDB() {
+  try {
+    await prisma.$disconnect();
+  } catch (error) {
+    console.error("Error disconnecting from database:", error);
+  }
+}
