@@ -2,7 +2,7 @@ import { Metadata } from "next";
 import { getServerSession } from "next-auth";
 import { redirect } from "next/navigation";
 import { authOptions } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
+import { execute } from "@/lib/prisma";
 import { CartItems } from "@/components/shop/cart-items";
 import { CartSummary } from "@/components/shop/cart-summary";
 import { Steps } from "@/components/ui/steps";
@@ -25,23 +25,27 @@ export default async function CartPage() {
   }
 
   console.log("[CartPage] Fetching cart for user:", session.user.id);
-  const cart = await prisma.cart.findUnique({
-    where: {
-      userId: session.user.id,
-    },
-    include: {
-      items: {
-        include: {
-          product: {
-            include: {
-              images: true
-            }
+  
+  const cart = await execute(async (prismaClient) => {
+    return await prismaClient.cart.findUnique({
+      where: {
+        userId: session.user.id,
+      },
+      include: {
+        items: {
+          include: {
+            product: {
+              include: {
+                images: true
+              }
+            },
+            variant: true,
           },
-          variant: true,
         },
       },
-    },
+    });
   });
+  
   console.log("[CartPage] Cart from DB:", JSON.stringify(cart, null, 2));
 
   // Transform cart items to match CartInitializer shape
@@ -66,6 +70,7 @@ export default async function CartPage() {
       options: item.variant.options as Record<string, string> || undefined,
     } : undefined,
   }));
+  
   console.log("[CartPage] Valid cart items passed to CartInitializer:", JSON.stringify(validCartItems, null, 2));
 
   return (

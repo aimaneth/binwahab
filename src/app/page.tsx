@@ -199,7 +199,7 @@ export default function HomePage() {
           ) : featuredCollections.length > 0 ? (
             <div className="grid grid-cols-2 gap-x-4 gap-y-8 md:grid-cols-3 lg:grid-cols-4 md:gap-x-6 md:gap-y-10">
               {featuredCollections.flatMap(collection => 
-                collection.products.map(product => (
+                (collection.products || []).map(product => (
                   <ProductCard key={product.id} product={product} />
                 ))
               )}
@@ -274,7 +274,7 @@ export default function HomePage() {
           ) : completeCollections.length > 0 ? (
             <div className="grid grid-cols-2 gap-x-4 gap-y-8 md:grid-cols-3 lg:grid-cols-4 md:gap-x-6 md:gap-y-10">
               {completeCollections.flatMap(collection => 
-                collection.products.map(product => (
+                (collection.products || []).map(product => (
                   <ProductCard key={product.id} product={product} />
                 ))
               ).slice(0, 4)}
