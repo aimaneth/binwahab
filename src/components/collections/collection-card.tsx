@@ -25,7 +25,7 @@ export function CollectionCard({ collection, variant = "default" }: CollectionCa
 
   return (
     <Card className={`overflow-hidden ${isFeatured ? "border-2 border-primary" : ""}`}>
-      <Link href={`/collections/${collection.slug}`}>
+      <Link href={`/shop/collection/${collection.slug}`}>
         <div className="relative aspect-[4/3]">
           {isFeatured && collection.image2 ? (
             <div className="grid grid-cols-2 h-full">
@@ -65,7 +65,7 @@ export function CollectionCard({ collection, variant = "default" }: CollectionCa
         </div>
       </Link>
       <CardContent className="p-4">
-        <Link href={`/collections/${collection.slug}`}>
+        <Link href={`/shop/collection/${collection.slug}`}>
           <h3 className="text-xl font-semibold hover:underline">{collection.name}</h3>
         </Link>
         {collection.description && (
@@ -74,7 +74,7 @@ export function CollectionCard({ collection, variant = "default" }: CollectionCa
       </CardContent>
       <CardFooter className="p-4 pt-0">
         <Button asChild variant={isFeatured ? "default" : "outline"} className="w-full">
-          <Link href={`/collections/${collection.slug}`}>
+          <Link href={`/shop/collection/${collection.slug}`}>
             View Collection
             <ArrowRight className="ml-2 h-4 w-4" />
           </Link>

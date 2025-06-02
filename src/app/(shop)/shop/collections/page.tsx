@@ -79,7 +79,7 @@ export default async function CollectionsPage() {
             {collections.map((collection) => (
               <Link 
                 key={collection.id} 
-                href={`/collections/${collection.handle}`}
+                href={`/shop/collection/${collection.handle}`}
                 className="group relative overflow-hidden rounded-xl bg-white border border-gray-100 hover:border-gray-200 transition-all duration-300 hover:shadow-xl"
               >
                 <div className="aspect-h-1 aspect-w-1 w-full overflow-hidden bg-gray-100">

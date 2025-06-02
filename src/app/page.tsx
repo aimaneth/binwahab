@@ -158,7 +158,7 @@ export default function HomePage() {
                     <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold">{featuredCollections[0].name}</h2>
                     <p className="text-base sm:text-lg line-clamp-2">{featuredCollections[0].description}</p>
                     <Button size="lg" variant="outline" className="bg-white text-black hover:bg-white/90" asChild>
-                      <Link href={`/collections/${featuredCollections[0].handle}`}>
+                      <Link href={`/shop/collection/${featuredCollections[0].handle}`}>
                         Shop Now
                       </Link>
                     </Button>
@@ -180,7 +180,7 @@ export default function HomePage() {
           <div className="flex flex-col sm:flex-row sm:items-center gap-4 sm:gap-0 sm:justify-between mb-8 px-2 sm:px-0">
             <h2 className="text-2xl sm:text-3xl font-bold">Featured Collections</h2>
             <Button variant="outline" size="sm" className="w-full sm:w-auto" asChild>
-              <Link href="/collections">View All Collections</Link>
+              <Link href="/shop/collections">View All Collections</Link>
             </Button>
           </div>
           {isLoading ? (
@@ -233,7 +233,7 @@ export default function HomePage() {
                     <h2 className="text-4xl md:text-5xl font-bold">{completeCollections[0].name}</h2>
                     <p className="text-lg md:text-xl line-clamp-2">{completeCollections[0].description}</p>
                     <Button size="lg" variant="outline" className="bg-white text-black hover:bg-white/90" asChild>
-                      <Link href={`/collections/${completeCollections[0].handle}`}>
+                      <Link href={`/shop/collection/${completeCollections[0].handle}`}>
                         View Collection
                       </Link>
                     </Button>
@@ -255,7 +255,7 @@ export default function HomePage() {
           <div className="flex flex-col sm:flex-row sm:items-center gap-4 sm:gap-0 sm:justify-between mb-8 px-2 sm:px-0">
             <h2 className="text-2xl sm:text-3xl font-bold">Best Selling</h2>
             <Button variant="outline" size="sm" className="w-full sm:w-auto" asChild>
-              <Link href="/collections">View All Best Sellings</Link>
+              <Link href="/shop/collections">View All Best Sellings</Link>
             </Button>
           </div>
           {isLoading ? (

@@ -10,72 +10,102 @@ interface EditProductPageProps {
 }
 
 export default async function EditProductPage({ params }: EditProductPageProps) {
-  const productId = parseInt(params.productId, 10);
+  try {
+    const productId = parseInt(params.productId, 10);
 
-  const [product, categories, collections] = await Promise.all([
-    prisma.product.findUnique({
-      where: {
-        id: productId,
-      },
-      include: {
-        collections: {
-          include: {
-            collection: true,
-          },
+    if (isNaN(productId)) {
+      notFound();
+    }
+
+    const [product, categories, collections] = await Promise.all([
+      prisma.product.findUnique({
+        where: {
+          id: productId,
         },
-        variants: true,
-        images: true,
-      },
-    }),
-    prisma.category.findMany({
-      orderBy: {
-        name: "asc",
-      },
-    }),
-    prisma.collection.findMany({
-      orderBy: {
-        name: "asc",
-      },
-    }),
-  ]);
+        include: {
+          collections: {
+            include: {
+              collection: true,
+            },
+          },
+          variants: true,
+          images: true,
+        },
+      }),
+      prisma.category.findMany({
+        orderBy: {
+          name: "asc",
+        },
+      }),
+      prisma.collection.findMany({
+        orderBy: {
+          name: "asc",
+        },
+      }),
+    ]);
 
-  if (!product) {
+    if (!product) {
+      notFound();
+    }
+
+    // Convert Decimal values to numbers and ensure serializable data
+    const serializedProduct = {
+      id: String(product.id),
+      name: product.name,
+      description: product.description || "",
+      price: product.price instanceof Decimal ? product.price.toNumber() : Number(product.price || 0),
+      categoryId: product.categoryId || "",
+      image: product.image,
+      isActive: product.isActive,
+      createdAt: product.createdAt,
+      updatedAt: product.updatedAt,
+      slug: product.slug || "",
+      stock: product.stock || 0,
+      status: product.status,
+      collections: product.collections 
+        ? product.collections.map(pc => ({
+            collectionId: pc.collectionId
+          }))
+        : [],
+      variants: product.variants 
+        ? product.variants.map(variant => ({
+            id: String(variant.id),
+            productId: String(variant.productId),
+            name: variant.name,
+            price: variant.price instanceof Decimal ? variant.price.toNumber() : Number(variant.price || 0),
+            compareAtPrice: variant.compareAtPrice 
+              ? (variant.compareAtPrice instanceof Decimal 
+                  ? variant.compareAtPrice.toNumber() 
+                  : Number(variant.compareAtPrice))
+              : null,
+            stock: variant.stock || 0,
+            isActive: variant.isActive,
+            options: variant.options || [],
+          }))
+        : [],
+      images: product.images 
+        ? product.images.map(img => img.url)
+        : []
+    };
+
+    return (
+      <div className="space-y-8">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">Edit Product</h1>
+          <p className="text-muted-foreground">
+            Make changes to your product here.
+          </p>
+        </div>
+
+        <ProductForm 
+          product={serializedProduct} 
+          categories={categories} 
+          collections={collections} 
+        />
+      </div>
+    );
+  } catch (error) {
+    console.error("Error in EditProductPage:", error);
     notFound();
   }
-
-  // Convert Decimal values to numbers and ensure correct types
-  const serializedProduct = {
-    ...product,
-    id: String(product.id),
-    categoryId: product.categoryId || "",
-    slug: product.slug || undefined,
-    description: product.description || "",
-    price: product.price instanceof Decimal ? product.price.toNumber() : Number(product.price),
-    // @ts-ignore - We know these properties exist from the include
-    images: product.images ? product.images.map(img => img.url) : [],
-    // @ts-ignore - We know these properties exist from the include
-    variants: product.variants ? product.variants.map(variant => ({
-      ...variant,
-      id: String(variant.id),
-      productId: String(variant.productId),
-      price: variant.price instanceof Decimal ? variant.price.toNumber() : Number(variant.price),
-      compareAtPrice: variant.compareAtPrice instanceof Decimal 
-        ? variant.compareAtPrice.toNumber() 
-        : variant.compareAtPrice ? Number(variant.compareAtPrice) 
-        : null
-    })) : []
-  } as const;
-
-  return (
-    <div className="space-y-8">
-      <div>
-        <h1 className="text-3xl font-bold tracking-tight">Edit Product</h1>
-        <p className="text-muted-foreground">
-          Make changes to your product here.
-        </p>
-      </div>
-
-      <ProductForm product={serializedProduct} categories={categories} collections={collections} />
-    </div>
-  );
 } 
