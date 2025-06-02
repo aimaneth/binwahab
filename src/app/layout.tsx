@@ -18,7 +18,6 @@ import { GoogleAnalytics } from "@/components/analytics/google-analytics";
 import OptimizedLayout from "@/components/layout/optimized-layout";
 import { Analytics } from "@vercel/analytics/next"
 import { GlobalErrorHandlerWrapper } from "@/components/providers/global-error-handler-wrapper";
-import { ConnectionStatus } from "@/components/connection-status";
 
 export const viewport = {
   width: "device-width",
@@ -112,7 +111,6 @@ export default async function RootLayout({
                     <Navbar />
                     <main className="flex-1">{children}</main>
                     <Footer />
-                    <ConnectionStatus />
                   </div>
                 </OptimizedLayout>
               </GlobalErrorHandlerWrapper>
@@ -123,6 +121,7 @@ export default async function RootLayout({
 
         {/* Analytics */}
         <GoogleAnalytics />
+        <Analytics />
       </body>
     </html>
   );
