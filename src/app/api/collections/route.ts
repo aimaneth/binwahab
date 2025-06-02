@@ -4,8 +4,9 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { z } from "zod";
 import { Prisma, Collection, Product, DisplaySection, ProductImage, CollectionSortOption, ProductVariant, ProductStatus, Category } from "@prisma/client";
+import { prisma, withFreshConnection, resetConnection } from '@/lib/prisma';
 
-const prisma = new PrismaClient();
+const prismaClient = new PrismaClient();
 
 const collectionSchema = z.object({
   name: z.string().min(1, "Name is required"),
@@ -117,7 +118,7 @@ export async function POST(req: Request) {
     const body = await req.json();
     const validatedData = collectionSchema.parse(body);
 
-    const collection = await prisma.collection.create({
+    const collection = await prismaClient.collection.create({
       data: {
         ...validatedData,
         handle: validatedData.name.toLowerCase().replace(/\s+/g, '-')
@@ -133,132 +134,51 @@ export async function POST(req: Request) {
   }
 }
 
-export async function GET(req: Request) {
+export async function GET() {
   try {
-    const { searchParams } = new URL(req.url);
-    const section = searchParams.get("section") as DisplaySection | null;
-    const category = searchParams.get("category");
-
+    // Try with main connection first
     const collections = await prisma.collection.findMany({
-      where: {
-        isActive: true,
-        ...(section && { displaySection: section }),
-        ...(category && { products: { some: { product: { categoryId: category } } } })
+      select: {
+        id: true,
+        name: true,
+        description: true,
       },
-      include: {
-        products: {
-          include: {
-            product: {
-              include: {
-                category: true,
-                images: {
-                  orderBy: {
-                    order: 'asc'
-                  }
-                },
-                variants: {
-                  where: {
-                    isActive: true
-                  }
-                }
-              }
-            }
-          }
-        }
-      }
     });
-
-    // Transform the response to include products directly
-    const transformedCollections = collections.map((collection) => {
-      const products = collection.products.map(({ product }) => {
-        // Transform product images
-        const productImages = product.images.map(img => ({
-          id: Number(img.id),
-          url: img.url,
-          order: img.order,
-          productId: Number(img.productId),
-          createdAt: img.createdAt,
-          updatedAt: img.updatedAt
-        }));
-
-        // If no images in the relation, fall back to the main image
-        if (productImages.length === 0 && product.image) {
-          productImages.push({
-            id: 0,
-            url: product.image,
-            order: 0,
-            productId: Number(product.id),
-            createdAt: new Date(),
-            updatedAt: new Date()
+    
+    return NextResponse.json(collections);
+    
+  } catch (error: any) {
+    console.error('Error fetching collections:', error);
+    
+    // If it's a prepared statement error, try with fresh connection
+    if (error.message?.includes('prepared statement') || 
+        error.message?.includes('does not exist') ||
+        error.message?.includes('already exists')) {
+      
+      console.log('Retrying with fresh connection due to prepared statement error');
+      
+      try {
+        const collections = await withFreshConnection(async (freshPrisma) => {
+          return await freshPrisma.collection.findMany({
+            select: {
+              id: true,
+              name: true,
+              description: true,
+            },
           });
-        }
-
-        // Transform variants
-        const variants = product.variants.map(variant => ({
-          id: Number(variant.id),
-          name: variant.name,
-          sku: variant.sku,
-          price: variant.price.toString(),
-          compareAtPrice: variant.compareAtPrice?.toString() || null,
-          stock: variant.stock,
-          reservedStock: variant.reservedStock,
-          options: variant.options as Record<string, string>,
-          images: variant.images as string[],
-          inventoryTracking: variant.inventoryTracking,
-          lowStockThreshold: variant.lowStockThreshold,
-          productId: Number(variant.productId),
-          isActive: variant.isActive,
-          barcode: variant.barcode,
-          weight: variant.weight?.toString() || null,
-          weightUnit: variant.weightUnit,
-          dimensions: typeof variant.dimensions === 'object' ? variant.dimensions as Record<string, any> : null
-        }));
-
-        return {
-          id: product.id.toString(),
-          name: product.name,
-          description: product.description || "",
-          descriptionHtml: product.descriptionHtml,
-          handle: product.handle,
-          price: product.price.toString(),
-          stock: product.stock,
-          reservedStock: product.reservedStock,
-          slug: product.slug || product.handle || `product-${product.id}`,
-          isActive: product.isActive,
-          status: product.status,
-          image: product.image,
-          sku: product.sku,
-          inventoryTracking: product.inventoryTracking,
-          lowStockThreshold: product.lowStockThreshold,
-          images: productImages,
-          variants,
-          category: product.category,
-          categoryId: product.categoryId,
-          createdAt: product.createdAt,
-          updatedAt: product.updatedAt
-        };
-      });
-
-      return {
-        id: collection.id.toString(),
-        name: collection.name,
-        description: collection.description,
-        descriptionHtml: collection.descriptionHtml,
-        handle: collection.handle,
-        image: collection.image,
-        image2: collection.image2,
-        isActive: collection.isActive,
-        showOnHomePage: collection.showOnHomePage,
-        displaySection: collection.displaySection,
-        order: collection.order,
-        sortBy: collection.sortBy,
-        products
-      };
-    });
-
-    return NextResponse.json(transformedCollections);
-  } catch (error) {
-    console.error("Error fetching collections:", error);
+        });
+        
+        return NextResponse.json(collections);
+        
+      } catch (retryError) {
+        console.error('Fresh connection also failed:', retryError);
+        
+        // Return empty array to prevent frontend crashes
+        return NextResponse.json([]);
+      }
+    }
+    
+    // For other errors, return empty array
     return NextResponse.json([]);
   }
 } 

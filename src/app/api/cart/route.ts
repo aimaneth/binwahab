@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
+import { prisma, withFreshConnection } from "@/lib/prisma";
 import { z } from "zod";
 import { CartItem } from "@/types/cart";
 
@@ -12,6 +12,11 @@ const cartItemSchema = z.object({
   variantId: z.number().optional(),
   quantity: z.number().min(1),
 });
+
+// Helper function to get user ID consistently
+function getUserId(session: any): string | null {
+  return session?.user?.id || session?.user?.email || null;
+}
 
 export async function POST(req: Request) {
   try {
@@ -24,85 +29,110 @@ export async function POST(req: Request) {
       );
     }
 
-    const body = await req.json();
-    const { productId, variantId, quantity } = cartItemSchema.parse(body);
-
-    // Get or create cart
-    let cart = await prisma.cart.findUnique({
-      where: {
-        userId: session.user.id,
-      },
-      include: {
-        items: true,
-      },
-    });
-
-    if (!cart) {
-      cart = await prisma.cart.create({
-        data: {
-          userId: session.user.id,
-        },
-        include: {
-          items: true,
-        },
-      });
-    }
-
-    // Find the product
-    const product = await prisma.product.findUnique({
-      where: { id: productId },
-      include: {
-        variants: true,
-      },
-    });
-
-    if (!product) {
+    const userId = getUserId(session);
+    if (!userId) {
       return NextResponse.json(
-        { message: "Product not found" },
-        { status: 404 }
+        { message: "User ID not found" },
+        { status: 401 }
       );
     }
 
-    // If variant is specified, validate it
-    if (variantId) {
-      const variant = product.variants.find(v => v.id === variantId);
-      if (!variant) {
-        return NextResponse.json(
-          { message: "Variant not found" },
-          { status: 404 }
-        );
+    const body = await req.json();
+    const { productId, variantId, quantity } = cartItemSchema.parse(body);
+
+    // Try with main connection first, then fresh connection if it fails
+    const executeCartOperation = async (prismaClient: any) => {
+      // Get or create cart
+      let cart = await prismaClient.cart.findUnique({
+        where: { userId },
+        include: { items: true },
+      });
+
+      if (!cart) {
+        cart = await prismaClient.cart.create({
+          data: { userId },
+          include: { items: true },
+        });
       }
+
+      // Find the product
+      const product = await prismaClient.product.findUnique({
+        where: { id: productId },
+        include: { variants: true },
+      });
+
+      if (!product) {
+        throw new Error("Product not found");
+      }
+
+      // If variant is specified, validate it
+      if (variantId) {
+        const variant = product.variants.find((v: any) => v.id === variantId);
+        if (!variant) {
+          throw new Error("Variant not found");
+        }
+      }
+
+      // Check if item already exists in cart
+      const existingItem = cart.items.find((item: any) => 
+        item.productId === productId && 
+        item.variantId === variantId
+      );
+
+      if (existingItem) {
+        // Update quantity
+        await prismaClient.cartItem.update({
+          where: { id: existingItem.id },
+          data: { quantity: existingItem.quantity + quantity },
+        });
+      } else {
+        // Add new item
+        await prismaClient.cartItem.create({
+          data: {
+            cartId: cart.id,
+            userId,
+            productId,
+            variantId,
+            quantity,
+          },
+        });
+      }
+
+      return { message: "Item added to cart" };
+    };
+
+    try {
+      const result = await executeCartOperation(prisma);
+      return NextResponse.json(result, { status: 200 });
+    } catch (error: any) {
+      // If it's a prepared statement error, try with fresh connection
+      if (error.message?.includes('prepared statement') || 
+          error.message?.includes('does not exist') ||
+          error.message?.includes('already exists')) {
+        
+        try {
+          const result = await withFreshConnection(executeCartOperation);
+          return NextResponse.json(result, { status: 200 });
+        } catch (retryError) {
+          console.error('Fresh connection also failed:', retryError);
+          return NextResponse.json(
+            { message: "Unable to add item to cart. Please try again." },
+            { status: 503 }
+          );
+        }
+      }
+      
+      // Handle specific errors
+      if (error.message === "Product not found") {
+        return NextResponse.json({ message: error.message }, { status: 404 });
+      }
+      if (error.message === "Variant not found") {
+        return NextResponse.json({ message: error.message }, { status: 404 });
+      }
+      
+      throw error; // Re-throw unexpected errors
     }
 
-    // Check if item already exists in cart
-    const existingItem = cart.items.find(item => 
-      item.productId === productId && 
-      item.variantId === variantId
-    );
-
-    if (existingItem) {
-      // Update quantity
-      await prisma.cartItem.update({
-        where: { id: existingItem.id },
-        data: { quantity: existingItem.quantity + quantity },
-      });
-    } else {
-      // Add new item
-      await prisma.cartItem.create({
-        data: {
-          cartId: cart.id,
-          userId: session.user.id,
-          productId,
-          variantId,
-          quantity,
-        },
-      });
-    }
-
-    return NextResponse.json(
-      { message: "Item added to cart" },
-      { status: 200 }
-    );
   } catch (error) {
     console.error("Cart POST error:", error);
     if (error instanceof z.ZodError) {
@@ -112,7 +142,6 @@ export async function POST(req: Request) {
       );
     }
 
-    // Return a more graceful error message
     return NextResponse.json(
       { message: "Unable to add item to cart. Please try again." },
       { status: 503 }
@@ -120,83 +149,85 @@ export async function POST(req: Request) {
   }
 }
 
-export async function GET(req: Request) {
+export async function GET() {
   try {
     const session = await getServerSession(authOptions);
-
+    
     if (!session?.user) {
-      return NextResponse.json(
-        { message: "Unauthorized" },
-        { status: 401 }
-      );
+      return NextResponse.json({ items: [] });
     }
 
+    const userId = getUserId(session);
+    if (!userId) {
+      return NextResponse.json({ items: [] });
+    }
+
+    // Try with main connection first
     const cart = await prisma.cart.findUnique({
-      where: {
-        userId: session.user.id,
-      },
+      where: { userId },
       include: {
         items: {
           include: {
             product: {
-              include: {
-                images: true
-              }
+              select: {
+                id: true,
+                name: true,
+                price: true,
+                image: true,
+              },
             },
-            variant: true,
           },
         },
       },
     });
 
-    if (!cart) {
-      return NextResponse.json({ items: [] });
-    }
+    return NextResponse.json(cart || { items: [] });
+    
+  } catch (error: any) {
+    console.error("Cart API error:", error);
+    
+    // If it's a prepared statement error, try with fresh connection
+    if (error.message?.includes('prepared statement') || 
+        error.message?.includes('does not exist') ||
+        error.message?.includes('already exists')) {
+      
+      try {
+        const session = await getServerSession(authOptions);
+        const userId = getUserId(session);
+        
+        if (!userId) {
+          return NextResponse.json({ items: [] });
+        }
 
-    // Transform to match CartItem type
-    const items = cart.items
-      .filter(item => item.product !== null)
-      .map(item => {
-        // Collect all product images
-        const productImages = [
-          ...(item.product!.images?.map(img => img.url) || []),
-          ...(item.product!.image ? [item.product!.image] : [])
-        ];
-
-        console.log('Cart API Debug:', {
-          productName: item.product!.name,
-          rawProductImages: item.product!.images,
-          rawProductImage: item.product!.image,
-          processedImages: productImages,
-          variantImages: item.variant?.images,
+        const cart = await withFreshConnection(async (freshPrisma) => {
+          return await freshPrisma.cart.findUnique({
+            where: { userId },
+            include: {
+              items: {
+                include: {
+                  product: {
+                    select: {
+                      id: true,
+                      name: true,
+                      price: true,
+                      image: true,
+                    },
+                  },
+                },
+              },
+            },
+          });
         });
 
-        return {
-          id: item.id.toString(),
-          product: {
-            id: item.product!.id.toString(),
-            name: item.product!.name,
-            price: item.product!.price.toString(),
-            image: productImages[0] || undefined,
-            images: productImages.map(url => ({ url })),
-            description: item.product!.description || undefined,
-          },
-          variant: item.variant ? {
-            id: item.variant.id.toString(),
-            sku: item.variant.sku,
-            name: item.variant.name,
-            price: item.variant.price.toString(),
-            image: item.variant.images?.[0] || undefined,
-            options: item.variant.options as Record<string, string> || undefined,
-          } : undefined,
-          quantity: item.quantity,
-        };
-      });
-
-    return NextResponse.json({ items });
-  } catch (error) {
-    console.error("Cart API error:", error);
-    // Return empty cart instead of 500 error to prevent frontend crashes
+        return NextResponse.json(cart || { items: [] });
+        
+      } catch (retryError) {
+        console.error('Fresh connection also failed:', retryError);
+        return NextResponse.json({ items: [] });
+      }
+    }
+    
+    // For other errors, return empty cart
     return NextResponse.json({ items: [] });
   }
 }

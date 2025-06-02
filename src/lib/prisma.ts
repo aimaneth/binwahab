@@ -4,9 +4,9 @@ const globalForPrisma = globalThis as unknown as {
   prisma: PrismaClient | undefined;
 };
 
-export const prisma =
-  globalForPrisma.prisma ??
-  new PrismaClient({
+// Create fresh Prisma client for each serverless invocation
+function createPrismaClient() {
+  return new PrismaClient({
     log: process.env.NODE_ENV === "development" ? ["query", "error", "warn"] : ["error"],
     errorFormat: "minimal",
     datasources: {
@@ -15,26 +15,47 @@ export const prisma =
       },
     },
   });
+}
+
+// NEVER cache Prisma client in production serverless to avoid prepared statement issues
+export const prisma = process.env.NODE_ENV === "production" 
+  ? createPrismaClient()
+  : (globalForPrisma.prisma ?? createPrismaClient());
 
 if (process.env.NODE_ENV !== "production") {
   globalForPrisma.prisma = prisma;
 }
 
-// Optimize connection handling for serverless
-export async function connectToDB() {
+// Helper to ensure clean connections
+export async function withFreshConnection<T>(
+  operation: (prisma: PrismaClient) => Promise<T>
+): Promise<T> {
+  let tempPrisma: PrismaClient | null = null;
+  
   try {
-    await prisma.$connect();
+    // Create a completely fresh connection for this operation
+    tempPrisma = createPrismaClient();
+    
+    await tempPrisma.$connect();
+    const result = await operation(tempPrisma);
+    return result;
+    
   } catch (error) {
-    console.error("Failed to connect to database:", error);
+    console.error("Database operation failed:", error);
     throw error;
+  } finally {
+    if (tempPrisma) {
+      await tempPrisma.$disconnect();
+    }
   }
 }
 
-// Graceful disconnect for serverless
-export async function disconnectDB() {
+// Reset connection if we get prepared statement errors
+export async function resetConnection() {
   try {
     await prisma.$disconnect();
+    await prisma.$connect();
   } catch (error) {
-    console.error("Error disconnecting from database:", error);
+    console.error("Failed to reset connection:", error);
   }
 }
