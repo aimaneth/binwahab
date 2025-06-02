@@ -4,7 +4,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { z } from "zod";
 import { Prisma, Collection, Product, DisplaySection, ProductImage, CollectionSortOption, ProductVariant, ProductStatus, Category } from "@prisma/client";
-import { prisma, withFreshConnection, executeWithRetry } from '@/lib/prisma';
+import { prisma, withFreshConnection, safeExecute } from '@/lib/prisma';
 
 const prismaClient = new PrismaClient();
 
@@ -136,8 +136,8 @@ export async function POST(req: Request) {
 
 export async function GET() {
   try {
-    const collections = await executeWithRetry(async () => {
-      return await prisma.collection.findMany({
+    const collections = await safeExecute(async (prismaClient) => {
+      return await prismaClient.collection.findMany({
         select: {
           id: true,
           name: true,
@@ -151,25 +151,7 @@ export async function GET() {
   } catch (error: any) {
     console.error('Error fetching collections:', error);
     
-    // Try one more time with completely fresh connection
-    try {
-      const collections = await withFreshConnection(async (freshPrisma) => {
-        return await freshPrisma.collection.findMany({
-          select: {
-            id: true,
-            name: true,
-            description: true,
-          },
-        });
-      });
-      
-      return NextResponse.json(collections);
-      
-    } catch (retryError) {
-      console.error('Fresh connection also failed:', retryError);
-      
-      // Return empty array to prevent frontend crashes
-      return NextResponse.json([]);
-    }
+    // Return empty array to prevent frontend crashes
+    return NextResponse.json([]);
   }
 } 

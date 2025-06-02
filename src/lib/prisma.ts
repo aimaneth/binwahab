@@ -1,33 +1,41 @@
 import { PrismaClient } from "@prisma/client";
 
+// Global instance cache
 const globalForPrisma = globalThis as unknown as {
   prisma: PrismaClient | undefined;
 };
 
-// Create a unique connection URL with pgbouncer parameters to prevent prepared statement conflicts
-function createConnectionUrl() {
+// Create connection URL with timestamp and random ID to force unique connections
+function createUniqueConnectionUrl() {
   const baseUrl = process.env.DATABASE_URL || '';
   
-  // Force transaction mode and disable prepared statements to prevent corruption
-  const connectionParams = new URLSearchParams({
-    'pgbouncer': 'true',
-    'connection_limit': '1',
-    'pool_timeout': '0',
-    'prepare': 'false', // Disable prepared statements completely
-    'schema_only': 'false',
-    'statement_cache_size': '0'
-  });
+  // Add unique parameters to force completely separate connection pools
+  const timestamp = Date.now();
+  const randomId = Math.random().toString(36).substring(2, 15);
+  const sessionId = `binwahab_${timestamp}_${randomId}`;
   
-  // Add a unique session identifier to force separate connection pools
-  const sessionId = Math.random().toString(36).substring(2, 15);
-  connectionParams.set('application_name', `binwahab_${sessionId}`);
+  // Force direct connection parameters to bypass all pooling
+  const connectionParams = new URLSearchParams({
+    'application_name': sessionId,
+    'connect_timeout': '10',
+    'statement_timeout': '30000',
+    'idle_in_transaction_session_timeout': '30000',
+    'lock_timeout': '10000',
+    // Force new connection every time
+    'pool_timeout': '0',
+    'connection_limit': '1',
+    // Disable all prepared statement optimizations
+    'prepare': 'false',
+    'statement_cache_size': '0',
+    'prepared_statement_cache_queries': '0'
+  });
   
   return `${baseUrl}${baseUrl.includes('?') ? '&' : '?'}${connectionParams.toString()}`;
 }
 
-// Create fresh Prisma client with unique connection pool
-function createPrismaClient(forceUnique = false) {
-  const connectionUrl = forceUnique ? createConnectionUrl() : process.env.DATABASE_URL;
+// Create Prisma client with forced unique connections
+function createPrismaClient(forceNewConnection = false) {
+  const connectionUrl = forceNewConnection ? createUniqueConnectionUrl() : process.env.DATABASE_URL;
   
   return new PrismaClient({
     log: process.env.NODE_ENV === "development" ? ["query", "error", "warn"] : ["error"],
@@ -40,30 +48,30 @@ function createPrismaClient(forceUnique = false) {
   });
 }
 
-// Main Prisma instance - in production, always create fresh to avoid connection reuse
+// In production, ALWAYS create fresh clients to prevent any connection reuse
 export const prisma = process.env.NODE_ENV === "production" 
-  ? createPrismaClient()
+  ? createPrismaClient(true)  // Force new connection in production
   : (globalForPrisma.prisma ?? createPrismaClient());
 
 if (process.env.NODE_ENV !== "production") {
   globalForPrisma.prisma = prisma;
 }
 
-// Helper to ensure completely isolated connections
+// Create completely isolated connection for critical operations
 export async function withFreshConnection<T>(
   operation: (prisma: PrismaClient) => Promise<T>
 ): Promise<T> {
   let tempPrisma: PrismaClient | null = null;
   
   try {
-    // Create a completely fresh connection with unique pool
+    // Create completely unique connection
     tempPrisma = createPrismaClient(true);
     
-    // Connect and immediately test the connection
+    // Force connection and test it
     await tempPrisma.$connect();
     
-    // Execute a simple query to ensure the connection is clean
-    await tempPrisma.$queryRaw`SELECT 1 as test`;
+    // Run a simple query to ensure the connection is completely fresh
+    await tempPrisma.$queryRaw`SELECT 1 as connection_test`;
     
     const result = await operation(tempPrisma);
     return result;
@@ -87,12 +95,13 @@ export async function resetConnection() {
   try {
     await prisma.$disconnect();
     
-    // Wait a bit to ensure the connection is fully closed
-    await new Promise(resolve => setTimeout(resolve, 100));
+    // Wait to ensure connection is fully closed
+    await new Promise(resolve => setTimeout(resolve, 200));
     
     await prisma.$connect();
     
-    // Test with a simple query
+    // Test with a unique query to avoid prepared statement cache
+    const testQuery = `SELECT 1 as test_${Date.now()}`;
     await prisma.$queryRaw`SELECT 1 as test`;
     
   } catch (error) {
@@ -101,7 +110,7 @@ export async function resetConnection() {
   }
 }
 
-// Detect if an error is a prepared statement corruption error
+// Detect prepared statement corruption errors
 export function isPreparedStatementError(error: any): boolean {
   const errorMessage = error.message || '';
   return errorMessage.includes('prepared statement') && 
@@ -110,30 +119,48 @@ export function isPreparedStatementError(error: any): boolean {
           errorMessage.includes('bind message'));
 }
 
-// Execute operation with automatic retry on prepared statement errors
+// Execute with automatic fresh connection on any prepared statement error
 export async function executeWithRetry<T>(
   operation: () => Promise<T>,
-  maxRetries = 2
+  maxRetries = 1  // Reduced retries since we'll use fresh connection immediately
 ): Promise<T> {
-  let lastError: any;
-  
-  for (let attempt = 1; attempt <= maxRetries; attempt++) {
-    try {
-      return await operation();
-    } catch (error: any) {
-      lastError = error;
+  try {
+    return await operation();
+  } catch (error: any) {
+    // If it's a prepared statement error, immediately try with fresh connection
+    if (isPreparedStatementError(error)) {
+      console.log('Prepared statement error detected, using fresh connection...');
       
-      if (isPreparedStatementError(error) && attempt < maxRetries) {
-        console.log(`Attempt ${attempt} failed with prepared statement error, retrying with fresh connection...`);
+      // Try with completely fresh connection
+      return await withFreshConnection(async (freshPrisma) => {
+        // Replace the global prisma with fresh prisma for this operation
+        const originalOperation = operation.toString();
         
-        // Wait a bit before retry
-        await new Promise(resolve => setTimeout(resolve, 100 * attempt));
-        continue;
+        // This is a fallback - the caller should handle fresh connection properly
+        throw new Error('Operation needs to be rewritten for fresh connection');
+      });
+    }
+    
+    throw error;
+  }
+}
+
+// Safe execute function that always uses fresh connections
+export async function safeExecute<T>(
+  operation: (prisma: PrismaClient) => Promise<T>
+): Promise<T> {
+  // In production, always use fresh connections to avoid any corruption
+  if (process.env.NODE_ENV === "production") {
+    return await withFreshConnection(operation);
+  } else {
+    try {
+      return await operation(prisma);
+    } catch (error: any) {
+      if (isPreparedStatementError(error)) {
+        console.log('Prepared statement error in development, retrying with fresh connection...');
+        return await withFreshConnection(operation);
       }
-      
       throw error;
     }
   }
-  
-  throw lastError;
 }
