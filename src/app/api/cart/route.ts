@@ -104,6 +104,7 @@ export async function POST(req: Request) {
       { status: 200 }
     );
   } catch (error) {
+    console.error("Cart POST error:", error);
     if (error instanceof z.ZodError) {
       return NextResponse.json(
         { message: error.errors[0].message },
@@ -111,9 +112,10 @@ export async function POST(req: Request) {
       );
     }
 
+    // Return a more graceful error message
     return NextResponse.json(
-      { message: "Something went wrong" },
-      { status: 500 }
+      { message: "Unable to add item to cart. Please try again." },
+      { status: 503 }
     );
   }
 }
@@ -193,10 +195,9 @@ export async function GET(req: Request) {
 
     return NextResponse.json({ items });
   } catch (error) {
-    return NextResponse.json(
-      { message: "Failed to fetch cart" },
-      { status: 500 }
-    );
+    console.error("Cart API error:", error);
+    // Return empty cart instead of 500 error to prevent frontend crashes
+    return NextResponse.json({ items: [] });
   }
 }
 
