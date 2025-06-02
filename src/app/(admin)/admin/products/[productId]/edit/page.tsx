@@ -1,7 +1,6 @@
 import { notFound } from "next/navigation";
 import { ProductForm } from "@/components/admin/product-form";
 import { prisma } from "@/lib/prisma";
-import { Decimal } from "@prisma/client/runtime/library";
 
 interface EditProductPageProps {
   params: {
@@ -48,12 +47,12 @@ export default async function EditProductPage({ params }: EditProductPageProps) 
       notFound();
     }
 
-    // Convert Decimal values to numbers and ensure serializable data
+    // Serialize the product data for client component
     const serializedProduct = {
-      id: String(product.id),
+      id: product.id.toString(),
       name: product.name,
       description: product.description || "",
-      price: product.price instanceof Decimal ? product.price.toNumber() : Number(product.price || 0),
+      price: Number(product.price),
       categoryId: product.categoryId || "",
       image: product.image,
       isActive: product.isActive,
@@ -62,30 +61,20 @@ export default async function EditProductPage({ params }: EditProductPageProps) 
       slug: product.slug || "",
       stock: product.stock || 0,
       status: product.status,
-      collections: product.collections 
-        ? product.collections.map(pc => ({
-            collectionId: pc.collectionId
-          }))
-        : [],
-      variants: product.variants 
-        ? product.variants.map(variant => ({
-            id: String(variant.id),
-            productId: String(variant.productId),
-            name: variant.name,
-            price: variant.price instanceof Decimal ? variant.price.toNumber() : Number(variant.price || 0),
-            compareAtPrice: variant.compareAtPrice 
-              ? (variant.compareAtPrice instanceof Decimal 
-                  ? variant.compareAtPrice.toNumber() 
-                  : Number(variant.compareAtPrice))
-              : null,
-            stock: variant.stock || 0,
-            isActive: variant.isActive,
-            options: variant.options || [],
-          }))
-        : [],
-      images: product.images 
-        ? product.images.map(img => img.url)
-        : []
+      collections: product.collections?.map(pc => ({
+        collectionId: pc.collectionId
+      })) || [],
+      variants: product.variants?.map(variant => ({
+        id: variant.id.toString(),
+        productId: variant.productId.toString(),
+        name: variant.name,
+        price: Number(variant.price),
+        compareAtPrice: variant.compareAtPrice ? Number(variant.compareAtPrice) : null,
+        stock: variant.stock || 0,
+        isActive: variant.isActive,
+        options: variant.options || {},
+      })) || [],
+      images: product.images?.map(img => img.url) || []
     };
 
     return (
@@ -106,6 +95,16 @@ export default async function EditProductPage({ params }: EditProductPageProps) 
     );
   } catch (error) {
     console.error("Error in EditProductPage:", error);
-    notFound();
+    // Return a user-friendly error instead of notFound
+    return (
+      <div className="space-y-8">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">Error Loading Product</h1>
+          <p className="text-muted-foreground">
+            There was an error loading the product. Please try again.
+          </p>
+        </div>
+      </div>
+    );
   }
 } 
