@@ -4,7 +4,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { z } from "zod";
 import { Prisma, Collection, Product, DisplaySection, ProductImage, CollectionSortOption, ProductVariant, ProductStatus, Category } from "@prisma/client";
-import { prisma, withFreshConnection, resetConnection } from '@/lib/prisma';
+import { prisma, withFreshConnection, executeWithRetry } from '@/lib/prisma';
 
 const prismaClient = new PrismaClient();
 
@@ -136,13 +136,14 @@ export async function POST(req: Request) {
 
 export async function GET() {
   try {
-    // Try with main connection first
-    const collections = await prisma.collection.findMany({
-      select: {
-        id: true,
-        name: true,
-        description: true,
-      },
+    const collections = await executeWithRetry(async () => {
+      return await prisma.collection.findMany({
+        select: {
+          id: true,
+          name: true,
+          description: true,
+        },
+      });
     });
     
     return NextResponse.json(collections);
@@ -150,35 +151,25 @@ export async function GET() {
   } catch (error: any) {
     console.error('Error fetching collections:', error);
     
-    // If it's a prepared statement error, try with fresh connection
-    if (error.message?.includes('prepared statement') || 
-        error.message?.includes('does not exist') ||
-        error.message?.includes('already exists')) {
-      
-      console.log('Retrying with fresh connection due to prepared statement error');
-      
-      try {
-        const collections = await withFreshConnection(async (freshPrisma) => {
-          return await freshPrisma.collection.findMany({
-            select: {
-              id: true,
-              name: true,
-              description: true,
-            },
-          });
+    // Try one more time with completely fresh connection
+    try {
+      const collections = await withFreshConnection(async (freshPrisma) => {
+        return await freshPrisma.collection.findMany({
+          select: {
+            id: true,
+            name: true,
+            description: true,
+          },
         });
-        
-        return NextResponse.json(collections);
-        
-      } catch (retryError) {
-        console.error('Fresh connection also failed:', retryError);
-        
-        // Return empty array to prevent frontend crashes
-        return NextResponse.json([]);
-      }
+      });
+      
+      return NextResponse.json(collections);
+      
+    } catch (retryError) {
+      console.error('Fresh connection also failed:', retryError);
+      
+      // Return empty array to prevent frontend crashes
+      return NextResponse.json([]);
     }
-    
-    // For other errors, return empty array
-    return NextResponse.json([]);
   }
 } 
