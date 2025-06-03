@@ -143,6 +143,12 @@ export function CartSummary({ shippingState = "Selangor" }: { shippingState?: st
   };
 
   const handleCheckout = async () => {
+    if (!session) {
+      toast.error('Please sign in to checkout');
+      router.push('/login');
+      return;
+    }
+
     if (!selectedAddressId) {
       toast.error('Please select a shipping address');
       return;
@@ -151,15 +157,35 @@ export function CartSummary({ shippingState = "Selangor" }: { shippingState?: st
     try {
       setIsProcessing(true);
 
-      const checkoutItems = items.map(item => ({
-        id: item.product.id,
-        name: item.variant?.name || item.product.name,
-        description: `${item.product.name}${item.variant ? ` - ${item.variant.name}` : ''}`,
-        price: Number(item.variant?.price || item.product.price),
-        quantity: item.quantity,
-        images: item.product.images ? item.product.images : [],
-        variantId: item.variant?.sku
-      }));
+      const checkoutItems = items.map(item => {
+        // Process images to ensure they're in a format the API can handle
+        const processedImages: string[] = [];
+        
+        if (item.product.images) {
+          if (Array.isArray(item.product.images)) {
+            item.product.images.forEach(img => {
+              if (typeof img === 'string') {
+                processedImages.push(img);
+              } else if (typeof img === 'object' && img !== null && 'url' in img) {
+                const imgUrl = (img as { url: string }).url;
+                if (imgUrl) processedImages.push(imgUrl);
+              }
+            });
+          }
+        } else if (item.product.image) {
+          processedImages.push(item.product.image);
+        }
+        
+        return {
+          id: item.product.id,
+          name: item.variant?.name || item.product.name,
+          description: `${item.product.name}${item.variant ? ` - ${item.variant.name}` : ''}`,
+          price: Number(item.variant?.price || item.product.price),
+          quantity: item.quantity,
+          images: processedImages,
+          variantId: item.variant?.sku
+        };
+      });
 
       // Create an order in our database first
       const orderResponse = await fetch('/api/checkout/session', {

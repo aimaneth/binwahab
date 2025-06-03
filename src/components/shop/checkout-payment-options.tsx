@@ -48,6 +48,32 @@ export function CheckoutPaymentOptions({
     try {
       setIsProcessing(true);
       
+      // Process items to ensure images are properly formatted
+      const processedItems = items.map(item => {
+        // Format images to be an array of strings
+        const processedImages: string[] = [];
+        
+        if (item.product.images) {
+          if (Array.isArray(item.product.images)) {
+            item.product.images.forEach((img: any) => {
+              if (typeof img === 'string') {
+                processedImages.push(img);
+              } else if (typeof img === 'object' && img !== null && 'url' in img) {
+                const imgUrl = (img as { url: string }).url;
+                if (imgUrl) processedImages.push(imgUrl);
+              }
+            });
+          }
+        } else if (item.product.image) {
+          processedImages.push(item.product.image);
+        }
+        
+        return {
+          ...item,
+          images: processedImages
+        };
+      });
+      
       // Create checkout session with selected payment gateway
       const response = await fetch("/api/checkout/session", {
         method: "POST",
@@ -55,7 +81,7 @@ export function CheckoutPaymentOptions({
           "Content-Type": "application/json"
         },
         body: JSON.stringify({
-          items,
+          items: processedItems,
           shippingAddressId,
           paymentGateway: selectedGateway
         })

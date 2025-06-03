@@ -59,7 +59,7 @@ interface CheckoutItem {
   name: string;
   price: number;
   description?: string;
-  images?: string[];
+  images?: Array<string | { url: string }>;
   variant?: {
     id: string;
     sku: string;
@@ -220,13 +220,29 @@ async function handleStripeCheckout(
           .join('')}`
       : '';
 
+    // Process image URLs to ensure they're in the correct format for Stripe
+    let productImages: string[] = [];
+    if (item.images && item.images.length > 0) {
+      productImages = item.images.map(img => {
+        // Handle both string and object formats for image URLs
+        if (typeof img === 'string') {
+          return img;
+        } else if (typeof img === 'object' && img !== null && img !== undefined) {
+          // Use type assertion with interface to properly handle the object
+          const imgObj = img as { url?: string };
+          return imgObj.url || '';
+        }
+        return '';
+      }).filter(Boolean); // Remove empty strings
+    }
+
     return {
       price_data: {
         currency: 'myr',
         product_data: {
           name: item.name || 'Unknown Product',
           description: (item.description || '') + variantInfo,
-          images: item.images?.length ? [item.images[0]] : [],
+          images: productImages.length ? [productImages[0]] : [],
         },
         unit_amount: Math.round(item.price * 100), // Base price in cents
       },
